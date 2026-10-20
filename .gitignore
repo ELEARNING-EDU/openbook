@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.kotlin/
+captures/
+.cxx/
+
+# Machine-specific SDK path — never commit it
+local.properties
+
+# macOS
+.DS_Store

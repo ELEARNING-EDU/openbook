@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Warm paper, shared by the reader chrome, the page bitmaps and the window. -->
+    <color name="paper">#F7F2E7</color>
+    <color name="ink">#29241F</color>
+    <color name="ink_soft">#736A60</color>
+    <color name="accent">#9E5932</color>
+</resources>
