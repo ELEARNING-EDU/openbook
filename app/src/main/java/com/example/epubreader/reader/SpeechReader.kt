@@ -64,6 +64,14 @@ class SpeechReader(private val context: Context) {
     private var hearingFromEngine = false
     private var fallbackMode = false
 
+    /**
+     * Counts the times the engine has been restarted. It is part of every utterance id,
+     * so a callback from a sentence that was flushed away (a seek, a page turn, a rate
+     * change) can be told apart from the sentence now being spoken and dropped. The
+     * engine is allowed to deliver those late; the reader must not act on them.
+     */
+    private var epoch = 0
+
     private var speakStart = 0
     private var nextToEnqueue = 0
     private var inFlight = 0
@@ -188,6 +196,38 @@ class SpeechReader(private val context: Context) {
     }
 
     /**
+     * Moves the voice's place without starting or stopping it.
+     *
+     * This is what a page turn or a table-of-contents jump does to a reading voice: the
+     * reader's hand outranks the narrator's place, so the voice continues from the page
+     * that is now on screen instead of dragging it back. A playing voice restarts at
+     * [fromSentence] (a new sentence needs a fresh utterance anyway); a paused one only
+     * moves its place and the highlight, and stays paused.
+     */
+    fun seek(fromSentence: Int) {
+        val src = source ?: return
+        if (fromSentence < 0 || fromSentence >= src.sentenceCount) return
+        when (stateInternal) {
+            SpeechState.IDLE -> Unit
+            SpeechState.PLAYING -> {
+                // Move the highlight at once, before the engine has been restarted: the
+                // reader is looking at the new page now, and a highlight left on the old
+                // one for the length of an engine start-up is a page that fights back.
+                if (!disposed) onHighlight(fromSentence)
+                beginSpeaking(fromSentence)
+            }
+            SpeechState.PAUSED -> {
+                speakStart = fromSentence
+                pausedAt = fromSentence
+                lastStarted = -1
+                nextToEnqueue = fromSentence
+                inFlight = 0
+                if (!disposed) onHighlight(fromSentence)
+            }
+        }
+    }
+
+    /**
      * Rate can only be applied to a fresh utterance, so the sentence being read
      * restarts at the new speed; a paused reader stays paused.
      */
@@ -226,6 +266,7 @@ class SpeechReader(private val context: Context) {
         val engine = tts ?: return
         pendingStart = null
         fallbackMode = false
+        epoch++
         speakStart = from
         pausedAt = from
         lastStarted = -1
@@ -293,7 +334,13 @@ class SpeechReader(private val context: Context) {
 
         override fun onStart(utteranceId: String?) {
             val index = indexOf(utteranceId) ?: return
+            val at = epochOf(utteranceId) ?: return
             main.post {
+                // The epoch is compared *inside* the post: a callback that was already
+                // on its way to this thread when the engine was restarted is stale by
+                // the time it runs, and acting on it would hand the reader a sentence
+                // from the page it just left.
+                if (at != epoch) return@post
                 if (!isPlayingNow() || fallbackMode) return@post
                 hearingFromEngine = true
                 lastStarted = index
@@ -304,7 +351,9 @@ class SpeechReader(private val context: Context) {
 
         override fun onDone(utteranceId: String?) {
             val index = indexOf(utteranceId) ?: return
+            val at = epochOf(utteranceId) ?: return
             main.post {
+                if (at != epoch) return@post
                 if (!isPlayingNow() || fallbackMode) return@post
                 if (index < lastStarted) return@post
                 onSentenceSpoken()
@@ -325,8 +374,10 @@ class SpeechReader(private val context: Context) {
 
         override fun onError(utteranceId: String?, errorCode: Int) {
             val index = indexOf(utteranceId) ?: return
+            val at = epochOf(utteranceId) ?: return
             Log.w(TAG, "onError($errorCode) for sentence $index")
             main.post {
+                if (at != epoch) return@post
                 if (!isPlayingNow() || fallbackMode) return@post
                 onStatus("Lỗi engine ở câu $index (mã $errorCode)")
                 onSentenceSpoken()
@@ -391,10 +442,14 @@ class SpeechReader(private val context: Context) {
 
     // ------------------------------------------------------------------ helpers
 
-    private fun utteranceId(index: Int): String = "$ID_PREFIX$index"
+    /** `prefix<epoch>:<sentence>` — the epoch is what makes a stale callback visible. */
+    private fun utteranceId(index: Int): String = "$ID_PREFIX$epoch:$index"
 
     private fun indexOf(utteranceId: String?): Int? =
-        utteranceId?.removePrefix(ID_PREFIX)?.toIntOrNull()
+        utteranceId?.removePrefix(ID_PREFIX)?.substringAfter(':')?.toIntOrNull()
+
+    private fun epochOf(utteranceId: String?): Int? =
+        utteranceId?.removePrefix(ID_PREFIX)?.substringBefore(':')?.toIntOrNull()
 
     private fun viVoices(engine: TextToSpeech): String = try {
         engine.voices

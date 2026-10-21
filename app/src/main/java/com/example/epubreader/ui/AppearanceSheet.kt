@@ -44,13 +44,12 @@ import com.example.epubreader.reader.TypeConfig
 @Composable
 fun AppearanceSheet(
     settings: ReaderSettings,
-    onDone: () -> Unit,
     onCustomize: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 24.dp, end = 16.dp, top = 2.dp, bottom = 6.dp),
+            .padding(start = 24.dp, end = 24.dp, top = 2.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -60,17 +59,6 @@ fun AppearanceSheet(
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
             color = ReaderTheme.Ink,
-        )
-        Text(
-            text = "Xong",
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .clickable(onClick = onDone)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            color = ReaderTheme.Accent,
         )
     }
 

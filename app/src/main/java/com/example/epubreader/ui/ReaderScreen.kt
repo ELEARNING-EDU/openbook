@@ -4,10 +4,11 @@ import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,7 +43,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color as ComposeColor
@@ -68,6 +68,8 @@ import com.example.epubreader.reader.PageMetrics
 import com.example.epubreader.reader.ReaderEngine
 import com.example.epubreader.reader.ReaderSettings
 import com.example.epubreader.reader.ReaderTheme
+import com.example.epubreader.reader.ReadingPosition
+import com.example.epubreader.reader.ReadingPositions
 import com.example.epubreader.reader.SpeechReader
 import com.example.epubreader.reader.SpeechState
 import com.example.epubreader.reader.ThemeId
@@ -161,13 +163,19 @@ data class DemoOptions(
     val dragX: Float = 0f,
     val dragY: Float = 0f,
     val dragSeconds: Float = 0f,
+    /**
+     * Harness only: after the voice has started, jump to this chapter (1-based) through
+     * the same call the contents sheet's rows make, so what is verified is the reader's
+     * own behaviour rather than a parallel code path. -1 is off.
+     */
+    val jumpChapter: Int = -1,
 ) {
     val isActive: Boolean
         get() = page >= 0 || (tapX >= 0 && tapY >= 0) || reading || player ||
             settings || sizeStep != 0 || theme.isNotBlank() || dark >= 0 ||
             config.isNotBlank() || customize || fontList || search ||
             searchQuery.isNotBlank() || bookmark || marks || lateCursor >= 0 ||
-            curl >= 0f || dragSeconds > 0f
+            curl >= 0f || dragSeconds > 0f || jumpChapter > 0
 
     companion object {
         val None = DemoOptions()
@@ -180,8 +188,19 @@ fun ReaderScreen(
     book: BookItem,
     settings: ReaderSettings,
     onBack: () -> Unit,
+    /** The shelf's own book of places, so opening a book resumes it. */
+    positions: ReadingPositions,
     demo: DemoOptions = DemoOptions.None,
+    /**
+     * Whether the harness's staged states are still waiting to be played. They are one
+     * shot per launch: replaying them every time a book is opened in the same process
+     * made a demo launch that starts the voice start it again, unasked, on the reader's
+     * next visit.
+     */
+    demoPending: Boolean = true,
+    onDemoUsed: () -> Unit = {},
 ) {
+    val staged = if (demoPending) demo else DemoOptions.None
     val density = LocalDensity.current
     val statusBarTop = WindowInsets.statusBars.getTop(density)
     val context = LocalContext.current
@@ -191,6 +210,16 @@ fun ReaderScreen(
     var engine by remember { mutableStateOf<ReaderEngine?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var pageIndex by remember { mutableIntStateOf(0) }
+
+    /**
+     * The page a contents/search jump is on its way to, or -1.
+     *
+     * A jump is played as a run of single-page curls, so the view walks across the pages
+     * in between; while it does, the voice must not chase the page it is speaking (its own
+     * sentence is still on the page it started from) or it would cancel the jump and drag
+     * the reader back. The voice is moved once, when the jump arrives.
+     */
+    var jumpTarget by remember { mutableIntStateOf(-1) }
     var showToc by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
@@ -203,6 +232,10 @@ fun ReaderScreen(
     val holder = remember { CurlHolder() }
     val bookmarks = remember { BookmarkStore(context) }
     LaunchedEffect(book.id) { bookmarks.open(book.id) }
+
+    // Where this book was left, read once per visit: the reader is put back there after
+    // the first typeset, and every page they settle on afterwards writes the new place.
+    val savedPosition = remember(book.id) { positions.of(book.id) }
 
     // The active theme's own typography, and the palette it paints with. Both are
     // Compose state, so any edit in the appearance screens re-typesets from here.
@@ -304,9 +337,26 @@ fun ReaderScreen(
                 val built = withContext(Dispatchers.Default) {
                     ReaderEngine.build(archive, spanned, pageMetrics, spec, palette)
                 }
-                withContext(Dispatchers.Default) { built.preload(listOf(0, 1)) }
-                Log.i(TAG, "typeset ${settings.describe(density.density)}: ${built.pageCount} pages (${built.typesetNote})")
-                pageIndex = 0
+                // The place the reader left the book, if it has been open before. The
+                // anchor is the text, not the old page number: coming back after a
+                // re-typeset must land on the words, not on whatever page 7 has become.
+                val target = savedPosition
+                    ?.let { built.pageForChapterOffset(it.chapter, it.offset) }
+                    ?.coerceIn(0, built.pageCount - 1)
+                    ?: 0
+                withContext(Dispatchers.Default) { built.preload(listOf(target, target + 1)) }
+                Log.i(
+                    TAG,
+                    "typeset ${settings.describe(density.density)}: ${built.pageCount} pages (${built.typesetNote})" +
+                        (
+                            savedPosition?.let { saved ->
+                                "; resumed at page ${target + 1} (left on page " +
+                                    "${saved.page + 1}/${saved.pageCount}, anchor chapter " +
+                                    "${saved.chapter}+${saved.offset})"
+                            } ?: "; first read, page 1"
+                            ),
+                )
+                pageIndex = target
                 engine = built
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -329,12 +379,6 @@ fun ReaderScreen(
     // tap on a sentence rather than from the headset.
     val playerOpen =
         (showPlayer || chrome == ChromeMode.PLAYER_ONLY) && speechState != SpeechState.IDLE
-    // Hand-rolled fade: a scoped `AnimatedVisibility` cannot be used inside the
-    // bottom bar's Box, which is itself inside the Row.
-    val playerAlpha by animateFloatAsState(
-        targetValue = if (playerOpen) 1f else 0f,
-        animationSpec = tween(CHROME_FADE_MS),
-    )
 
     // How far the voice has read, through the whole book's text rather than the page on
     // screen: the cursor is the last character of the sentence being spoken, summed over
@@ -370,9 +414,16 @@ fun ReaderScreen(
     // callbacks to this thread, so one can arrive late) must leave the book where the
     // reader's thumb left it: turning a page under a paused narrator is the reader
     // losing their place to a voice that is not even speaking.
-    LaunchedEffect(currentSentence) {
+    LaunchedEffect(currentSentence, jumpTarget) {
         val source = ready ?: return@LaunchedEffect
         if (currentSentence < 0) return@LaunchedEffect
+        if (jumpTarget >= 0) {
+            // Self-healing: if the jump has already arrived without a notification (it
+            // was to the page already on screen, or the view refused it), stop standing
+            // aside rather than leaving the voice unable to follow for good.
+            if ((holder.view?.pageIndex ?: pageIndex) == jumpTarget) jumpTarget = -1
+            return@LaunchedEffect
+        }
         val page = source.sentencePage(currentSentence)
         val current = holder.view?.pageIndex ?: pageIndex
         if (speech.state != SpeechState.PLAYING) {
@@ -384,10 +435,79 @@ fun ReaderScreen(
             return@LaunchedEffect
         }
         Log.i(TAG, "reading #$currentSentence on page ${page + 1}: ${source.sentenceText(currentSentence)}")
-        if (page >= 0 && page != current) holder.view?.animateToPage(page)
+        // Only forward. A cursor whose page lies *behind* the page on screen belongs to
+        // a sentence that began on an earlier page and is still being spoken across this
+        // one; turning the page back to its beginning would take the book out of the
+        // reader's hand. Backward moves come from the reader, through `pageShown`.
+        if (page >= 0 && page > current) holder.view?.animateToPage(page)
     }
 
     fun currentPage(): Int = holder.view?.pageIndex ?: pageIndex
+
+    /** A jump the reader asked for (contents, search, a mark): the page *and* the voice. */
+    fun jumpToPage(page: Int) {
+        if (page == currentPage()) return
+        jumpTarget = page
+        holder.view?.animateToPage(page)
+    }
+
+    /**
+     * Every page change lands here, whoever caused it: the curl settling under the
+     * reader's hand, a table-of-contents jump, a search result, the harness — or the
+     * voice itself asking for the page the sentence it is reading lives on.
+     *
+     * A reading voice follows the reader's hand. Turning the page (or jumping a chapter)
+     * while the book is being read moves the voice to the first sentence of the page now
+     * on screen, playing or paused; it is the reader who is turning the leaves. The one
+     * case that must not seek is the voice's own move: when the sentence being read is
+     * already on this page, the page change *was* the follow, and seeking again would
+     * restart the sentence it is speaking.
+     */
+    fun pageShown(page: Int) {
+        pageIndex = page
+        // A page notification means whatever jump was in flight has landed (a run reports
+        // once, on arrival) or has been taken over by a hand — either way the voice may
+        // follow again. Guarding this on `page == jumpTarget` would leave the voice frozen
+        // for good if a hand turned a page in the middle of a jump.
+        jumpTarget = -1
+        val source = ready ?: return
+        if (speech.state == SpeechState.IDLE) return
+        var first = source.firstSentenceOnPage(page)
+        if (first < 0) return
+        // `firstSentenceOnPage` falls back to the sentence that crosses the top edge when
+        // nothing *begins* on this page. Its page is then the one before, and the voice
+        // keeps reading it here — see the forward-only rule in the follow effect.
+        val cursorPage = if (currentSentence < 0) -1 else source.sentencePage(currentSentence)
+        if (cursorPage == page) return
+        speech.seek(first)
+        Log.i(
+            TAG,
+            "audio follows the page: page ${page + 1} now on screen -> " +
+                "voice moves to sentence #$first " +
+                "(was on ${if (cursorPage < 0) "nothing" else "page ${cursorPage + 1}"}); " +
+                "${source.sentenceText(first).take(60)}",
+        )
+    }
+
+    /**
+     * Every page the reader settles on is the new place in the book, whichever way they
+     * got there: a curl, a contents jump, a search hit, or the voice. It is written here
+     * rather than in [pageShown] so a jump is written too, and so the page the first
+     * typeset puts the reader back on is itself recorded.
+     */
+    LaunchedEffect(ready, pageIndex) {
+        val source = ready ?: return@LaunchedEffect
+        if (pageIndex !in 0 until source.pageCount) return@LaunchedEffect
+        positions.save(
+            book.id,
+            ReadingPosition(
+                page = pageIndex,
+                pageCount = source.pageCount,
+                chapter = source.chapterOfPage(pageIndex),
+                offset = source.offsetOfPage(pageIndex),
+            ),
+        )
+    }
 
     /** The toolbar, all of it. */
     fun revealChrome() {
@@ -485,18 +605,45 @@ fun ReaderScreen(
     }
 
     /**
-     * One tap on the page. While the voice is running the text is its navigation surface
-     * — a tap on a sentence reads from there — and the blank paper is the reader's, which
-     * brings the whole toolbar back. With a quiet book a tap anywhere works the chrome
-     * the old way: shown, hidden.
+     * One tap on the page.
+     *
+     * With a quiet book the reader turns the leaf by hand: a tap on the left third goes
+     * back, a tap on the right third goes on, and a tap in the middle works the chrome
+     * — shown, hidden. A third with no leaf behind it (the first page, the last page)
+     * falls through to the chrome instead, so a hidden toolbar is never stranded.
+     *
+     * While the voice is running the text is its navigation surface — a tap on a
+     * sentence reads from there — and the blank paper is the reader's, which brings
+     * the whole toolbar back.
      */
     fun pageTapped(x: Float, y: Float) {
         val source = ready
+        val reading = speechState != SpeechState.IDLE
+        if (!reading) {
+            val width = holder.view?.width?.toFloat() ?: 0f
+            if (width > 0f) {
+                val third = width / 3f
+                val step = when {
+                    x < third -> -1
+                    x > width - third -> 1
+                    else -> 0
+                }
+                val last = (source?.pageCount ?: 0) - 1
+                // Where the reader is heading, not just where the sheet has got to: a
+                // second tap while the first curl is still folding must put them two
+                // leaves on, the way a hand on paper would.
+                val from = if (jumpTarget >= 0) jumpTarget else currentPage()
+                if (step != 0 && from + step in 0..last) {
+                    jumpToPage(from + step)
+                    scheduleAutoHide()
+                    return
+                }
+            }
+        }
         if (chrome == ChromeMode.HIDDEN) {
             revealChrome()
             return
         }
-        val reading = speechState != SpeechState.IDLE
         if (source != null && reading && source.isOnText(x, y)) {
             val sentence = source.sentenceAt(currentPage(), x, y)
             if (sentence != null) {
@@ -526,63 +673,80 @@ fun ReaderScreen(
     var demoSizeStepped by remember { mutableStateOf(false) }
     var demoApplied by remember { mutableStateOf(false) }
 
-    LaunchedEffect(demo) {
-        if (!demo.isActive) return@LaunchedEffect
+    LaunchedEffect(staged) {
+        if (!staged.isActive) return@LaunchedEffect
         delay(DEMO_SETTLE_MS)
-        if (demo.theme.isNotBlank()) settings.setTheme(ThemeId.of(demo.theme))
-        if (demo.dark >= 0 && (demo.dark == 1) != settings.dark) settings.toggleDark()
-        if (demo.config.isNotBlank()) settings.applyDemoConfig(demo.config)
+        if (staged.theme.isNotBlank()) settings.setTheme(ThemeId.of(staged.theme))
+        if (staged.dark >= 0 && (staged.dark == 1) != settings.dark) settings.toggleDark()
+        if (staged.config.isNotBlank()) settings.applyDemoConfig(staged.config)
         appearanceApplied = true
     }
 
-    LaunchedEffect(ready, demo, appearanceApplied) {
+    LaunchedEffect(ready, staged, appearanceApplied) {
         val source = ready ?: return@LaunchedEffect
-        if (!demo.isActive || demoApplied || !appearanceApplied) return@LaunchedEffect
+        if (!staged.isActive || demoApplied || !appearanceApplied) return@LaunchedEffect
         // Let the appearance pass finish its re-typeset before touching the page.
         delay(RESTYLE_DEBOUNCE_MS + DEMO_SETTLE_MS)
-        if (demo.page >= 0) {
+        if (staged.page >= 0) {
             // The view is the only imperative piece here, so the state has to
             // follow it: the AndroidView update pushes the state back otherwise.
-            val target = (demo.page - 1).coerceIn(0, source.pageCount - 1)
+            val target = (staged.page - 1).coerceIn(0, source.pageCount - 1)
             pageIndex = target
             holder.view?.setPageIndex(target)
         }
-        if (demo.sizeStep != 0 && !demoSizeStepped) {
+        if (staged.sizeStep != 0 && !demoSizeStepped) {
             demoSizeStepped = true
-            repeat(kotlin.math.abs(demo.sizeStep)) {
-                if (demo.sizeStep > 0) settings.growText() else settings.shrinkText()
+            repeat(kotlin.math.abs(staged.sizeStep)) {
+                if (staged.sizeStep > 0) settings.growText() else settings.shrinkText()
             }
             delay(RESTYLE_DEBOUNCE_MS + DEMO_SETTLE_MS)
         }
-        if (demo.curl >= 0f) {
+        if (staged.curl >= 0f) {
             // A fold held open for the camera: the same geometry the drawing uses, so
             // the screenshot and the log line describe one fold, not two.
-            holder.view?.holdFold(demo.curl, demo.curlAngle, demo.curlBack)
+            holder.view?.holdFold(staged.curl, staged.curlAngle, staged.curlBack)
         }
-        if (demo.dragSeconds > 0f) {
+        if (staged.dragSeconds > 0f) {
             // A pull played back through the touch path, so the fold is judged moving.
-            holder.view?.playDrag(demo.dragX, demo.dragY, demo.dragSeconds)
+            holder.view?.playDrag(staged.dragX, staged.dragY, staged.dragSeconds)
         }
-        if (demo.tapX >= 0 && demo.tapY >= 0) {
-            val sentence = source.sentenceAt(currentPage(), demo.tapX.toFloat(), demo.tapY.toFloat())
+        if (staged.tapX >= 0 && staged.tapY >= 0) {
+            val sentence = source.sentenceAt(currentPage(), staged.tapX.toFloat(), staged.tapY.toFloat())
             if (sentence != null) {
                 speech.start(sentence)
             } else {
                 speechNote = "Không tìm thấy câu nào tại điểm chạm"
-                Log.w(TAG, "demo tap found no sentence at ${demo.tapX},${demo.tapY}")
+                Log.w(TAG, "demo tap found no sentence at ${staged.tapX},${staged.tapY}")
             }
         }
-        if (demo.reading || demo.player) {
+        if (staged.reading || staged.player) {
             val first = source.firstSentenceOnPage(currentPage())
             if (first >= 0) speech.start(first)
         }
-        if (demo.player) showPlayer = true
-        if (demo.settings) showSettings = true
-        if (demo.customize || demo.fontList) showCustomize = true
-        if (demo.bookmark) toggleBookmark()
-        if (demo.marks) showToc = true
-        if (demo.search) showSearch = true
-        if (demo.lateCursor >= 0) {
+        if (staged.jumpChapter > 0) {
+            // The contents sheet's own jump, a moment after the voice has started: the
+            // reader opens a chapter and the voice has to come with it.
+            delay(VOICE_SETTLE_MS)
+            val row = source.toc.getOrNull(staged.jumpChapter - 1)
+            if (row == null) {
+                Log.w(TAG, "harness: no chapter ${staged.jumpChapter} (${source.toc.size} chapters)")
+            } else {
+                Log.i(
+                    TAG,
+                    "harness: contents jump to chapter ${staged.jumpChapter} " +
+                        "(\"${row.title}\") -> page ${row.pageIndex + 1}, voice=${speech.state}",
+                )
+                jumpToPage(row.pageIndex)
+                delay(VOICE_SETTLE_MS)
+            }
+        }
+        if (staged.player) showPlayer = true
+        if (staged.settings) showSettings = true
+        if (staged.customize || staged.fontList) showCustomize = true
+        if (staged.bookmark) toggleBookmark()
+        if (staged.marks) showToc = true
+        if (staged.search) showSearch = true
+        if (staged.lateCursor >= 0) {
             // The voice runs for a moment, the reader pauses it, and only then does the
             // cursor move: the shape of a speech callback that arrives late. The page
             // must not follow it — a paused narrator is not the reader's hand.
@@ -591,17 +755,20 @@ fun ReaderScreen(
             delay(DEMO_PAUSE_MS)
             speech.pause()
             val claimed = source.firstSentenceOnPage(
-                (demo.lateCursor - 1).coerceIn(0, source.pageCount - 1),
+                (staged.lateCursor - 1).coerceIn(0, source.pageCount - 1),
             )
             Log.i(
                 TAG,
                 "harness: paused at speech=${speech.state}; a late cursor claims the " +
-                    "first sentence of page ${demo.lateCursor} (#$claimed)",
+                    "first sentence of page ${staged.lateCursor} (#$claimed)",
             )
             if (claimed >= 0) currentSentence = claimed
         }
         scheduleAutoHide()
         demoApplied = true
+        // One shot, spent: a later visit to this book in the same process is a reader's
+        // visit, not the harness's.
+        onDemoUsed()
     }
 
     Box(
@@ -614,7 +781,7 @@ fun ReaderScreen(
             modifier = Modifier.fillMaxSize(),
             factory = { viewContext ->
                 CurlView(viewContext).apply {
-                    onPageChanged = { pageIndex = it }
+                    onPageChanged = { page -> pageShown(page) }
                 }
             },
             update = { view ->
@@ -623,6 +790,10 @@ fun ReaderScreen(
                 if (source != null) {
                     view.pageSource = source
                     view.onPageTap = { x, y -> pageTapped(x, y) }
+                    // Re-assigned here rather than only in `factory`, so the callback
+                    // reads this composition's state (the book, the cursor, the voice)
+                    // instead of the one that happened to build the view.
+                    view.onPageChanged = { page -> pageShown(page) }
                     view.setPageIndex(pageIndex)
                     view.highlightSentence = currentSentence
                 } else {
@@ -695,19 +866,13 @@ fun ReaderScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Left pair: leave the book, and its contents. The contents button
-                    // only joins it at the full level, so level (b) leaves a capsule of
-                    // one icon rather than a bar with a hole where a button used to be.
-                    ButtonPair(modifier = Modifier.animateContentSize()) {
-                        PairButton(
-                            onClick = onBack,
-                            // The player is open beside this capsule: the way out keeps
-                            // its place but steps back, so the eye stays on the voice's
-                            // own controls. It fades exactly with the player, and only
-                            // the back button dims — the contents icon keeps its weight.
-                            modifier = Modifier.alpha(1f - PLAYER_BACK_DIM * playerAlpha),
-                        ) { ChevronGlyph() }
-                        if (ready != null && chrome == ChromeMode.FULL) {
+                    // The way out and the contents, at the full level only. While the
+                    // voice has the page the toolbar is gone altogether: a tap on the
+                    // page brings it back, so a lone dimmed chevron in the corner was
+                    // only a button that had lost its row.
+                    if (ready != null && chrome == ChromeMode.FULL) {
+                        ButtonPair(modifier = Modifier.animateContentSize()) {
+                            PairButton(onClick = onBack) { ChevronGlyph() }
                             PairDivider()
                             PairButton(onClick = { showToc = true }) { ListGlyph() }
                         }
@@ -766,12 +931,9 @@ fun ReaderScreen(
                     // unfurled: an invisible AnimatedVisibility measures to nothing,
                     // which would leave the gear sitting on the disc.
                     Box(modifier = Modifier.weight(1f)) {
-                        if (playerAlpha > 0.01f) {
-                            Row(
-                                modifier = Modifier.alpha(playerAlpha),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                            Spacer(modifier = Modifier.width(10.dp))
+                        PlayerSlot(visible = playerOpen) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Spacer(modifier = Modifier.width(10.dp))
                                 PlayerRow(
                                     headline = playerHeadline(book, ready, currentSentence),
                                     rateLabel = speech.rateLabel,
@@ -797,10 +959,15 @@ fun ReaderScreen(
                         }
                     }
 
-                    // The gear steps aside while the player is open, and is not part of
-                    // the voice's reduced level at all.
-                    if (ready != null && !playerOpen && chrome == ChromeMode.FULL) {
+                    // The gear is one of the toolbar's buttons, so it keeps the toolbar's
+                    // company: drawn at the full level, gone with the rest of the row at
+                    // the voice's level. Its 44dp is reserved either way, so the pill is
+                    // measured against the same box at both levels and does not change
+                    // width when the chrome steps down.
+                    if (ready != null && chrome == ChromeMode.FULL) {
                         CircleButton(onClick = { showSettings = true }) { GearGlyph() }
+                    } else {
+                        Spacer(modifier = Modifier.width(44.dp))
                     }
                 }
             }
@@ -828,7 +995,7 @@ fun ReaderScreen(
                 onJump = { page ->
                     showToc = false
                     // The reader view is the only imperative piece, so drive it directly.
-                    holder.view?.animateToPage(page)
+                    jumpToPage(page)
                 },
                 onRemoveMark = { bookmarks.remove(it) },
             )
@@ -841,7 +1008,7 @@ fun ReaderScreen(
             initialQuery = demo.searchQuery,
             onPick = { page ->
                 showSearch = false
-                holder.view?.animateToPage(page)
+                jumpToPage(page)
                 scheduleAutoHide()
             },
             onClose = {
@@ -863,10 +1030,6 @@ fun ReaderScreen(
         ) {
             AppearanceSheet(
                 settings = settings,
-                onDone = {
-                    showSettings = false
-                    scheduleAutoHide()
-                },
                 onCustomize = {
                     showSettings = false
                     showCustomize = true
@@ -928,6 +1091,35 @@ private fun ProgressLine(fraction: Float) {
  * 48dp of the row to the headline; the line stops short of the close button so it runs
  * from the title to the way out rather than under it.
  */
+/**
+ * The player's slot in the bottom bar, with its unfurl.
+ *
+ * The pill grows out of the disc rather than fading in whole: it is the *width* that
+ * animates, its contents are measured at full size and revealed by the expanding clip,
+ * so the headline never reflows while the player opens. It closes back into the disc the
+ * same way. (It is a function of its own because `AnimatedVisibility` inside the bar's
+ * `Row` would be resolved through `RowScope`, which cannot be reached from the `Box`
+ * that owns the weight.)
+ */
+@Composable
+private fun PlayerSlot(visible: Boolean, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(CHROME_FADE_MS)) +
+            expandHorizontally(
+                animationSpec = tween(PLAYER_UNFURL_MS),
+                expandFrom = Alignment.Start,
+            ),
+        exit = fadeOut(tween(CHROME_FADE_MS)) +
+            shrinkHorizontally(
+                animationSpec = tween(PLAYER_UNFURL_MS),
+                shrinkTowards = Alignment.Start,
+            ),
+    ) {
+        content()
+    }
+}
+
 @Composable
 private fun PlayerRow(
     headline: String,
@@ -986,12 +1178,14 @@ private fun PlayerRow(
 
         // The voice's own progress: how much of the book's text it has read, not how
         // many pages have gone by, so the line creeps along at reading pace instead of
-        // jumping a whole width at every turn.
+        // jumping a whole width at every turn. It runs the pill's whole width and sits
+        // on the pill's own bottom edge: no inset any more, and no spill either — the
+        // capsule's 24dp clip rounds its ends off inside the corners, so the line reads
+        // as the pill's bottom edge from one end to the other.
         AudioProgressLine(
             fraction = progress,
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = PLAYER_ROW_INSET, end = PLAYER_LINE_END, bottom = 5.dp)
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .height(AUDIO_LINE_HEIGHT),
         )
@@ -1214,24 +1408,24 @@ private const val AUTO_HIDE_MS = 4500L
 
 private const val CHROME_FADE_MS = 250
 
+/** How long the player takes to unfurl from the disc, and to fold back into it. */
+private const val PLAYER_UNFURL_MS = 260
+
 /** The player's frame: narrower than a toolbar button so the headline gets the room. */
 private val PLAYER_BUTTON_WIDTH = 32.dp
 
 private val PLAYER_ROW_HEIGHT = 48.dp
 
-/** The capsule's own inset, which is where the headline and the progress line start. */
+/** The capsule's own inset, which is where the headline starts. */
 private val PLAYER_ROW_INSET = 14.dp
-
-/** Where the progress hairline stops: the close button's 32dp plus the 4dp end inset. */
-private val PLAYER_LINE_END = 36.dp
 
 private val AUDIO_LINE_HEIGHT = 2.5.dp
 
-/** How far the back button steps back while the player is open. */
-private const val PLAYER_BACK_DIM = 0.5f
-
 /** Time for the harness to reach the page before it starts poking at it. */
 private const val DEMO_SETTLE_MS = 1200L
+
+/** Time the harness gives a started voice before it does the next thing (a jump, a pause). */
+private const val VOICE_SETTLE_MS = 1600L
 
 /** Matches the reader's own debounce, so a harness size step lands on one typeset. */
 private const val RESTYLE_DEBOUNCE_MS = 350L

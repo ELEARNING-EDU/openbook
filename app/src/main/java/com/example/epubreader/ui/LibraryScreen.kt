@@ -41,10 +41,13 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import com.example.epubreader.model.BookItem
 import com.example.epubreader.reader.ReaderTheme
+import kotlin.math.roundToInt
 
 @Composable
 fun LibraryScreen(
     books: List<BookItem>,
+    /** How far through each book the reader has got, by book id. */
+    progress: Map<String, Float>,
     loading: Boolean,
     onPick: (Uri?) -> Unit,
     onOpen: (BookItem) -> Unit,
@@ -103,7 +106,11 @@ fun LibraryScreen(
                 ) {
                     items(books.size, key = { books[it].id }) { index ->
                         val book = books[index]
-                        BookCover(book = book, modifier = Modifier.clickable { onOpen(book) })
+                        BookTile(
+                            book = book,
+                            progress = progress[book.id],
+                            modifier = Modifier.clickable { onOpen(book) },
+                        )
                     }
                 }
             }
@@ -143,6 +150,54 @@ private fun EmptyLibrary() {
                 fontFamily = FontFamily.Serif,
                 fontSize = 13.sp,
                 color = ReaderTheme.InkSoft,
+            )
+        }
+    }
+}
+
+/** A cover, and under it how far through the book the reader has got. */
+@Composable
+private fun BookTile(book: BookItem, progress: Float?, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        BookCover(book = book, modifier = Modifier.fillMaxWidth())
+        if (progress != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ReadBar(fraction = progress, modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${(progress * 100f).roundToInt()}%",
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 11.sp,
+                    color = ReaderTheme.InkSoft,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The shelf's progress bar: how much of the book has been read. It is the reading
+ * position, not the voice's place — the reader's own page, out of the book's pages.
+ */
+@Composable
+private fun ReadBar(fraction: Float, modifier: Modifier = Modifier) {
+    val pill = RoundedCornerShape(2.dp)
+    Box(
+        modifier = modifier
+            .height(3.dp)
+            .clip(pill)
+            .background(ReaderTheme.Ink.copy(alpha = 0.10f)),
+    ) {
+        val read = fraction.coerceIn(0f, 1f)
+        if (read > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(read)
+                    .fillMaxHeight()
+                    .clip(pill)
+                    .background(ReaderTheme.Accent),
             )
         }
     }

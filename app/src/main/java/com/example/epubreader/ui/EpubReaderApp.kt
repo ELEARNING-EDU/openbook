@@ -20,6 +20,7 @@ import com.example.epubreader.library.LibraryStore
 import com.example.epubreader.model.BookItem
 import com.example.epubreader.reader.ReaderSettings
 import com.example.epubreader.reader.ReaderTheme
+import com.example.epubreader.reader.ReadingPositions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,10 +38,25 @@ fun EpubReaderApp(
     // because the palette every screen reads lives here.
     val settings = remember { ReaderSettings(context) }
 
+    // One book of places for the whole app: the reader writes it, the shelf reads it.
+    val positions = remember { ReadingPositions(context) }
+
     var books by remember { mutableStateOf<List<BookItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var opened by remember { mutableStateOf<BookItem?>(null) }
     var importError by remember { mutableStateOf<String?>(null) }
+    var progress by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
+
+    // The shelf's bars are re-read whenever the reader is closed, so the page the reader
+    // has just been on is on the shelf by the time they see it.
+    LaunchedEffect(opened) {
+        if (opened == null) progress = withContext(Dispatchers.IO) { positions.all() }
+    }
+
+    // The harness's staged states are spent once per launch. The reader screen is built
+    // afresh every time a book is opened, so a flag kept there would replay the whole
+    // staging — including starting the voice — on the reader's next visit.
+    var demoPending by remember { mutableStateOf(demo.isActive) }
 
     LaunchedEffect(Unit) {
         val loaded = withContext(Dispatchers.IO) {
@@ -83,12 +99,21 @@ fun EpubReaderApp(
         if (book == null) {
             LibraryScreen(
                 books = books,
+                progress = progress,
                 loading = loading,
                 onPick = onPicked,
                 onOpen = { opened = it },
             )
         } else {
-            ReaderScreen(book = book, settings = settings, onBack = { opened = null }, demo = demo)
+            ReaderScreen(
+                book = book,
+                settings = settings,
+                positions = positions,
+                onBack = { opened = null },
+                demo = demo,
+                demoPending = demoPending,
+                onDemoUsed = { demoPending = false },
+            )
         }
     }
 

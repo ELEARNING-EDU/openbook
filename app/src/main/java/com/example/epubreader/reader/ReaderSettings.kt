@@ -29,9 +29,14 @@ data class TypeConfig(
     val bold: Boolean,
     val custom: Boolean,
 ) {
-    /** The fields the `*` on a theme card is about, in a form that compares cleanly. */
+    /**
+     * The fields the `*` on a theme card is about, in a form that compares cleanly.
+     *
+     * The type size is deliberately not one of them: it has its own dial on the panel
+     * (the A/A pill), and stepping it is not a change to the theme's *look* — only what
+     * the "Tuỳ chỉnh" screen changes marks a card.
+     */
     fun signature(): List<Comparable<*>> = listOf(
-        sizeSp,
         lineSpacing,
         letterSpacing,
         wordSpacing,
