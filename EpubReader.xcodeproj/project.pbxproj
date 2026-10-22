@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		1A00000000000000000000C2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A00000000000000000000A1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1A00000000000000000000A6;
+			remoteInfo = EpubReader;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		1A00000000000000000000A4 /* EpubReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EpubReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A00000000000000000000C4 /* EpubReaderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EpubReaderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +27,22 @@
 			path = EpubReader;
 			sourceTree = "<group>";
 		};
+		1A00000000000000000000C5 /* EpubReaderTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = EpubReaderTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		1A00000000000000000000A8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1A00000000000000000000C8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				1A00000000000000000000A5 /* EpubReader */,
+				1A00000000000000000000C5 /* EpubReaderTests */,
 				1A00000000000000000000A3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				1A00000000000000000000A4 /* EpubReader.app */,
+				1A00000000000000000000C4 /* EpubReaderTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -68,6 +93,27 @@
 			productReference = 1A00000000000000000000A4 /* EpubReader.app */;
 			productType = "com.apple.product-type.application";
 		};
+		1A00000000000000000000C6 /* EpubReaderTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1A00000000000000000000C1 /* Build configuration list for PBXNativeTarget "EpubReaderTests" */;
+			buildPhases = (
+				1A00000000000000000000C7 /* Sources */,
+				1A00000000000000000000C8 /* Frameworks */,
+				1A00000000000000000000C9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1A00000000000000000000C3 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				1A00000000000000000000C5 /* EpubReaderTests */,
+			);
+			name = EpubReaderTests;
+			productName = EpubReaderTests;
+			productReference = 1A00000000000000000000C4 /* EpubReaderTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -80,6 +126,10 @@
 				TargetAttributes = {
 					1A00000000000000000000A6 = {
 						CreatedOnToolsVersion = 27.0;
+					};
+					1A00000000000000000000C6 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 1A00000000000000000000A6;
 					};
 				};
 			};
@@ -96,12 +146,20 @@
 			projectRoot = "";
 			targets = (
 				1A00000000000000000000A6 /* EpubReader */,
+				1A00000000000000000000C6 /* EpubReaderTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		1A00000000000000000000A9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1A00000000000000000000C9 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -118,7 +176,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		1A00000000000000000000C7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1A00000000000000000000C3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1A00000000000000000000A6 /* EpubReader */;
+			targetProxy = 1A00000000000000000000C2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		1A00000000000000000000B2 /* Debug */ = {
@@ -168,6 +241,32 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		1A00000000000000000000CA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.epubreader.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EpubReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/EpubReader";
+			};
+			name = Debug;
+		};
+		1A00000000000000000000CB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.epubreader.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EpubReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/EpubReader";
 			};
 			name = Release;
 		};
@@ -227,6 +326,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1A00000000000000000000C1 /* Build configuration list for PBXNativeTarget "EpubReaderTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1A00000000000000000000CA /* Debug */,
+				1A00000000000000000000CB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1A00000000000000000000B1 /* Build configuration list for PBXNativeTarget "EpubReader" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -236,8 +344,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1A00000000000000000000B4 /* Build configuration list for PBXProject "EpubReader" */ = {
-			isa = XCConfigurationList;
+		1A00000000000000000000B4 /* Build configuration list for PBXProject "EpubReader" */ = {			isa = XCConfigurationList;
 			buildConfigurations = (
 				1A00000000000000000000B5 /* Debug */,
 				1A00000000000000000000B6 /* Release */,

@@ -35,7 +35,10 @@ final class ReadingProgressStore: ObservableObject {
 
     private static let key = "readerPositions"
 
-    init() {
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         load()
     }
 
@@ -81,7 +84,7 @@ final class ReadingProgressStore: ObservableObject {
     // MARK: - Storage
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: Self.key),
+        guard let data = defaults.data(forKey: Self.key),
               let decoded = try? JSONDecoder().decode([String: BookProgress].self, from: data)
         else { return }
         positions = decoded
@@ -89,6 +92,6 @@ final class ReadingProgressStore: ObservableObject {
 
     private func persist() {
         guard let data = try? JSONEncoder().encode(positions) else { return }
-        UserDefaults.standard.set(data, forKey: Self.key)
+        defaults.set(data, forKey: Self.key)
     }
 }

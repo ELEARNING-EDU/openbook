@@ -1,5 +1,5 @@
 # Project state
-Updated: 2026-10-21 13:55 +07 (Asia/Ho_Chi_Minh)
+Updated: 2026-10-22 10:20 +07 (Asia/Ho_Chi_Minh)
 
 > English first, bản tiếng Việt ở nửa dưới của cùng tệp.
 
@@ -40,11 +40,15 @@ Approved scope and gates:
   - 2026-10-20: reading position saved and resumed; library shows % read (commit 458ae98).
   - 2026-10-21: adopt AI Development Toolkit — survey first, bilingual state files at the
     project root, keep `--cli all`, add a README, then land it as one commit (approved).
+  - 2026-10-22: the iOS project now lives in the OpenBook repository as worktree `ios`; the
+    whole tree (code, docs, toolkit) is committed there as one baseline (approved, no push).
+  - 2026-10-22: T15 — unit-test target for `Paginator`, `EpubArchiveReader`, `ReadingProgress`;
+    the smoke UI test was dropped by the owner ("không cần"). `xcodebuild test` must be green.
 - Superseded decision: "no way out of the book while the voice reads" (commit caaec44) was
   withdrawn by the owner on 2026-10-20 ("ẩn cùng với nút khác chứ có bảo là xoá nó đi đâu")
   and replaced by "back hides and returns with the toolbar" (commit c999ad0).
 - Not approved: publishing (no remote configured, nothing pushed), refactoring, architecture
-  migration, iPad-specific layout, unit-test target, Android changes from this project.
+  migration, iPad-specific layout, UI-test target, Android changes from this project.
 
 Architecture decisions:
 - Layers as they exist (`EpubReader/App`, `Data`, `Domain`, `Library`, `Reader`). Pragmatic
@@ -92,45 +96,42 @@ Architecture decisions:
   multi-step work needs an approved plan before code, commits stage explicit paths only.
 
 Verified complete:
-- T01–T10, T12 and T16 (see TASKS.md) are implemented and verified. Functional code is committed
-  on `master` up to `e224196` ("Reader: show the pictures a book carries", 2026-10-21 12:42 +07),
-  which carries T12; the toolkit/docs adoption is `742433d`.
-- SUITE-003 (the library prints on the reader's palette) is implemented and verified in the working
-  tree; its three source files are **not** committed yet (the owner's go-ahead is needed). Only the
-  documentation correction was committed ("Docs: T12 is committed, not pending").
+- T01–T10, T12, T15 and T16 (see TASKS.md) are implemented and verified, and all of it is
+  committed: it arrived in the OpenBook repository as baseline commit `e727837` ("Initial import:
+  EpubReader for iOS", 2026-10-22), which also carries SUITE-003 and SUITE-009 because the
+  standalone `EpubReader-iOS` repository ended at `e224196` with those files still in its working
+  tree.
+- SUITE-003 (the library prints on the reader's palette) and SUITE-009 (paused narration taps) are
+  implemented, verified and committed in that baseline.
+- T15 (unit tests) is implemented and verified in the working tree; the commit needs the owner's
+  go-ahead.
 
 In progress / pending / blocked:
 - In progress: none.
-- Pending: T11 app icon, T13 chapter-opening page weight, T14 dark fold sheen decision, T15
-  automated tests.
+- Pending: T11 app icon, T13 chapter-opening page weight, T14 dark fold sheen decision.
 - Blocked: none.
-- SUITE-009 (iOS paused-tap fixes, 2026-10-22) is implemented and verified on the simulator but
-  still uncommitted: `Reader/ReaderPage` (hit test that tells paper from a character),
-  `Reader/ReaderView` (paused routing, chapter offset passed through), `Reader/SpeechController`
-  (a paused synthesizer is stopped so the new utterance is heard). Report and evidence:
-  `build/qa/SUITE-009/REPORT.md` (`build/` is ignored).
 
 Git branch / HEAD / dirty files:
-- Branch `master`; HEAD `e224196` "Reader: show the pictures a book carries" (2026-10-21 12:42 +07)
-  carries T12. Under it: the adoption commit "Toolkit: adopt the AI development workflow, and write
-  the state in both languages" (`742433d`) with the toolkit set, `README.md` and these three state
-  files, then the last functional commit before the pictures, `c999ad0` (2026-10-20 16:40 +07).
-- Before the adoption commit the tracked tree was clean and the only untracked entries were the 42
-  toolkit files installed by the owner (2026-10-20 23:58, `manage.py install --cli all`) plus
-  these docs; `manage.py uninstall` reports 39 toolkit files intact and KEEPs the three
-  modified state files.
-- SUITE-003 (2026-10-21 13:55 +07) is in the working tree and not committed: `Library/LibraryView`
-  (palette from `ReaderSettings.shared`, two capture hooks), `Reader/ReaderSettings` (the app-wide
-  `shared` instance) and `Reader/ReaderView` (settings observed from that instance). Only the
-  documentation is committed ("Docs: T12 is committed, not pending"); a code commit needs the
-  owner's go-ahead.
-- SUITE-009 (2026-10-22) is in the working tree and not committed, on top of the SUITE-003 files:
-  `Reader/ReaderPage.swift`, `Reader/ReaderView.swift` (which also carries SUITE-003's
-  `ReaderSettings.shared` hunk), `Reader/SpeechController.swift`. No commit, no push.
-- No remote. Auxiliary worktrees exist under `~/orca/workspaces/EpubReader-iOS/{EpubReader,
-  catshark, mooneye}` pinned at `62b44ce`; they are not part of this project's work.
+- The project is worktree `ios` of the OpenBook repository (parent
+  `/Users/cuong/Workspace/CODE/AI/Orca/OpenBook`, siblings `master` and `android`). Branch `ios`;
+  baseline `e727837` "Initial import: EpubReader for iOS" (2026-10-22) on top of the empty
+  `c6633fb Initial commit`. The older history (`e224196` back to `7cfd579`) still exists only in
+  `/Users/cuong/Workspace/CODE/AI/OpenCode/EpubReader-iOS`; that copy is identical to this tree
+  apart from `build/` and `.git`.
+- T15 (2026-10-22) is in the working tree and not committed: new `EpubReaderTests/` (three test
+  files), `EpubReader.xcodeproj/project.pbxproj` (test target), new shared scheme
+  `EpubReader.xcodeproj/xcshareddata/xcschemes/EpubReader.xcscheme`, `Reader/ReadingProgress.swift`
+  (`init(defaults:)`) and these state files.
+- No remote; nothing is pushed. The auxiliary worktrees under `~/orca/workspaces/EpubReader-iOS/`
+  no longer exist.
 
 Verification:
+- `xcodebuild test -project EpubReader.xcodeproj -scheme EpubReader -configuration Debug
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -derivedDataPath build/dd`
+  → `** TEST SUCCEEDED **`, 13 tests, 0 failures (2026-10-22 10:15 +07, Xcode 27.1). The app build
+  is green again after the change (`** BUILD SUCCEEDED **`, the only `warning:` line is Apple's
+  `appintentsmetadataprocessor` notice). Tests: `PaginatorTests` 4, `EpubArchiveReaderTests` 4,
+  `ReadingProgressTests` 5.
 - `xcodebuild -project EpubReader.xcodeproj -scheme EpubReader -configuration Debug
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -derivedDataPath build/dd
   build` → exit 0, `** BUILD SUCCEEDED **`, 0 warnings (2026-10-21 10:53 +07, Xcode 27.1; the only
@@ -200,7 +201,8 @@ Verification:
     becomes `full`, the state stays `paused` and the page does not change. Regressions with
     real touches: playing + text tap still seeks, idle + middle tap still reveals the
     chrome, idle + right-third tap still turns the page (`Trang 5/13` → `6/13`).
-- No XCTest target exists (NOT RUN: unit/UI tests).
+- Unit tests exist and pass for `Paginator`, `EpubArchiveReader` and `ReadingProgress`; the app UI
+  itself is only covered by the simulator checks above (the smoke UI test was dropped by the owner).
 
 Known limitations:
 - System light/dark does not repaint the library or the reader: appearance is the reader's explicit
@@ -219,23 +221,22 @@ Known limitations:
 - Chapter-opening pages render visibly heavier (page 2 bold vs page 3); cause not found.
 - `ReaderView.swift` is 1309 lines and owns chrome, player, settings wiring and demo hooks;
   a split is a refactor that needs a separate approval.
-- No automated test target; verification depends on the simulator, idb and screenshots.
+- Unit tests cover the pure logic only; the UI is still checked by hand on the simulator (the smoke
+  UI test was dropped by the owner on 2026-10-22).
 - Progress percentage is measured at the foot of the visible page, so the first page of a
   13-page book reads ~8 % and the last page 100 %.
 - Portrait only, iPhone and iPad (`TARGETED_DEVICE_FAMILY = 1,2`) with no iPad layout.
 - Narration quality depends on the device's installed Vietnamese voices.
 
 Exact next action:
-- Ask the owner three things: approve committing SUITE-003's three source files (explicit paths, no
-  push); whether the library should follow the system appearance or keep the reader's day/night
-  (currently the latter, matching Android); and which of T11, T13–T15 comes next — then write that
-  task's plan and wait for approval before touching code.
+- Ask the owner for the go-ahead to commit T15 (explicit paths, no push), then which of T11, T13 or
+  T14 comes next — write that task's plan and wait for approval before touching code.
 
 ---
 
 ## Bản tiếng Việt
 
-Cập nhật: 2026-10-21 13:55 +07 (Asia/Ho_Chi_Minh)
+Cập nhật: 2026-10-22 10:20 +07 (Asia/Ho_Chi_Minh)
 
 Mục tiêu / tiêu chí nghiệm thu:
 - Ứng dụng đọc EPUB demo chạy native trên iOS (vỏ SwiftUI + lật trang bằng UIKit page curl)
@@ -272,11 +273,15 @@ Phạm vi và các mốc duyệt:
   - 2026-10-20: lưu và khôi phục vị trí đọc; thư viện hiện % đã đọc (commit 458ae98).
   - 2026-10-21: áp dụng AI Development Toolkit — khảo sát trước, tài liệu state song ngữ ở root,
     giữ cài `--cli all`, thêm README, rồi gộp thành một commit (đã duyệt).
+  - 2026-10-22: dự án iOS nay nằm trong repo OpenBook dưới worktree `ios`; toàn bộ cây (code, tài
+    liệu, toolkit) được commit làm baseline (đã duyệt, không push).
+  - 2026-10-22: T15 — target unit test cho `Paginator`, `EpubArchiveReader`, `ReadingProgress`;
+    smoke UI test được anh bỏ ("không cần"). `xcodebuild test` phải xanh.
 - Quyết định bị thay thế: "không có đường ra khỏi sách khi đang đọc thành tiếng" (commit
   caaec44) đã được anh rút lại ngày 2026-10-20 ("ẩn cùng với nút khác chứ có bảo là xoá nó đi
   đâu") và thay bằng "back ẩn/hiện cùng thanh công cụ" (commit c999ad0).
 - Chưa được duyệt: publish (không có remote, chưa push lần nào), refactor, đổi kiến trúc, bố
-  cục riêng cho iPad, target unit test, thay đổi repo Android từ dự án này.
+  cục riêng cho iPad, target UI test, thay đổi repo Android từ dự án này.
 
 Quyết định kiến trúc:
 - Các tầng hiện có (`EpubReader/App`, `Data`, `Domain`, `Library`, `Reader`). Clean
@@ -322,44 +327,38 @@ Quyết định kiến trúc:
   kế hoạch trước khi sửa code, commit chỉ stage đường dẫn cụ thể.
 
 Đã xong và đã kiểm:
-- T01–T10, T12 và T16 (xem TASKS.md) đã làm và đã kiểm. Code chức năng đã commit trên `master`
-  tới `e224196` ("Reader: show the pictures a book carries", 2026-10-21 12:42 +07), commit này
-  chứa T12; commit áp dụng toolkit/tài liệu là `742433d`.
-- SUITE-003 (thư viện in trên palette của reader) đã làm và đã kiểm trong cây làm việc; ba tệp
-  nguồn của nó **chưa** commit (cần anh cho phép). Chỉ phần sửa tài liệu được commit
-  ("Docs: T12 is committed, not pending").
+- T01–T10, T12, T15 và T16 (xem TASKS.md) đã làm và đã kiểm, tất cả đều đã commit: chúng vào repo
+  OpenBook trong commit baseline `e727837` ("Initial import: EpubReader for iOS", 2026-10-22), commit
+  này mang luôn SUITE-003 và SUITE-009, vì repo `EpubReader-iOS` riêng kết thúc ở `e224196` với các
+  tệp đó còn trong cây làm việc.
+- SUITE-003 (thư viện in trên palette của reader) và SUITE-009 (chạm khi giọng đọc tạm dừng) đã làm,
+  đã kiểm và nay đã nằm trong baseline đó.
+- T15 (unit test) đã làm và đã kiểm trong cây làm việc; muốn commit cần anh cho phép.
 
 Đang làm / chờ / bị chặn:
 - Đang làm: không.
-- Chờ: T11 icon app, T13 trang mở đầu chương bị đậm, T14 quyết định nếp gấp ở theme tối,
-  T15 test tự động.
+- Chờ: T11 icon app, T13 trang mở đầu chương bị đậm, T14 quyết định nếp gấp ở theme tối.
 - Bị chặn: không.
-- SUITE-009 (sửa lỗi chạm khi giọng đọc đang tạm dừng, 2026-10-22) đã làm và đã kiểm trên
-  simulator nhưng **chưa** commit: `Reader/ReaderPage` (hit test phân biệt giấy trắng với ký tự),
-  `Reader/ReaderView` (định tuyến khi tạm dừng, offset theo chương), `Reader/SpeechController`
-  (dừng cả synthesizer đang tạm dừng để câu mới được đọc). Báo cáo và bằng chứng:
-  `build/qa/SUITE-009/REPORT.md` (`build/` bị ignore).
 
 Nhánh Git / HEAD / tệp chưa commit:
-- Nhánh `master`; HEAD `e224196` "Reader: show the pictures a book carries" (2026-10-21 12:42 +07)
-  chứa T12. Bên dưới là commit áp dụng toolkit "Toolkit: adopt the AI development workflow, and
-  write the state in both languages" (`742433d`) với bộ toolkit, `README.md` và ba tệp state này,
-  rồi commit chức năng trước đó `c999ad0` (2026-10-20 16:40 +07).
-- Trước commit áp dụng, cây tracked sạch; các mục untracked chỉ gồm 42 tệp toolkit do anh cài
-  (2026-10-20 23:58, `manage.py install --cli all`) và ba tệp tài liệu này; `manage.py uninstall`
-  báo 39 tệp toolkit còn nguyên hash và giữ lại ba tệp state đã sửa.
-- SUITE-003 (2026-10-21 13:55 +07) đang ở trong cây làm việc, chưa commit:
-  `Library/LibraryView` (lấy palette từ `ReaderSettings.shared`, thêm hai móc chụp ảnh),
-  `Reader/ReaderSettings` (thể hiện `shared` dùng chung toàn app) và `Reader/ReaderView` (theo dõi
-  cài đặt từ thể hiện đó). Chỉ tài liệu được commit ("Docs: T12 is committed, not pending");
-  commit code cần anh cho phép.
-- SUITE-009 (2026-10-22) đang ở trong cây làm việc, chưa commit, chồng lên các tệp của SUITE-003:
-  `Reader/ReaderPage.swift`, `Reader/ReaderView.swift` (tệp này mang thêm hunk
-  `ReaderSettings.shared` của SUITE-003), `Reader/SpeechController.swift`. Không commit, không push.
-- Không có remote. Có các worktree phụ ở `~/orca/workspaces/EpubReader-iOS/{EpubReader,
-  catshark, mooneye}` neo tại `62b44ce`; không thuộc phạm vi dự án này.
+- Dự án là worktree `ios` của repo OpenBook (thư mục cha `/Users/cuong/Workspace/CODE/AI/Orca/OpenBook`,
+  anh em `master` và `android`). Nhánh `ios`; baseline `e727837` "Initial import: EpubReader for
+  iOS" (2026-10-22) trên commit rỗng `c6633fb Initial commit`. Lịch sử cũ (`e224196` lùi về
+  `7cfd579`) chỉ còn ở `/Users/cuong/Workspace/CODE/AI/OpenCode/EpubReader-iOS`; bản đó giống hệt cây
+  này, chỉ khác `build/` và `.git`.
+- T15 (2026-10-22) đang ở trong cây làm việc, chưa commit: thư mục mới `EpubReaderTests/` (ba tệp
+  test), `EpubReader.xcodeproj/project.pbxproj` (target test), scheme dùng chung mới
+  `EpubReader.xcodeproj/xcshareddata/xcschemes/EpubReader.xcscheme`, `Reader/ReadingProgress.swift`
+  (`init(defaults:)`) và ba tệp state này.
+- Không có remote; chưa push gì. Các worktree phụ ở `~/orca/workspaces/EpubReader-iOS/` không còn nữa.
 
 Kiểm chứng:
+- `xcodebuild test -project EpubReader.xcodeproj -scheme EpubReader -configuration Debug
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -derivedDataPath build/dd`
+  → `** TEST SUCCEEDED **`, 13 test, 0 lỗi (2026-10-22 10:15 +07, Xcode 27.1). Sau thay đổi, build
+  app vẫn xanh (`** BUILD SUCCEEDED **`, dòng `warning:` duy nhất là thông báo của
+  `appintentsmetadataprocessor`). Test: `PaginatorTests` 4, `EpubArchiveReaderTests` 4,
+  `ReadingProgressTests` 5.
 - `xcodebuild -project EpubReader.xcodeproj -scheme EpubReader -configuration Debug
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -derivedDataPath build/dd
   build` → exit 0, `** BUILD SUCCEEDED **`, 0 warning (2026-10-21 10:53 +07, Xcode 27.1; dòng
@@ -436,14 +435,13 @@ Hạn chế đã biết:
 - Trang mở đầu chương hiển thị đậm hơn rõ rệt (trang 2 đậm hơn trang 3); chưa tìm ra nguyên nhân.
 - `ReaderView.swift` dài 1.309 dòng, ôm cả thanh công cụ, player, cài đặt và móc demo; tách nhỏ
   là refactor, cần duyệt riêng.
-- Không có target test tự động; kiểm chứng phụ thuộc simulator, idb và ảnh chụp.
+- Unit test chỉ phủ phần logic thuần; giao diện vẫn kiểm bằng tay trên simulator (smoke UI test được
+  anh bỏ ngày 2026-10-22).
 - Phần trăm đọc tính ở chân trang đang hiện, nên trang đầu của sách 13 trang khoảng 8 %, trang
   cuối là 100 %.
 - Chỉ dọc, hỗ trợ iPhone và iPad (`TARGETED_DEVICE_FAMILY = 1,2`) nhưng chưa có bố cục iPad.
 - Chất lượng giọng đọc phụ thuộc giọng tiếng Việt cài trên máy.
 
 Hành động tiếp theo chính xác:
-- Hỏi anh ba việc: có commit ba tệp nguồn của SUITE-003 không (stage đúng đường dẫn, không push);
-  thư viện nên theo giao diện hệ thống hay giữ ngày/đêm của reader (hiện giữ, giống Android); và
-  việc nào trong T11, T13–T15 làm tiếp; sau đó viết kế hoạch cho việc đó và chờ duyệt trước khi
-  sửa code.
+- Xin anh cho phép commit T15 (stage đúng đường dẫn, không push), rồi hỏi việc nào trong T11, T13,
+  T14 làm tiếp — viết kế hoạch cho việc đó và chờ duyệt trước khi sửa code.
