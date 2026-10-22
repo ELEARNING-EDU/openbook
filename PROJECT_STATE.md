@@ -1,6 +1,6 @@
 # Project state — Sách (Android EPUB reader)
 
-Updated: 2026-10-21T11:26+07:00 (Asia/Saigon)
+Updated: 2026-10-22T09:45+07:00 (Asia/Saigon)
 Canonical. Everything about this project lives in this file; `docs/` holds only the app's user
 guide. Read "Facts at a glance" and "Verified current state" first, then the Part sections for
 the reasoning and the measurements behind any number.
@@ -10,35 +10,37 @@ the reasoning and the measurements behind any number.
 | Fact | Value |
 | --- | --- |
 | App / package | **Sách** · `com.example.epubreader` (applicationId = namespace) |
-| Module / size | `:app` only · 24 Kotlin files · **8,108 lines** under `app/src/main/java` |
+| Module / size | `:app` only · 27 Kotlin files · **9,608 lines** under `app/src/main/java` |
 | Toolchain | Gradle 9.8.0 · AGP 9.4.1 · Kotlin 2.4.20 · JDK 17 (jbr-17.0.14) |
 | SDK | compileSdk 37 · targetSdk 36 · minSdk 26 |
 | Compose | BOM 2026.09.00 (ui, foundation, material3) · every icon drawn with `Canvas` |
 | State / DI | Compose state + 3 `SharedPreferences` + `filesDir/Books`; no ViewModel, DI, Nav, Room |
 | Tests | none — `app/src` has only `main`; every check is run on the emulator |
 | Sample book | `app/src/main/assets/sample.epub`, 9,720 bytes, seeded into `filesDir/Books` |
-| APK | `12,302,465 bytes` · 2026-10-21 09:20 · sha256 `2c0ac42431acac2ce5016bc0d340ee57ab58f5b01e421c6f665dfb16f4ddb8ab` · installed on `emulator-5554` · no source newer than it |
+| APK | `12,366,927 bytes` · 2026-10-22 09:07 · sha256 `37a4c560aafad277980244818a29ea09a84b20ff87ecd626f01b56351c21c509` · installed on `emulator-5554` · no source newer than it |
 | Device | AVD `Pixel_9_Pro_XL` · Android 16 / API 36 · 1344x2992 · density 480 |
-| Git | branch `master`, **2 commits**: `9e1cdf2` (2026-10-20 14:15, the Part 7 baseline) and the 2026-10-21 commit carrying Parts 8–11 + this checkpoint set + the AI toolkit; working tree clean, **no remote** |
-| Tasks | 79 IDs: 60 verified, 19 open — see `TASKS.md`; handoff in `SESSION_HANDOFF.md` |
-| Next action | the owner's Part 11 curl picture (T-075) and the vertical-swipe decision (T-076) |
+| Git | branch `master`, **2 commits**, **no remote**. The working tree is dirty: Part 12 (this session) plus the earlier uncommitted image/`SearchSheet` work; nothing is staged |
+| Tasks | 85 IDs: 65 verified, 20 open — see `TASKS.md`; handoff in `SESSION_HANDOFF.md` |
+| Next action | T-085 (the reading bar's headline collapses at 360dp); then the owner's Part 11 curl picture (T-075) and the vertical-swipe decision (T-076) |
 
 ## Component map
 
 | Path | Responsibility |
 | --- | --- |
 | `MainActivity.kt` | `enableEdgeToEdge`, builds `DemoOptions` from 24 intent extras (harness) |
-| `ui/EpubReaderApp.kt` | app-level state: books, opened book, shelf progress, one-shot demo budget |
-| `ui/LibraryScreen.kt` | shelf, gradient covers, SAF import, read-percentage bar |
-| `ui/ReaderScreen.kt` (1,436) | the reading session: pages, chrome levels, tap routing, sheets, player |
+| `ui/EpubReaderApp.kt` | app-level state: books, opened book, the tab, shelf progress, one-shot demo budget |
+| `ui/MainScreen.kt` | Home / Library / Store tabs, one shared SAF import picker, Home's "carry on" card |
+| `ui/LibraryScreen.kt` | shelf, gradient covers, read-percentage bar |
+| `ui/AudioPlayerSheet.kt` | the full player: cover, seek slider, back/play/forward, sleep timer, voice picker |
+| `ui/ReaderScreen.kt` (1,626) | the reading session: pages, chrome levels, tap routing, sheets, player |
 | `reader/CurlView.kt` (995) | hand-drawn curl: drag/fling/taps, `foldGeometry`, crease report |
-| `reader/ReaderEngine.kt` (673) | EPUB → chapters → `StaticLayout` pages → page bitmaps |
+| `reader/ReaderEngine.kt` (692) | EPUB → chapters → `StaticLayout` pages → page bitmaps |
 | `reader/Typesetting.kt`, `reader/Sentences.kt` | one typesetting source for page + preview; sentence spans |
-| `reader/SpeechReader.kt` (485) | `TextToSpeech` vi-VN queue, rate, state, callbacks |
-| `ui/Components.kt` (992), `ui/AppearanceSheet.kt`, `ui/CustomizeScreen.kt` | hand-drawn icons, theme sheet, full-screen customizer |
+| `reader/SpeechReader.kt` (581) | `TextToSpeech` vi-VN queue, rate, state, voices, callbacks |
+| `ui/Components.kt` (1,134), `ui/AppearanceSheet.kt`, `ui/CustomizeScreen.kt` | hand-drawn icons, theme sheet, full-screen customizer |
 | `reader/ReaderSettings.kt`, `reader/ReaderTheme.kt` | six themes x light/dark, per-theme config, prefs |
 | `reader/BookmarkStore.kt`, `reader/ReadingPositions.kt`, `library/LibraryStore.kt` | prefs `readerBookmarks`, `reading_positions`; `.epub` files in `filesDir/Books` |
-| `epub/*` (4 files) | `ZipInputStream` + `META-INF/container.xml` → OPF → spine, `nav`/`ncx`, `Html.fromHtml` |
+| `epub/*` (5 files) | `ZipInputStream` + `META-INF/container.xml` → OPF → spine, `nav`/`ncx`, `Html.fromHtml` (`ChapterImages.kt` is the unverified image work) |
 
 ## Scope & requirements
 - Product objective: native Android demo EPUB reader (Kotlin + Jetpack Compose) with
@@ -122,10 +124,11 @@ the reasoning and the measurements behind any number.
 ## Verified current state
 - Current branch / worktree: Git repository at
   `/Users/cuong/Workspace/CODE/AI/OpenCode/epub-reader-android`, branch `master`, two commits:
-  `9e1cdf2` (2026-10-20 14:15 — the Part 7 baseline) and the 2026-10-21 commit that carries
-  Parts 8–11 together with this checkpoint set and the AI Development Toolkit. The working tree
-  is clean and there is no remote. Checked 2026-10-21; the authoritative Git block is
-  "Facts at a glance" at the top of this file.
+  `9e1cdf2` (2026-10-20 14:15 — the Part 7 baseline) and `fa27d98` (2026-10-21 — Parts 8–11
+  with that checkpoint set and the AI Development Toolkit). The working tree is **dirty and
+  nothing is staged** (Part 12 plus the earlier image/`SearchSheet` work); there is no remote.
+  Checked 2026-10-22; the authoritative Git block is "Facts at a glance" at the top of this
+  file.
 - Verified working features:
   - `:app:assembleDebug` succeeds (JDK 17, Gradle 9.8, AGP/Kotlin from the version
     catalog). APK = `app/build/outputs/apk/debug/app-debug.apk`.
@@ -394,7 +397,7 @@ T-059 superseded), the index wins.
   when the screen opened.
   Rationale: the page count has to move under the finger, and cancel has to be exact.
 
-## Limitations of the app (as built, 2026-10-21)
+## Limitations of the app (as built, 2026-10-22)
 
 1. The Part 11 curl came from the owner's sentence, not their picture — the attachment never
    reached the session (T-075).
@@ -413,6 +416,14 @@ T-059 superseded), the index wins.
    (`versionCode 1`, minify off) and has no release signing.
 10. Print-through on the cream back is ~8.6% (a chosen value); a tail-only page (page 5,
     sentence #28) is voiced with no amber band.
+11. The full player is content-sized, not the half-screen sheet that was asked for: ~60% of the
+    height on 1344x2992 and ~93% on 360x640dp (T-084, verified). In landscape Material caps it
+    at 640dp and its content scrolls. At 360dp the reading bar's headline collapses to "Hải Đ"
+    (T-085). The Store is offline by design — no catalogue, no `INTERNET` permission.
+12. The working tree carries unverified image rendering (`epub/ChapterImages.kt`) that the
+    shipped APK already runs: the sample book's page 4 shows a colour-bar image and captions
+    like "[Ảnh: Tệp hỏng]", and the voice reads those captions aloud as sentences. T-069's
+    premise describes HEAD, not the tree.
 
 ## Verification — how to re-check this file
 
@@ -520,15 +531,19 @@ adb logcat -s ReaderScreen
   composition. This bit once already (`report.md` §32: the toolbar and its back button hid
   themselves while the voice was reading) and a still screenshot cannot show it.
 
-## Next milestone (rewritten 2026-10-21, Part 11)
-- Nothing is mid-flight in code. The next action is the owner's answer on the Part 11 curl
-  reading — the attached picture never reached the session — and on whether a nearly vertical
-  swipe should turn the page (`DRAG_AXIS_FRACTION = 0.35` today; see report §89 and §90).
-- The open work list (parked gaps, tablet, two columns, `<img>`, CSS, bookmarks, audio, film)
-  now lives as IDs **T-061…T-079** in `TASKS.md`.
-- History — Part 9 (2026-10-20, later) answered four reports: the lean's sign, the one-shot
-  harness staging, the level-(b) toolbar and the gear beside the player. Evidence in
-  `report.md` Part 9 (§68–§74) and `screenshots-part9/01`…`08`.
+## Next milestone (rewritten 2026-10-22, Part 12)
+- Part 12 is built, installed and verified by hand, including T-084's small-phone and landscape
+  check. The next action is **T-085**: on a 360dp screen the reading bar's headline collapses to
+  "Hải Đ" because the rate label and five 48dp controls take the row.
+- Then the two Part 11 questions still open: the owner's curl picture (T-075) and whether a
+  nearly vertical swipe should turn the page (T-076, `DRAG_AXIS_FRACTION = 0.35`).
+- The rest of the open work is IDs **T-061…T-079** plus T-085 in `TASKS.md` — parked gaps,
+  tablet, two columns, `<img>`, CSS, bookmarks, audio, film.
+- Nothing in the tree is committed: this session's Part 12 files, the earlier image/`SearchSheet`
+  work, and the docs share one dirty working tree.
+- History — Part 11 answered three reports: the fold finishes head-to-tail (`leanScale`), the
+  progress line sits flush on the capsule's floor, and the page's thirds turn while the player
+  is closed. Evidence in `report.md` §85–§90 and `screenshots-part11/`.
 - History — before that: the fold is square to the pull (a level swipe folds level; a diagonal
   one leans) and a reading voice follows the reader's hand, both built, installed, verified
   and written up (`report.md`, Part 8, §60–§67; `screenshots-spine2/01`…`10`, `logs.txt`,
@@ -536,7 +551,52 @@ adb logcat -s ReaderScreen
   diagonal fold, the player pass (Part 5, `screenshots-player/`) and Parts 1–4
   (`screenshots/`, `screenshots-chrome/`, `screenshots-appearance/`, `screenshots-parity/`).
 
-## Part 11 (2026-10-21) — current: the fold finishes head-to-tail, the line on the pill's floor, the thirds
+## Part 12 (2026-10-22) — current: the full player sheet and the three tabs
+
+- Two owner requests. (a) Tapping the book's title in the player opens a popup player at roughly
+  half the screen — cover, slider, back / play-pause / forward, "hẹn giờ tắt" and "chọn giọng
+  đọc" — the way a music or podcast player looks. (b) The main screen becomes three tabs:
+  Home, Library, Store.
+- **The sheet** (`ui/AudioPlayerSheet.kt`, new) is a `ModalBottomSheet` opened by `onTitleTap` on
+  the player's headline (`ReaderScreen`); `BookCover` and `ReadBar` moved out of `LibraryScreen`
+  into `Components.kt` so the sheet and the shelf draw the same cover. Its slider is a **draft
+  under the finger and one seek on release**: `ReaderEngine.sentenceAtBookFraction()` (new)
+  binary-searches the chapter's sentence offsets, so a position is a fraction of the whole book,
+  not of the page. A seek while paused moves the page silently through the same path the voice
+  uses, so the leaf and the highlight agree; while playing it restarts the engine at the
+  sentence. Skip is one sentence either way, with the same silent page snap when paused.
+- **Sleep timer** (T-081) is UI state, not a service: five chips (Tắt / 5 / 15 / 30 / 60 phút),
+  a live `mm:ss` countdown in the sheet, and `LaunchedEffect(speechState)` cancels it whenever
+  the voice goes IDLE — so a stale timer cannot stop a later reading. Expiry calls the same
+  `stop()` as the button and leaves the note "Hết giờ hẹn — đã dừng đọc".
+- **Voice picker** (T-082): `SpeechReader.voices` lists the device's `vi-VN` voices plus "Mặc
+  định"; `setVoice()` disposes and re-creates the engine with the chosen voice and restarts the
+  sentence in flight, staying paused if it was paused. The name is persisted as `narrationVoice`
+  in `readerSettings` and applied at init.
+- **The tabs** (`ui/MainScreen.kt`, new) keep one shared SAF picker hoisted above them, so
+  Library is the Part 10 shelf unchanged. Home is a "Đang đọc" card — the book opened in this
+  process, else the highest `ReadingPositions` progress — plus a shelf row and the import path.
+  **Store is honest offline**: "Cửa hàng chưa kết nối" and an `Nhập EPUB` button, because the
+  app declares no `INTERNET` permission and the owner chose this over a fake catalogue. The
+  selected tab lives in `EpubReaderApp` beside the opened book, so Back from a book returns to
+  the tab it was opened from.
+- Taps were driven for real on `emulator-5554`: tabs switch and Back returns to the opening tab;
+  the headline opens the sheet; slider `79% -> #75` and `15% -> #18 (page 4)`; skips `#53` /
+  `#52`; 15 phút shows `tự dừng sau 14:57`; the harness `--ei demoSleep 1` counts down and logs
+  `sleep timer: 1min up -> stopping the voice` then `speech state: IDLE`; `x gft local` logs
+  `voice -> vi-vn-x-gft-local (code=0)`, survives `am force-stop` as `saved voice … -> 0`.
+  11 screenshots in `screenshots-player-sheet/01`…`11`, 0 `FATAL EXCEPTION`; `12`…`15` carry the
+  small-phone and landscape check (T-084).
+- The sheet measures **~60% of the height on the 1344x2992 device** and **~93% on a 360x640dp
+  screen**, where everything fits without scrolling; in landscape Material caps it at 640dp,
+  it is taller than the screen, and one swipe reaches the timer and voice rows (T-084, verified).
+  So the "half screen" asked for is not what it does — it is content-sized. On the 360dp screen
+  the reading bar's own headline collapses to "Hải Đ" (T-085, open). Skip-while-paused gained
+  its page snap late and was not re-tested apart from the slider, which uses the same mechanism.
+- Not in the sheet: a chapter list, bookmark button or playback speed (the reader already owns
+  the first two); a real media session or lock-screen controls; a Store that fetches anything.
+
+## Part 11 (2026-10-21): the fold finishes head-to-tail, the line on the pill's floor, the thirds
 - Three owner reports, all in `report.md` Part 11 (§85–§90), with
   `screenshots-part11/01`…`07` plus `logs.txt` and `measurements.txt`: a progress bar still not
   on the bottom edge that must run end to end without spilling; a curl that hugs the spine but

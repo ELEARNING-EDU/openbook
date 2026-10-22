@@ -13,6 +13,13 @@ data class RawChapter(
     val title: String,
     val href: String,
     val html: String,
+    /**
+     * The pictures the markup asks for, keyed by the `src` exactly as it was written.
+     *
+     * Resolved while the ZIP's entries are still in hand, because the importer has no
+     * base URL to fetch `images/pic.png` from — see `ChapterImages`.
+     */
+    val images: Map<String, ByteArray> = emptyMap(),
 )
 
 data class RawBook(

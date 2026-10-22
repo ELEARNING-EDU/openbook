@@ -104,27 +104,33 @@ object ReaderTheme {
             accent = Palette.rgb(accent),
         )
 
+    /**
+     * The six themes' colours, both faces, exactly as the iOS reference defines them
+     * (`ReaderTheme.swift`, `ReaderThemeSpec`): every value here is one of iOS's
+     * `PaletteInk` literals, so a theme looks the same on both platforms.
+     */
     private val light: Map<ThemeId, Palette> = mapOf(
         // White paper, black ink.
-        ThemeId.ORIGINAL to palette(0xFFFFFF, 0xF0F0F2, 0x111111, 0x6E6E73, 0xB4632C),
-        // Grey on a near-black page: the dim variant, both in the light and dark sets.
-        ThemeId.QUIET to palette(0x1B1B1D, 0x2A2A2E, 0xA9A9B0, 0x77777E, 0xC08A5A),
-        ThemeId.PAPER to palette(0xFFFFFF, 0xF2EFE9, 0x171717, 0x6B6459, 0x9E5932),
-        ThemeId.BOLD to palette(0xFFFFFF, 0xECECEC, 0x000000, 0x5A5A5A, 0x9E5932),
-        // Cream paper, brown ink: the iOS `paper` palette.
-        ThemeId.CALM to palette(0xF7F2E7, 0xECE6D9, 0x29241F, 0x736A60, 0x9E5932),
-        ThemeId.FOCUS to palette(0xFFFFFF, 0xF0F0F2, 0x111111, 0x6E6E73, 0xB4632C),
+        ThemeId.ORIGINAL to palette(0xFFFFFF, 0xEDEDEF, 0x121212, 0x6E6E73, 0xB4632C),
+        // Grey on grey: a dim surface that is a *light* face of the theme, though the
+        // paper itself is dark and the chrome has to know it (see [Palette.dark]).
+        ThemeId.QUIET to palette(0x3A3A3C, 0x48484A, 0xD1D1D6, 0xA0A0A6, 0xF0C98A),
+        // Warm paper, brown-black ink: the theme the reader opens on.
+        ThemeId.PAPER to palette(0xFBF7EE, 0xEFE9DC, 0x2A241D, 0x6E6459, 0x9E5932),
+        ThemeId.BOLD to palette(0xFFFFFF, 0xEDEDED, 0x000000, 0x6A6A6A, 0xB4632C),
+        ThemeId.CALM to palette(0xF2E2C4, 0xE6D3AE, 0x5A4527, 0x7C6644, 0xA96A25),
+        ThemeId.FOCUS to palette(0xFFFFFF, 0xEFEFEF, 0x14100A, 0x6B6B6B, 0xA96A25),
     )
 
     private val dark: Map<ThemeId, Palette> = mapOf(
-        ThemeId.ORIGINAL to palette(0x121214, 0x242428, 0xE9E9EC, 0x8A8A90, 0xC98A52),
-        ThemeId.QUIET to palette(0x0E0E10, 0x1E1E22, 0xB4B4BB, 0x7C7C83, 0xC08A5A),
-        ThemeId.PAPER to palette(0x101010, 0x202020, 0xF0F0F0, 0x9A9A9A, 0xC08A5A),
-        // The iOS `bold` palette: black paper, bright ink.
-        ThemeId.BOLD to palette(0x101010, 0x1F1F22, 0xF2F2F2, 0x9E9EA4, 0xD08A4A),
-        // The iOS `calm` palette: brown paper, cream ink.
+        ThemeId.ORIGINAL to palette(0x000000, 0x1C1C1E, 0xF2F2F2, 0x9E9EA4, 0xE0A06A),
+        ThemeId.QUIET to palette(0x101012, 0x1E1E20, 0xA9A9B0, 0x77777E, 0xC08A5A),
+        ThemeId.PAPER to palette(0x0F0D0B, 0x1E1B17, 0xEDE6DA, 0x9C9385, 0xD9A06A),
+        // Black paper, bright ink: the whole point of Bold.
+        ThemeId.BOLD to palette(0x000000, 0x161616, 0xFFFFFF, 0x9E9EA4, 0xD08A4A),
+        // Brown paper, cream ink.
         ThemeId.CALM to palette(0x6B5844, 0x7C6852, 0xF5EDDD, 0xD6C7AF, 0xF0C98A),
-        // The iOS `focus` palette: dark brown paper, yellow ink.
+        // Dark brown paper, yellow ink.
         ThemeId.FOCUS to palette(0x2A2114, 0x3A2D1C, 0xD9B471, 0xA98F5E, 0xE8C073),
     )
 

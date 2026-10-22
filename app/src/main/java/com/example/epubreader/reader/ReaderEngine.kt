@@ -203,6 +203,25 @@ class ReaderEngine private constructor(
         return start + sentenceStop[sentence].coerceIn(0, chapterText[chapter].length)
     }
 
+    /**
+     * The sentence a drag on the player's slider lands on: [fraction] of the book's
+     * text, mapped back to the sentence that is being spoken at that point.
+     *
+     * [readCursor] rises with the sentence index (a chapter starts where the previous
+     * one ended), so a binary search is enough. -1 when there is nothing to read.
+     */
+    fun sentenceAtBookFraction(fraction: Float): Int {
+        if (sentenceCount == 0) return -1
+        val target = fraction.coerceIn(0f, 1f) * bookCharCount
+        var low = 0
+        var high = sentenceCount - 1
+        while (low < high) {
+            val mid = (low + high) / 2
+            if (readCursor(mid) < target) low = mid + 1 else high = mid
+        }
+        return low
+    }
+
     fun chapterTitle(chapter: Int): String =
         book.chapters.getOrNull(chapter)?.title?.replace(Regex("\\s+"), " ")?.trim().orEmpty()
 

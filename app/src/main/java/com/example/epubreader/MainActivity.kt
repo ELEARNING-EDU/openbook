@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
             dragY = intent?.getFloatExtra(EXTRA_DEMO_DRAG_Y, 0f) ?: 0f,
             dragSeconds = intent?.getFloatExtra(EXTRA_DEMO_DRAG_SECONDS, 0f) ?: 0f,
             jumpChapter = intent?.getIntExtra(EXTRA_DEMO_JUMP_CHAPTER, -1) ?: -1,
+            sleepTimer = intent?.getIntExtra(EXTRA_DEMO_SLEEP, 0) ?: 0,
         )
 
         setContent {
@@ -89,5 +90,6 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_DEMO_DRAG_Y = "demoDragY"
         const val EXTRA_DEMO_DRAG_SECONDS = "demoDragSeconds"
         const val EXTRA_DEMO_JUMP_CHAPTER = "demoJumpChapter"
+        const val EXTRA_DEMO_SLEEP = "demoSleep"
     }
 }

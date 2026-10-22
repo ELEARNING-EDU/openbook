@@ -5,11 +5,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -29,6 +33,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -49,12 +54,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
+import com.example.epubreader.model.BookItem
 import com.example.epubreader.reader.ReaderTheme
 import kotlin.math.PI
 import kotlin.math.cos
@@ -469,8 +476,9 @@ private fun DrawScope.seekRing(color: ComposeColor, stroke: Float, forward: Bool
 fun SeekBackGlyph(
     color: ComposeColor = ReaderTheme.Ink,
     modifier: Modifier = Modifier,
+    glyphSize: Dp = GLYPH,
 ) {
-    Canvas(modifier.size(GLYPH)) { seekRing(color, 1.7.dp.toPx(), forward = false) }
+    Canvas(modifier.size(glyphSize)) { seekRing(color, 1.7.dp.toPx(), forward = false) }
 }
 
 /** Read it a step at a time: the player's fast-forward. */
@@ -478,8 +486,9 @@ fun SeekBackGlyph(
 fun SeekForwardGlyph(
     color: ComposeColor = ReaderTheme.Ink,
     modifier: Modifier = Modifier,
+    glyphSize: Dp = GLYPH,
 ) {
-    Canvas(modifier.size(GLYPH)) { seekRing(color, 1.7.dp.toPx(), forward = true) }
+    Canvas(modifier.size(glyphSize)) { seekRing(color, 1.7.dp.toPx(), forward = true) }
 }
 
 /** The sun: switch the whole app to its light face. */
@@ -767,8 +776,9 @@ private fun DrawScope.drawDoubleArrow(
 fun PauseGlyph(
     color: ComposeColor = ReaderTheme.Ink,
     modifier: Modifier = Modifier,
+    glyphSize: Dp = GLYPH,
 ) {
-    Canvas(modifier.size(GLYPH)) {
+    Canvas(modifier.size(glyphSize)) {
         val barW = size.width * 0.20f
         val corner = CornerRadius(barW / 2f, barW / 2f)
         drawRoundRect(
@@ -791,8 +801,9 @@ fun PauseGlyph(
 fun PlayGlyph(
     color: ComposeColor = ReaderTheme.Ink,
     modifier: Modifier = Modifier,
+    glyphSize: Dp = GLYPH,
 ) {
-    Canvas(modifier.size(GLYPH)) {
+    Canvas(modifier.size(glyphSize)) {
         val path = Path().apply {
             moveTo(size.width * 0.24f, size.height * 0.10f)
             lineTo(size.width * 0.86f, size.height * 0.50f)
@@ -980,6 +991,137 @@ fun MarqueeText(
 private fun MarqueeRun(text: String, style: TextStyle) {
     Text(text = text, style = style, maxLines = 1, softWrap = false)
 }
+
+/**
+ * The generated cover, in the shelf and in the audio player: the same gradient, the
+ * same spine and the same two lines of print, so the book is one object wherever it
+ * appears. The covers are drawn rather than stored, so the demo ships no image assets.
+ */
+@Composable
+fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
+    val (top, bottom) = ReaderTheme.coverPalette(book.title)
+    val shape = RoundedCornerShape(10.dp)
+
+    Box(
+        modifier = modifier
+            .aspectRatio(0.68f)
+            .shadow(9.dp, shape)
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(top, bottom))),
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxHeight()
+                .width(5.dp)
+                .background(ComposeColor.Black.copy(alpha = 0.22f)),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(14.dp),
+        ) {
+            Text(
+                text = book.title,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                lineHeight = 20.sp,
+                color = ComposeColor.White,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = book.author,
+                fontFamily = FontFamily.Serif,
+                fontSize = 11.sp,
+                color = ComposeColor.White.copy(alpha = 0.82f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .border(1.dp, ComposeColor.White.copy(alpha = 0.22f), shape),
+        )
+    }
+}
+
+/** The home tab: a roof over a page. */
+@Composable
+fun HomeGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier.size(22.dp)) {
+        val stroke = 1.7f.dp.toPx()
+        val path = Path().apply {
+            moveTo(size.width * 0.12f, size.height * 0.46f)
+            lineTo(size.width * 0.5f, size.height * 0.15f)
+            lineTo(size.width * 0.88f, size.height * 0.46f)
+            moveTo(size.width * 0.22f, size.height * 0.40f)
+            lineTo(size.width * 0.22f, size.height * 0.86f)
+            lineTo(size.width * 0.78f, size.height * 0.86f)
+            lineTo(size.width * 0.78f, size.height * 0.40f)
+        }
+        drawPath(path, color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/** The library tab: a closed book, spine on the left. */
+@Composable
+fun LibraryGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier.size(22.dp)) {
+        val stroke = 1.7f.dp.toPx()
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(size.width * 0.20f, size.height * 0.13f),
+            size = Size(size.width * 0.60f, size.height * 0.74f),
+            cornerRadius = CornerRadius(2.5f.dp.toPx()),
+            style = Stroke(width = stroke),
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.34f, size.height * 0.16f),
+            end = Offset(size.width * 0.34f, size.height * 0.84f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+/** The store tab: a shopping bag. */
+@Composable
+fun StoreGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier.size(22.dp)) {
+        val stroke = 1.7f.dp.toPx()
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(size.width * 0.17f, size.height * 0.36f),
+            size = Size(size.width * 0.66f, size.height * 0.50f),
+            cornerRadius = CornerRadius(3f.dp.toPx()),
+            style = Stroke(width = stroke),
+        )
+        drawArc(
+            color = color,
+            startAngle = 180f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(size.width * 0.34f, size.height * 0.14f),
+            size = Size(size.width * 0.32f, size.height * 0.44f),
+            style = Stroke(width = stroke, cap = StrokeCap.Round),
+        )
+    }
+}
+
 
 /** Matches the record's tick, so the marquee and the disc look like one system. */
 private const val TICK_MS = 33L

@@ -44,6 +44,10 @@ fun EpubReaderApp(
     var books by remember { mutableStateOf<List<BookItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var opened by remember { mutableStateOf<BookItem?>(null) }
+    /** Home's "carry on" card: the last book opened in this process, if any. */
+    var lastOpenedId by remember { mutableStateOf<String?>(null) }
+    /** Which tab the shelf was left on; the reader covers it and comes back to it. */
+    var tab by remember { mutableStateOf(MainTab.HOME) }
     var importError by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
 
@@ -97,12 +101,18 @@ fun EpubReaderApp(
     ) {
         val book = opened
         if (book == null) {
-            LibraryScreen(
+            MainScreen(
                 books = books,
                 progress = progress,
                 loading = loading,
+                lastOpenedId = lastOpenedId,
+                tab = tab,
+                onTab = { tab = it },
                 onPick = onPicked,
-                onOpen = { opened = it },
+                onOpen = { picked ->
+                    lastOpenedId = picked.id
+                    opened = picked
+                },
             )
         } else {
             ReaderScreen(

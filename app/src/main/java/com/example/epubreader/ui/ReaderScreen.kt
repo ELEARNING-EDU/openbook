@@ -14,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,8 +32,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -169,13 +173,19 @@ data class DemoOptions(
      * own behaviour rather than a parallel code path. -1 is off.
      */
     val jumpChapter: Int = -1,
+    /**
+     * Harness only: arm the sleep timer for this many minutes once the voice has
+     * started. The sheet's shortest real choice is 5 minutes, so a screenshot run uses
+     * 1 to watch it expire. 0 is off.
+     */
+    val sleepTimer: Int = 0,
 ) {
     val isActive: Boolean
         get() = page >= 0 || (tapX >= 0 && tapY >= 0) || reading || player ||
             settings || sizeStep != 0 || theme.isNotBlank() || dark >= 0 ||
             config.isNotBlank() || customize || fontList || search ||
             searchQuery.isNotBlank() || bookmark || marks || lateCursor >= 0 ||
-            curl >= 0f || dragSeconds > 0f || jumpChapter > 0
+            curl >= 0f || dragSeconds > 0f || jumpChapter > 0 || sleepTimer > 0
 
     companion object {
         val None = DemoOptions()
@@ -225,6 +235,11 @@ fun ReaderScreen(
     var showSettings by remember { mutableStateOf(false) }
     var showCustomize by remember { mutableStateOf(false) }
     var showPlayer by remember { mutableStateOf(false) }
+    /** The full player, opened by tapping the title in the reading bar. */
+    var showPlayerSheet by remember { mutableStateOf(false) }
+    /** Minutes the sleep timer was set for; 0 when it is off. */
+    var sleepMinutes by remember { mutableIntStateOf(0) }
+    var sleepLeft by remember { mutableIntStateOf(0) }
     var chrome by remember { mutableStateOf(ChromeMode.FULL) }
     var autoHideToken by remember { mutableIntStateOf(0) }
     var currentSentence by remember { mutableIntStateOf(-1) }
@@ -301,6 +316,10 @@ fun ReaderScreen(
         val pageMetrics = metrics ?: return@LaunchedEffect
         val spec = settings.typesetSpec(density.density)
         val palette = settings.palette
+        // A picture is cut to the column it will be drawn in, and never taller than a
+        // little over half the column: the same box the paginator measures the text in.
+        val columnWidth = pageMetrics.columnWidth(spec.columnCount)
+        val maxImageHeight = pageMetrics.textHeight * MAX_PICTURE_HEIGHT_FRACTION
         val previous = engine
         // Holding a size button must not re-typeset the book per press.
         if (previous != null) delay(RESTYLE_DEBOUNCE_MS)
@@ -317,7 +336,7 @@ fun ReaderScreen(
             showPlayer = false
             // The platform HTML importer must run on the main thread, and the spans are
             // mutated by the paginator, so every restyle gets a fresh set.
-            val spanned = archive.chapters.map { HtmlText.toSpannable(it.html) }
+            val spanned = archive.chapters.map { HtmlText.toSpannable(it, columnWidth, maxImageHeight) }
             val built = withContext(Dispatchers.Default) {
                 ReaderEngine.build(archive, spanned, pageMetrics, spec, palette)
             }
@@ -333,7 +352,7 @@ fun ReaderScreen(
         } else {
             failure = null
             try {
-                val spanned = archive.chapters.map { HtmlText.toSpannable(it.html) }
+                val spanned = archive.chapters.map { HtmlText.toSpannable(it, columnWidth, maxImageHeight) }
                 val built = withContext(Dispatchers.Default) {
                     ReaderEngine.build(archive, spanned, pageMetrics, spec, palette)
                 }
@@ -369,6 +388,8 @@ fun ReaderScreen(
     val ready = engine
     val tocSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val settingsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val searchSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val playerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(ready) { speech.source = ready }
 
@@ -396,6 +417,58 @@ fun ReaderScreen(
                     "sentence #$currentSentence speech=$speechState",
             )
         }
+    }
+
+    // The chapter the voice is in, for the full player's caption.
+    val voiceChapter = ready?.let { source ->
+        val chapter = if (currentSentence >= 0) {
+            source.chapterOfSentence(currentSentence)
+        } else {
+            source.chapterOfPage(holder.view?.pageIndex ?: pageIndex)
+        }
+        source.chapterTitle(chapter)
+    }.orEmpty()
+
+    /**
+     * The full player's back and forward: one sentence at a time, in the voice's own
+     * place, so a skip is heard as a skip rather than as a new page.
+     */
+    fun skipSentence(step: Int) {
+        val source = ready ?: return
+        val page = holder.view?.pageIndex ?: pageIndex
+        val from = if (currentSentence >= 0) currentSentence + step else source.firstSentenceOnPage(page)
+        if (from < 0 || from >= source.sentenceCount) return
+        // A skip is the reader's hand, not the narrator's cursor: while the voice is
+        // paused the page must show the sentence the skip landed on, or the highlight
+        // would move somewhere off screen. A playing voice turns the page itself.
+        if (speech.state == SpeechState.PAUSED) {
+            val target = source.sentencePage(from)
+            if (target >= 0 && target != page) {
+                pageIndex = target
+                jumpTarget = -1
+                holder.view?.setPageIndex(target)
+            }
+        }
+        speech.skip(from)
+        Log.i(TAG, "skip $step -> sentence #$from (${source.sentenceText(from).take(40)}) speech=${speech.state}")
+    }
+
+    // The sleep timer runs from the moment it is chosen, whether or not the sheet is
+    // open, and its only job is to stop the voice: a reader who falls asleep does not
+    // need the book to carry on without them.
+    LaunchedEffect(sleepMinutes) {
+        if (sleepMinutes <= 0) {
+            sleepLeft = 0
+            return@LaunchedEffect
+        }
+        sleepLeft = sleepMinutes * 60
+        while (sleepLeft > 0) {
+            delay(1000)
+            sleepLeft--
+        }
+        Log.i(TAG, "sleep timer: ${sleepMinutes}min up -> stopping the voice")
+        speech.stop()
+        speechNote = "Hết giờ hẹn — đã dừng đọc"
     }
 
     // Whether the voice was running a moment ago, so stopping it can be told apart from
@@ -543,6 +616,10 @@ fun ReaderScreen(
     LaunchedEffect(speechState) {
         if (speechState == SpeechState.IDLE) {
             showPlayer = false
+            showPlayerSheet = false
+            // A sleep timer belongs to the voice that was running; one set before the
+            // voice started again must not stop the next one at a stale hour.
+            sleepMinutes = 0
             if (wasReading) {
                 wasReading = false
                 revealChrome()
@@ -658,8 +735,8 @@ fun ReaderScreen(
     // The chrome hides itself so the page is just paper, but never while the reader is
     // in a sheet or the appearance screen. While the voice is running it steps down to
     // the player's own level rather than out of sight.
-    LaunchedEffect(autoHideToken, showToc, showSearch, showSettings, showCustomize) {
-        if (showToc || showSearch || showSettings || showCustomize) return@LaunchedEffect
+    LaunchedEffect(autoHideToken, showToc, showSearch, showSettings, showCustomize, showPlayerSheet) {
+        if (showToc || showSearch || showSettings || showCustomize || showPlayerSheet) return@LaunchedEffect
         if (!chrome.visible) return@LaunchedEffect
         delay(AUTO_HIDE_MS)
         chrome = restingChrome()
@@ -741,6 +818,7 @@ fun ReaderScreen(
             }
         }
         if (staged.player) showPlayer = true
+        if (staged.sleepTimer > 0) sleepMinutes = staged.sleepTimer
         if (staged.settings) showSettings = true
         if (staged.customize || staged.fontList) showCustomize = true
         if (staged.bookmark) toggleBookmark()
@@ -816,7 +894,14 @@ fun ReaderScreen(
             )
         }
 
-        // Only surfaces when the speech engine has something to confess.
+        // Only surfaces when the speech engine has something to confess, and only for a
+        // moment: a status is not part of the page.
+        LaunchedEffect(speechNote) {
+            val note = speechNote ?: return@LaunchedEffect
+            delay(SPEECH_NOTE_MS)
+            if (speechNote == note) speechNote = null
+        }
+
         speechNote?.let { note ->
             Text(
                 text = note,
@@ -944,6 +1029,7 @@ fun ReaderScreen(
                                     progress = readProgress,
                                     canSlowDown = speech.canSlowDown,
                                     canSpeedUp = speech.canSpeedUp,
+                                    onTitle = { showPlayerSheet = true },
                                     onSlower = { speech.slower() },
                                     onPlayPause = { speech.togglePlayPause() },
                                     onFaster = { speech.faster() },
@@ -1003,19 +1089,79 @@ fun ReaderScreen(
     }
 
     if (showSearch && ready != null) {
-        SearchScreen(
-            engine = ready,
-            initialQuery = demo.searchQuery,
-            onPick = { page ->
-                showSearch = false
-                jumpToPage(page)
-                scheduleAutoHide()
-            },
-            onClose = {
+        ModalBottomSheet(
+            onDismissRequest = {
                 showSearch = false
                 scheduleAutoHide()
             },
-        )
+            sheetState = searchSheetState,
+            containerColor = ReaderTheme.Paper,
+            contentColor = ReaderTheme.Ink,
+        ) {
+            SearchSheet(
+                engine = ready,
+                initialQuery = demo.searchQuery,
+                onPick = { page ->
+                    showSearch = false
+                    jumpToPage(page)
+                    scheduleAutoHide()
+                },
+                onClose = {
+                    showSearch = false
+                    scheduleAutoHide()
+                },
+            )
+        }
+    }
+
+    if (showPlayerSheet && playerOpen) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showPlayerSheet = false
+                scheduleAutoHide()
+            },
+            sheetState = playerSheetState,
+            containerColor = ReaderTheme.Paper,
+            contentColor = ReaderTheme.Ink,
+        ) {
+            AudioPlayerSheet(
+                book = book,
+                chapter = voiceChapter,
+                playing = speechState == SpeechState.PLAYING,
+                progress = readProgress,
+                rateLabel = speech.rateLabel,
+                sleepMinutes = sleepMinutes,
+                sleepLeftSeconds = sleepLeft,
+                voices = speech.voices,
+                voiceName = speech.voiceName,
+                onSeek = { fraction ->
+                    val source = ready
+                    val sentence = source?.sentenceAtBookFraction(fraction) ?: -1
+                    if (source != null && sentence >= 0) {
+                        // A slider is a hand on the book, like a page turn: the page must
+                        // show where it landed even while the voice is paused. It is set
+                        // silently, so it does not rewind the voice to the page's first
+                        // sentence the way a reported page change would.
+                        val page = source.sentencePage(sentence)
+                        if (page >= 0) {
+                            pageIndex = page
+                            jumpTarget = -1
+                            holder.view?.setPageIndex(page)
+                        }
+                        speech.skip(sentence)
+                        Log.i(TAG, "slider ${(fraction * 100).toInt()}% -> sentence #$sentence (page ${page + 1})")
+                    }
+                },
+                onPrevious = { skipSentence(-1) },
+                onNext = { skipSentence(1) },
+                onPlayPause = { speech.togglePlayPause() },
+                onSleep = { minutes ->
+                    sleepMinutes = minutes
+                    Log.i(TAG, "sleep timer: ${if (minutes == 0) "off" else "$minutes min"}")
+                },
+                onVoice = { name -> speech.setVoice(name) },
+            )
+        }
     }
 
     if (showSettings && !showCustomize) {
@@ -1128,13 +1274,14 @@ private fun PlayerRow(
     progress: Float,
     canSlowDown: Boolean,
     canSpeedUp: Boolean,
+    onTitle: () -> Unit,
     onSlower: () -> Unit,
     onPlayPause: () -> Unit,
     onFaster: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .height(PLAYER_ROW_HEIGHT)
             .drawBehind { softRoundShadow(24.dp.toPx()) }
@@ -1142,6 +1289,7 @@ private fun PlayerRow(
             .background(ReaderTheme.Paper.copy(alpha = 0.92f))
             .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.14f), RoundedCornerShape(24.dp)),
     ) {
+        val showRate = maxWidth >= 400.dp
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -1150,20 +1298,24 @@ private fun PlayerRow(
         ) {
             MarqueeText(
                 text = headline,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onTitle),
                 fontSize = 13.sp,
                 color = ReaderTheme.Ink,
                 scrolling = playing,
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = rateLabel,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
-                color = ReaderTheme.InkSoft,
-                maxLines = 1,
-            )
+            if (showRate) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = rateLabel,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 11.sp,
+                    color = ReaderTheme.InkSoft,
+                    maxLines = 1,
+                )
+            }
             PanelButton(onClick = onSlower, enabled = canSlowDown, width = PLAYER_BUTTON_WIDTH) {
                 SeekBackGlyph()
             }
@@ -1334,35 +1486,68 @@ private fun TocContent(
             SheetNote("Chưa có đánh dấu nào. Nút đánh dấu trên thanh trên cùng giữ trang đang mở.")
         } else {
             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
-                items(marks.size) { index ->
+                items(
+                    count = marks.size,
+                    key = { index -> "${marks[index].mark.chapterIndex}-${marks[index].mark.offset}" },
+                ) { index ->
                     val row = marks[index]
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onJump(row.page) }
-                            .padding(start = 24.dp, end = 8.dp, top = 13.dp, bottom = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    // A mark is removed the way a list row is removed everywhere else: by
+                    // swiping it away. There is no ✕ any more — the row itself is the
+                    // control, and a mis-swipe can simply be swiped back before release.
+                    val dismissState = rememberSwipeToDismissBoxState()
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        enableDismissFromStartToEnd = false,
+                        enableDismissFromEndToStart = true,
+                        onDismiss = { direction ->
+                            if (direction == SwipeToDismissBoxValue.EndToStart) {
+                                onRemoveMark(row.mark)
+                            }
+                        },
+                        backgroundContent = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(ReaderTheme.Paper)
+                                    .padding(horizontal = 24.dp),
+                                contentAlignment = Alignment.CenterEnd,
+                            ) {
+                                Text(
+                                    text = "Xoá",
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    color = ReaderTheme.Accent,
+                                )
+                            }
+                        },
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = row.title,
-                                fontFamily = FontFamily.Serif,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp,
-                                color = ReaderTheme.Accent,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text(
-                                text = "tr. ${row.page + 1}",
-                                fontFamily = FontFamily.Serif,
-                                fontSize = 12.sp,
-                                color = ReaderTheme.InkSoft,
-                            )
-                        }
-                        PanelButton(onClick = { onRemoveMark(row.mark) }) {
-                            CloseGlyph(color = ReaderTheme.InkSoft)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ReaderTheme.Paper)
+                                .clickable { onJump(row.page) }
+                                .padding(start = 24.dp, end = 24.dp, top = 13.dp, bottom = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = row.title,
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp,
+                                    color = ReaderTheme.Accent,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = "tr. ${row.page + 1}",
+                                    fontFamily = FontFamily.Serif,
+                                    fontSize = 12.sp,
+                                    color = ReaderTheme.InkSoft,
+                                )
+                            }
                         }
                     }
                 }
@@ -1421,6 +1606,12 @@ private val PLAYER_ROW_INSET = 14.dp
 
 private val AUDIO_LINE_HEIGHT = 2.5.dp
 
+/**
+ * A picture may take at most this much of the column's height. iOS cuts a plate to the
+ * column's width and caps it the same way, so one illustration cannot own the page.
+ */
+private const val MAX_PICTURE_HEIGHT_FRACTION = 0.55f
+
 /** Time for the harness to reach the page before it starts poking at it. */
 private const val DEMO_SETTLE_MS = 1200L
 
@@ -1432,5 +1623,8 @@ private const val RESTYLE_DEBOUNCE_MS = 350L
 
 /** How long the harness lets the voice run before pausing it for the late-cursor test. */
 private const val DEMO_PAUSE_MS = 2000L
+
+/** How long a one-line speech status stays over the page before it clears itself. */
+private const val SPEECH_NOTE_MS = 4000L
 
 private const val TAG = "ReaderScreen"

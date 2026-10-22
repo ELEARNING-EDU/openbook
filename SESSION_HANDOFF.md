@@ -1,104 +1,118 @@
 # Session handoff — Sách (Android EPUB reader)
 
-Updated: 2026-10-21T11:30+07:00 (Asia/Saigon)
+Updated: 2026-10-22T09:45+07:00 (Asia/Saigon)
 
 Canonical handoff. `PROJECT_STATE.md` holds the state and the reasoning; `TASKS.md` holds the
 work; this file says where the last session stopped and what to do next.
 
 ## Read first
 
-1. `PROJECT_STATE.md` — "Facts at a glance", then "Verified current state".
+1. `PROJECT_STATE.md` — "Facts at a glance", then "Verified current state" and Part 12.
 2. `TASKS.md` — the `Open` block is the whole to-do list; `Closed` carries the evidence.
 3. This file — the last session, the uncommitted work, the open questions.
 4. `docs/` is the app's user guide only; it holds no project state.
 
 ## Where the work stands
 
-- Part 11 is closed: the fold finishes head-to-tail, the player's progress line sits on the
-  capsule's floor edge-to-edge, and a tap in either third turns the leaf while the player is
-  closed. All three were verified with real input (T-057…T-060).
-- Nothing is half-written. `CurlView.kt` and `ReaderScreen.kt` are at their finished Part 11
-  state; the APK matches the sources.
-- Device `emulator-5554` is running the app, reader open, resumed at page 10/14, chrome hidden,
-  voice `IDLE`.
+- Part 12 is built and verified by hand: tapping the book title in the player opens the full
+  player sheet (cover, seek slider, back / play-pause / forward, sleep timer, voice picker), and
+  the main screen is three tabs — Home, Library, Store — with one shared import picker. The
+  Store is an honest offline notice plus `Nhập EPUB`, not a catalogue (the app has no `INTERNET`
+  permission; the owner chose this).
+- Nothing is half-written in this round. `AudioPlayerSheet.kt` and `MainScreen.kt` are new files;
+  `SpeechReader.kt`, `ReaderEngine.kt`, `ReaderScreen.kt`, `Components.kt`, `LibraryScreen.kt`
+  and `EpubReaderApp.kt` carry the wiring.
+- `emulator-5554` is running the app in portrait (1344x2992, 480dpi, 13 pages), reader open on
+  page 12/13, chrome hidden, voice `IDLE`; the T-084 display overrides were reset. The sample
+  book shows the uncommitted image work: page 4 carries a colour-bar image with the caption
+  "[Ảnh: Bản vẽ thất lạc]" and the voice reads such captions aloud.
 
-## What happened in the last sessions (2026-10-21, docs only)
-
-- Session A: built and reported Part 11 (T-057…T-060) with `screenshots-part11/`.
-- Session B: surveyed code, Git and docs, applied the AI Development Toolkit checkpoint set,
-  then — at the owner's instruction — moved all long-form project data out of `docs/` into the
-  three root files, and reserved `docs/` for the app's user guide.
-- **No Kotlin, Gradle or manifest file was touched in either session.** The build stayed
-  up-to-date, which is the proof.
-
-## Verified in the last session
+## Verified in the last session (Part 12)
 
 | Check | Result |
 | --- | --- |
-| `./gradlew :app:assembleDebug` (JDK 17) | `BUILD SUCCESSFUL in 1s`, 35 tasks up-to-date (docs-only change) |
-| APK | `12,302,465 bytes`, 2026-10-21 09:20, sha256 `2c0ac424…b8ab` |
-| APK vs sources | `find app/src -newer app-debug.apk` → empty |
-| Launch `--ez demoOpenBook true` | focused `com.example.epubreader/.MainActivity`, pid 6142 |
-| Reader | `typeset paper/light 23.0sp/1.2 … 14 pages; resumed at page 10 (left on page 10/14, anchor chapter 5+0)` |
-| Chrome | `chrome=full` then `chrome=hidden`, `speech=IDLE playerOpen=false` |
+| `./gradlew :app:assembleDebug` (JDK 17) | `BUILD SUCCESSFUL` |
+| APK | `12,366,927 bytes`, 2026-10-22 09:07, sha256 `37a4c560…c509`, no source newer |
+| Tabs | real taps Home / Library / Store; Back from a book opened on Library returns to Library (`10`) |
+| Sheet | real tap on the headline (`[252,2722][638,2866]` per `uiautomator`) opens it, light (`03`) and dark (`05`) |
+| Slider | `slider 79% -> sentence #75`; `slider 15% -> sentence #18 (page 4)`, page moved to `Trang 4/13` while paused (`06`) |
+| Skip | `skip 1 -> #53`, `skip -1 -> #52`, highlight moves while paused |
+| Sleep timer | 15 phút → `tự dừng sau 14:57` (`07`); harness `--ei demoSleep 1` → `sleep timer: 1min up -> stopping the voice`, `speech state: IDLE` (`08`) |
+| Voice | `voice -> vi-vn-x-gft-local (code=0)`, restarted the paused sentence and stayed paused; prefs keep `<string name="narrationVoice">vi-vn-x-gft-local</string>`; relaunch logs `saved voice vi-vn-x-gft-local -> 0` |
+| Store | "Cửa hàng chưa kết nối" + `Nhập EPUB`; no fake shelves (`09`/`11`) |
+| Small phone / landscape (T-084) | `wm size 720x1280` + `wm density 320` (360dp): sheet ~93% of height, every control fits without scrolling (`14`); `user_rotation 1` (2992x1344): Material caps the sheet at 640dp and one swipe reaches the timer/voice rows (`12`, `13`); display settings reset afterwards |
 | Crashes | 0 `FATAL EXCEPTION` |
-| Task list | 78 IDs, unique, 7 cells per row — no malformed row |
-| Docs | no `<fill>` placeholder left; no table with mixed column counts |
+| Evidence | `/Users/cuong/.ao/data/artifacts/standalone-20/screenshots-player-sheet/01`…`11` |
 
-## Git state — clean, on the owner's instruction
+## Git state — dirty, uncommitted, nothing staged
 
-- Branch `master`, **2 commits**:
-  - `9e1cdf2` — 2026-10-20 14:15, *EPUB reader for Android: library, reader, themes, narration,
-    page curl* (the Part 7 baseline).
-  - the 2026-10-21 commit — *Parts 8-11: curl reaches head and tail, flush progress line, tap
-    thirds; checkpoint docs*: 8 Kotlin files + `reader/ReadingPositions.kt`, the three root
-    checkpoint files, the deletion of the three `docs/` state files, `docs/README.md`, and the
-    AI Development Toolkit.
-- Working tree clean; nothing staged; **no remote**, so the history exists only on this disk.
-- Consequence to keep in mind: code, docs and toolkit share one commit. A `git revert` of it
-  removes all three together; make future rounds small separate commits.
-- The `.gitignore` still excludes `build/`, `.gradle/`, `.kotlin/`, `local.properties`,
-  `.idea/`, `.DS_Store` — build output and the machine SDK path are not in the repo.
+- Branch `master`, **2 commits**, **no remote**:
+  - `9e1cdf2` — 2026-10-20, the Part 7 baseline.
+  - `fa27d98` — 2026-10-21, *Parts 8-11: curl reaches head and tail, flush progress line, tap
+    thirds; checkpoint docs*.
+- Working tree from this session: `M PROJECT_STATE.md`, `M TASKS.md`, and the Kotlin files above;
+  new `ui/AudioPlayerSheet.kt`, `ui/MainScreen.kt`.
+- **Also dirty from earlier, not authored or verified by this session**: image rendering
+  (`epub/ChapterImages.kt` new, `epub/HtmlText.kt`, `epub/EpubArchive.kt`, `model/Models.kt`,
+  `reader/ReaderSettings.kt`, `reader/ReaderTheme.kt`), and `ui/SearchSheet.kt` replacing the
+  deleted `ui/SearchScreen.kt` — this is the open T-065/T-069 work. Do not revert it.
+- No `.gitignore` change; `build/`, `.gradle/`, `local.properties`, `.idea/` stay out.
+- Suggested staging when the owner authorises a commit — **ask first, do not `git add -A`**:
+  `PROJECT_STATE.md TASKS.md SESSION_HANDOFF.md` plus `ui/AudioPlayerSheet.kt ui/MainScreen.kt
+  ui/Components.kt ui/ReaderScreen.kt ui/LibraryScreen.kt ui/EpubReaderApp.kt
+  reader/SpeechReader.kt reader/ReaderEngine.kt MainActivity.kt`. The image/`SearchSheet` set
+  should be its own commit once it is verified.
 
 ## Blocked / awaiting the owner
 
-1. **T-075** — the Part 11 curl was built from the owner's sentence; the attached picture never
-   reached this session. Ask them to re-send it (or confirm the head-to-tail reading).
-2. **T-076** — should a nearly vertical swipe turn the page? Today `DRAG_AXIS_FRACTION = 0.35`
-   says no; it is a one-line change if they want it.
-3. **T-078** — should a size change made inside the customizer mark the theme card with `*`?
-   Open since Part 10; the config does not record where a size came from, so it needs a rule.
-4. **T-079** — Part 9's "ẩn luôn cái nút back": the dimmed back at the voice's level (built) or
-   no back button in the reader at all (not built)?
-5. Nothing else blocks work; `ffmpeg` is missing, so T-074 (film of the commit animation) waits.
+1. **T-085** — at 360dp the reading bar's headline collapses to "Hải Đ": the rate label and the
+   five 48dp controls leave it ~50dp. Decide the fix (share the row, or drop the rate label when
+   narrow) — not built.
+2. **T-075** — the Part 11 curl was built from the owner's sentence; the picture never reached
+   the session. Ask them to re-send it or confirm the head-to-tail reading.
+3. **T-076** — should a nearly vertical swipe turn the page? `DRAG_AXIS_FRACTION = 0.35` today.
+4. **T-078** — should a size change inside the customizer mark the theme card with `*`?
+5. **T-079** — Part 9's "ẩn luôn cái nút back": the dimmed back (built) or no back at all?
+6. The image work in the dirty tree is live in the shipped APK but unverified by this session: on
+   landscape page 4 the sample book shows a colour-bar image plus "[Ảnh: Tệp hỏng]", and the
+   voice reads the caption aloud as if it were text (`reading #10`, `#11`). T-069's premise
+   ("`ImageGetter` is null") describes HEAD only. Owner input needed on whether that work is in
+   scope for this round.
+7. Nothing else blocks work; `ffmpeg` is still missing, so T-074 (film of the commit animation)
+   waits.
 
 ## Exact next action
 
-Ask for the Part 11 curl picture and the T-076 decision. If the answer is "as built", the
-project is at a clean stopping point and the parked list (T-061…T-073, T-077) needs an explicit
-go-ahead before anything starts.
+Build T-085's fix at the width where it bites: `wm size 720x1280` + `wm density 320`, open a book,
+start the voice, and measure the headline's box next to the rate label and the five controls
+before changing the row. 42dp of "Hải Đ" is the number to beat.
 
 ## Resume prompt (paste to a new agent)
 
 > Đọc `PROJECT_STATE.md`, `TASKS.md` và `SESSION_HANDOFF.md` ở gốc dự án
-> `/Users/cuong/Workspace/CODE/AI/OpenCode/epub-reader-android`. Đối chiếu lại với
-> `git status` và APK thật, không sửa code trước khi báo cáo khảo sát. Cây làm việc đang sạch:
-> Part 8–11 + bộ tài liệu + toolkit đã nằm trong commit ngày 2026-10-21 trên `master`
-> (chưa có remote). Không chạy `git reset`, `git checkout --` hay `git add -A` khi chưa hỏi.
-> Việc tiếp theo: hỏi owner ảnh curl của Part 11 và quyết định T-076 (vuốt gần thẳng đứng).
+> `/Users/cuong/Workspace/CODE/AI/OpenCode/epub-reader-android`. Đối chiếu với `git status` và
+> APK thật, không sửa code trước khi báo cáo khảo sát. Cây làm việc đang **bẩn và chưa commit**:
+> Part 12 (player sheet + 3 tab) của phiên 2026-10-22, cộng phần image/`SearchSheet` cũ hơn mà
+> phiên này không viết và không kiểm — không được xoá hay revert. Không chạy `git reset`,
+> `git checkout --`, `git clean` hay `git add -A` khi chưa hỏi; không tự commit/push.
+> Việc tiếp theo: T-085 (ở 360dp tiêu đề trên thanh đọc bị bóp còn "Hải Đ"); sau đó hỏi owner
+> ảnh curl Part 11 (T-075) và quyết định T-076.
 
 ## Environment (bites every time)
 
 - Build: `JAVA_HOME=/Users/cuong/Library/Java/JavaVirtualMachines/jbr-17.0.14/Contents/Home
   ./gradlew :app:assembleDebug`; adb at `~/Library/Android/sdk/platform-tools/adb`; AVD
   `Pixel_9_Pro_XL`, 1344×2992, density 480, API 36.
+- Screen targets move when the sheet or the chrome changes: take coordinates from
+  `uiautomator dump` + bounds, not from memory.
 - Screenshots: `adb shell 'timeout 15 screencap -p /sdcard/x.png'` + `adb pull`; held drags via
   `input motionevent DOWN/MOVE…/UP`, never within ~50 px of an edge, with a small first MOVE
   (≤100 px) and a ~0.4 s pause or the lean locks at 0.
 - Captures: set `adb logcat -G 32M` first; the glyph/Skia atlas corrupts after long runs — fix
   with `adb emu kill` + relaunch, it is the emulator, not the app.
-- Evidence: `/Users/cuong/.ao/data/artifacts/standalone-20/` (`report.md` §85–§90 and
-  `screenshots-part11/` for the latest round).
+- Harness extras used in Part 12: `--ez demoOpenBook true`, `--ei demoSleep <minutes>`.
+- Evidence: `/Users/cuong/.ao/data/artifacts/standalone-20/` (`screenshots-player-sheet/` for
+  the latest round).
 
 ## Appendix — round-by-round detail (Parts 11 → 6)
 
@@ -138,7 +152,7 @@ round found, fixed and measured, in the order the rounds happened.
   support (non-null `ImageGetter`); the book's own CSS; word-anchored bookmarks; or a real
   audio-output check on hardware.
 
-### Part 11 — three reports (2026-10-21) — current
+### Part 11 — three reports (2026-10-21) — history, Part 12 is current
 - The owner: (a) the player's progress bar is still not flush with the bottom edge, must run end
   to end but must not spill out; (b) the curl now hugs the spine, but the part above does not
   curve up to the head of the book when swiping up (or the tail when swiping down) — "xem hình

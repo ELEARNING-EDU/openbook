@@ -77,10 +77,12 @@ object EpubArchive {
             val bytes = entries[path]
                 ?: entries.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value
                 ?: continue
+            val html = decodeText(bytes)
             chapters += RawChapter(
                 title = labels[path].orEmpty(),
                 href = item.href,
-                html = decodeText(bytes),
+                html = html,
+                images = inlineImages(html, path, entries),
             )
             paths += path
         }
@@ -228,6 +230,36 @@ object EpubArchive {
         return Regex("(?is)full-path\\s*=\\s*[\"']([^\"']+)[\"']").find(text)
             ?.groupValues?.get(1)
             ?.let { ZipExtract.normalise(it) }
+    }
+
+    // ------------------------------------------------------------ inline images
+
+    /**
+     * The bytes behind every `<img>` a chapter asks for, keyed by the `src` as written.
+     *
+     * It happens here, while the archive's entries are in hand: the HTML importer is
+     * handed a string and has no base URL, so a picture it cannot find is a picture the
+     * reader can never show. A `src` that names nothing in the archive simply stays out
+     * of the map, and the importer falls back to the alt text.
+     */
+    private fun inlineImages(
+        html: String,
+        chapterPath: String,
+        entries: Map<String, ByteArray>,
+    ): Map<String, ByteArray> {
+        val references = ChapterImages.references(html)
+        if (references.isEmpty()) return emptyMap()
+        val directory = parentDir(chapterPath)
+        val out = LinkedHashMap<String, ByteArray>()
+        for (reference in references) {
+            if (reference.src.isBlank() || out.containsKey(reference.src)) continue
+            val path = resolve(reference.src, directory)
+            val bytes = entries[path]
+                ?: entries.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value
+                ?: continue
+            out[reference.src] = bytes
+        }
+        return out
     }
 
     // ------------------------------------------------------------ navigation

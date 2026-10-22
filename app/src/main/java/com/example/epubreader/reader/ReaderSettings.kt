@@ -84,7 +84,9 @@ data class TypeConfig(
             wordSpacing = 0f,
             marginDp = margin,
             columns = COLUMNS_AUTO,
-            justified = true,
+            // Ragged right by default, as iOS ships it (`ReaderCustom.justify = false`):
+            // justifying is a choice the reader makes in "Tuỳ chỉnh", not the opening look.
+            justified = false,
             fontKey = font,
             bold = bold,
             custom = false,

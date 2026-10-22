@@ -15,6 +15,9 @@ import java.util.Locale
 /** What the voice is doing. Drives the disc, the play/pause button and the highlight. */
 enum class SpeechState { IDLE, PLAYING, PAUSED }
 
+/** One voice the device's engine offers, with the short label the picker shows. */
+data class VoiceOption(val name: String, val label: String)
+
 /**
  * Reads a paginated book aloud, one sentence at a time.
  *
@@ -100,6 +103,19 @@ class SpeechReader(private val context: Context) {
     val canSlowDown: Boolean get() = rateFactor > rateOptions.first()
     val canSpeedUp: Boolean get() = rateFactor < rateOptions.last()
 
+    /**
+     * The voices the device offers for Vietnamese, and the one the reader picked.
+     *
+     * `null` means the engine's own default for the language, which is what the reader
+     * has been hearing until now — so a book opened before this feature is unaffected.
+     * The choice is persisted, because a reader who picked a voice wants it next time.
+     */
+    var voices: List<VoiceOption> by mutableStateOf(emptyList())
+        private set
+
+    var voiceName: String? by mutableStateOf(prefs.getString(KEY_VOICE, null))
+        private set
+
     private val main = Handler(Looper.getMainLooper())
     private var watchdog: Runnable? = null
     private var fallbackWalk: Runnable? = null
@@ -123,6 +139,18 @@ class SpeechReader(private val context: Context) {
         )
         if (!voiceOk) {
             onStatus("Thiếu dữ liệu giọng tiếng Việt (mã $result) — đọc bằng giọng mặc định")
+        }
+        loadVoices(engine)
+        // A voice picked in an earlier session is applied again: the engine forgets it.
+        voiceName?.let { saved ->
+            val savedVoice = engine.voices?.firstOrNull { it.name == saved }
+            if (savedVoice == null) {
+                Log.w(TAG, "saved voice $saved is gone; using the language default")
+                voiceName = null
+                prefs.edit().remove(KEY_VOICE).apply()
+            } else {
+                Log.i(TAG, "saved voice $saved -> ${engine.setVoice(savedVoice)}")
+            }
         }
         engine.setSpeechRate(rateFactor)
         engine.setOnUtteranceProgressListener(progress)
@@ -202,7 +230,7 @@ class SpeechReader(private val context: Context) {
      * reader's hand outranks the narrator's place, so the voice continues from the page
      * that is now on screen instead of dragging it back. A playing voice restarts at
      * [fromSentence] (a new sentence needs a fresh utterance anyway); a paused one only
-     * moves its place and the highlight, and stays paused.
+     * moves its place, and stays paused.
      */
     fun seek(fromSentence: Int) {
         val src = source ?: return
@@ -222,9 +250,24 @@ class SpeechReader(private val context: Context) {
                 lastStarted = -1
                 nextToEnqueue = fromSentence
                 inFlight = 0
-                if (!disposed) onHighlight(fromSentence)
+                // The highlight stays on the sentence the voice was paused on: a page
+                // turned under a paused narrator must not print the band on the page
+                // just turned to. The voice still resumes from the new page.
             }
         }
+    }
+
+    /**
+     * An explicit skip from the full player's back or forward button.
+     *
+     * It is [seek] with one difference: a paused reader sees the highlight move to the
+     * sentence the skip landed on. A turned page deliberately keeps the old band (the
+     * reader did not ask to read somewhere else), but a hand on "next" did.
+     */
+    fun skip(fromSentence: Int) {
+        val paused = stateInternal == SpeechState.PAUSED
+        seek(fromSentence)
+        if (paused && !disposed) onHighlight(fromSentence)
     }
 
     /**
@@ -236,6 +279,40 @@ class SpeechReader(private val context: Context) {
         if (clamped == rateFactor) return
         rateFactor = clamped
         prefs.edit().putFloat(KEY_RATE, clamped).apply()
+        restartFromCurrentPlace()
+    }
+
+    fun slower() = setRate(stepRate(rateFactor, -1))
+
+    fun faster() = setRate(stepRate(rateFactor, 1))
+
+    /**
+     * Picks a voice, or the engine's default for Vietnamese when [name] is null.
+     *
+     * Both are engine-wide settings, so a sentence in flight restarts at the new voice
+     * — the only way it can be heard without waiting for the next page.
+     */
+    fun setVoice(name: String?) {
+        val engine = tts ?: return
+        if (name == voiceName) return
+        val voice = name?.let { wanted -> engine.voices?.firstOrNull { it.name == wanted } }
+        if (name != null && voice == null) return
+        val code = if (voice == null) engine.setLanguage(VI_LOCALE) else engine.setVoice(voice)
+        if (name != null && code != TextToSpeech.SUCCESS) {
+            Log.w(TAG, "setVoice($name) refused: $code")
+            onStatus("Không đặt được giọng đọc (mã $code)")
+            return
+        }
+        voiceName = name
+        prefs.edit().apply {
+            if (name == null) remove(KEY_VOICE) else putString(KEY_VOICE, name)
+        }.apply()
+        Log.i(TAG, "voice -> ${name ?: "language default"} (code=$code)")
+        restartFromCurrentPlace()
+    }
+
+    /** The engine-wide change restart shared by [setRate] and [setVoice]. */
+    private fun restartFromCurrentPlace() {
         if (stateInternal == SpeechState.IDLE) return
         val wasPaused = stateInternal == SpeechState.PAUSED
         val from = when {
@@ -247,9 +324,24 @@ class SpeechReader(private val context: Context) {
         if (wasPaused) pause()
     }
 
-    fun slower() = setRate(stepRate(rateFactor, -1))
+    private fun loadVoices(engine: TextToSpeech) {
+        val all = runCatching { engine.voices }.getOrNull() ?: return
+        val found = all
+            .filter { it.locale.language == "vi" || it.locale.language == "vie" }
+            .map { VoiceOption(it.name, voiceLabel(it.name)) }
+            .distinctBy { it.name }
+            .sortedBy { it.label }
+        voices = found
+        Log.i(TAG, "voices: ${found.size} vi-VN (${found.joinToString { it.name }})")
+    }
 
-    fun faster() = setRate(stepRate(rateFactor, 1))
+    /** `vi-vn-x-gft-network` reads as `x gft network` in the picker. */
+    private fun voiceLabel(name: String): String =
+        name.removePrefix("vi-vn-")
+            .removePrefix("vi-VN-")
+            .replace('-', ' ')
+            .trim()
+            .ifBlank { name }
 
     private fun stepRate(current: Float, delta: Int): Float {
         val index = rateOptions.indexOf(current).takeIf { it >= 0 } ?: 0
@@ -462,6 +554,9 @@ class SpeechReader(private val context: Context) {
 
     companion object {
 
+        /** The language the reader is read in, everywhere it is named. */
+        private val VI_LOCALE: Locale = Locale("vi", "VN")
+
         /** The speeds the player steps through, matching the iOS reader. */
         val rateOptions: List<Float> = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f)
 
@@ -481,5 +576,6 @@ class SpeechReader(private val context: Context) {
 
         private const val PREFS = "readerSettings"
         private const val KEY_RATE = "narrationRateFactor"
+        private const val KEY_VOICE = "narrationVoice"
     }
 }
