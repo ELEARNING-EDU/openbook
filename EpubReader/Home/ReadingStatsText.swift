@@ -19,6 +19,10 @@ enum ReadingStatsText {
         return text("duration.hoursMinutes", language: language, [hours, remainder])
     }
 
+    static func days(_ count: Int, language: AppLanguage = .selected) -> String {
+        text(count == 1 ? "stats.day" : "stats.days", language: language, [count])
+    }
+
     private static func text(_ key: String, language: AppLanguage, _ arguments: [CVarArg]) -> String {
         String(
             format: L10n.string(key, language: language),

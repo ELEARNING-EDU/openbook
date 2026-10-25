@@ -123,7 +123,7 @@ struct ReadingStatsSheet: View {
                 .font(.system(size: 10))
                 .foregroundStyle(palette.swiftInkSoft)
                 .lineLimit(1)
-            Text(verbatim: L10n.format("stats.days", days))
+            Text(verbatim: ReadingStatsText.days(days))
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .foregroundStyle(palette.swiftInk)
         }

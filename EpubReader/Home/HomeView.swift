@@ -47,7 +47,11 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if !library.books.isEmpty {
-                        statsSection
+                        // A minute is fine for a minute-based card: the summary
+                        // crosses midnight without needing a relaunch.
+                        TimelineView(.periodic(from: Date(), by: 60)) { context in
+                            statsSection(now: context.date)
+                        }
                     }
                     if items.isEmpty {
                         emptyState
@@ -138,7 +142,7 @@ struct HomeView: View {
         .accessibilityLabel(Text("home.reading"))
     }
 
-    private var statsSection: some View {
+    private func statsSection(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("home.stats.title")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -146,7 +150,7 @@ struct HomeView: View {
                 .textCase(.uppercase)
                 .foregroundStyle(palette.swiftInkSoft)
             ReadingStatsCard(
-                summary: stats.summary(now: Date(), goalMinutes: goalMinutes),
+                summary: stats.summary(now: now, goalMinutes: goalMinutes),
                 palette: palette
             ) {
                 showStats = true

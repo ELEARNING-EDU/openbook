@@ -206,6 +206,9 @@ struct ReaderView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     stats.startSession(at: Date())
+                    // Narration may have been playing when the app left the
+                    // foreground; the new session must know before it counts.
+                    stats.setListening(speech.state == .playing, at: Date())
                 } else {
                     savePosition()
                     stats.endSession(at: Date())

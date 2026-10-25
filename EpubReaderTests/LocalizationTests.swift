@@ -30,6 +30,13 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(ReadingStatsText.duration(minutes: 120, language: .english), "2 hr")
     }
 
+    func testDayCountReadsSingularAndPlural() {
+        XCTAssertEqual(ReadingStatsText.days(1, language: .english), "1 day")
+        XCTAssertEqual(ReadingStatsText.days(3, language: .english), "3 days")
+        XCTAssertEqual(ReadingStatsText.days(1, language: .vietnamese), "1 ngày")
+        XCTAssertEqual(ReadingStatsText.days(3, language: .vietnamese), "3 ngày")
+    }
+
     func testSystemLanguageIsNotAnOverride() {
         XCTAssertNil(AppLanguage.system.code)
         XCTAssertEqual(AppLanguage.vietnamese.code, "vi")

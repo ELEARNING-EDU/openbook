@@ -36,6 +36,7 @@
 "stats.streak.longest" = "Kỷ lục";
 "stats.daysRead" = "Ngày đã đọc";
 "stats.days" = "%lld ngày";
+"stats.day" = "%lld ngày";
 "stats.records" = "Kỷ niệm";
 "stats.longestSession" = "Phiên dài nhất";
 "stats.bestDay" = "Ngày đọc nhiều nhất";

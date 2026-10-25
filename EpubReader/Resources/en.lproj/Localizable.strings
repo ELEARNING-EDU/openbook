@@ -36,6 +36,7 @@
 "stats.streak.longest" = "Longest";
 "stats.daysRead" = "Days read";
 "stats.days" = "%lld days";
+"stats.day" = "%lld day";
 "stats.records" = "Records";
 "stats.longestSession" = "Longest session";
 "stats.bestDay" = "Best day";
