@@ -310,7 +310,7 @@ struct LibraryView: View {
         VStack(alignment: .leading, spacing: 6) {
             BookCover(book: book)
             HStack(spacing: 6) {
-                ReadPercentLabel(fraction: progress.fraction(for: book.id), palette: palette)
+                readState(book)
                 Spacer(minLength: 0)
                 if !selecting {
                     bookMenu(book)
@@ -334,7 +334,7 @@ struct LibraryView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(palette.swiftInkSoft)
                     .lineLimit(1)
-                ReadPercentLabel(fraction: progress.fraction(for: book.id), palette: palette)
+                readState(book)
             }
             Spacer(minLength: 0)
         }
@@ -342,10 +342,19 @@ struct LibraryView: View {
         .contentShape(Rectangle())
     }
 
-    /// One book's own menu. Only the two things that belong to a single book:
-    /// edit it, or remove it.
+    /// One book's own menu. Only the things that belong to a single book: finish
+    /// it, edit it, or remove it.
     private func bookMenu(_ book: BookItem) -> some View {
         Menu {
+            let finished = isFinished(book)
+            Button {
+                library.markFinished(id: book.id, finished: !finished)
+            } label: {
+                Label(
+                    finished ? "library.unmarkFinished" : "library.markFinished",
+                    systemImage: finished ? "arrow.uturn.backward" : "checkmark.circle"
+                )
+            }
             Button {
                 editing = book
             } label: {
@@ -374,7 +383,26 @@ struct LibraryView: View {
     }
 
     private func bookLabel(_ book: BookItem) -> Text {
-        Text(verbatim: L10n.format("library.book.a11y", book.title, book.author, percent(for: book.id)))
+        if isFinished(book) {
+            return Text(verbatim: L10n.format("library.book.finished.a11y", book.title, book.author))
+        }
+        return Text(verbatim: L10n.format("library.book.a11y", book.title, book.author, percent(for: book.id)))
+    }
+
+    private func isFinished(_ book: BookItem) -> Bool {
+        library.metadata(for: book.id)?.finishedAt != nil
+    }
+
+    /// The shelf line under a cover: how far it is read, or that it is done.
+    @ViewBuilder
+    private func readState(_ book: BookItem) -> some View {
+        if isFinished(book) {
+            Text("library.finished")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(palette.swiftAccent)
+        } else {
+            ReadPercentLabel(fraction: progress.fraction(for: book.id), palette: palette)
+        }
     }
 
     private func percent(for id: String) -> Int {

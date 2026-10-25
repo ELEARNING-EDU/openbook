@@ -22,6 +22,10 @@
 "library.empty.title" = "No books yet";
 "library.empty.body" = "Tap ＋ at the top to import an EPUB file.";
 "library.book.a11y" = "%1$@, %2$@, %3$lld percent read";
+"library.book.finished.a11y" = "%1$@, %2$@, finished";
+"library.markFinished" = "Mark as finished";
+"library.unmarkFinished" = "Mark as not finished";
+"library.finished" = "Finished";
 "library.percent.a11y" = "%lld percent read";
 "library.sort" = "Sort";
 "library.sort.recent" = "Recently imported";

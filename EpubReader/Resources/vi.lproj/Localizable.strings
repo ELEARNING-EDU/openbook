@@ -22,6 +22,10 @@
 "library.empty.title" = "Chưa có sách nào";
 "library.empty.body" = "Nhấn nút ＋ ở góc trên để nhập một tệp EPUB.";
 "library.book.a11y" = "%1$@, %2$@, đã đọc %3$lld phần trăm";
+"library.book.finished.a11y" = "%1$@, %2$@, đã đọc xong";
+"library.markFinished" = "Đánh dấu đã đọc xong";
+"library.unmarkFinished" = "Bỏ đánh dấu đã đọc xong";
+"library.finished" = "Đã đọc xong";
 "library.percent.a11y" = "Đã đọc %lld phần trăm";
 "library.sort" = "Sắp xếp";
 "library.sort.recent" = "Mới nhập gần đây";
