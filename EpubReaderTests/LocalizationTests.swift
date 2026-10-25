@@ -29,6 +29,20 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(AppLanguage.english.code, "en")
     }
 
+    func testPhoneLanguageOnlyVietnameseFirstMeansVietnamese() {
+        XCTAssertEqual(AppLanguage.resolved(for: ["vi-VN", "en-US"]), .vietnamese)
+        XCTAssertEqual(AppLanguage.resolved(for: ["vi"]), .vietnamese)
+        XCTAssertEqual(AppLanguage.resolved(for: ["en-VN", "vi-VN"]), .english)
+        XCTAssertEqual(AppLanguage.resolved(for: ["ja-JP", "vi-VN"]), .english)
+        XCTAssertEqual(AppLanguage.resolved(for: []), .english)
+    }
+
+    func testSystemBundleFollowsTheResolvedPhoneLanguage() {
+        XCTAssertEqual(L10n.bundle(for: .system), L10n.bundle(for: AppLanguage.device))
+        XCTAssertEqual(L10n.bundle(for: AppLanguage.device).localizedString(forKey: "tab.home", value: nil, table: nil),
+                       L10n.string("tab.home", language: AppLanguage.device))
+    }
+
     private func keys(in language: String, file: String) throws -> Set<String> {
         let folder = try XCTUnwrap(
             Bundle.main.path(forResource: language, ofType: "lproj"),

@@ -42,16 +42,31 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     static var selected: AppLanguage {
         AppLanguage(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .system
     }
+
+    /// The interface language this phone starts in: Vietnamese only when it is
+    /// the phone's first language, English for every other phone. The app ships
+    /// both, so this is a deliberate choice rather than the bundle's own
+    /// fallback, which would pick Vietnamese from a second-place entry.
+    static func resolved(for preferred: [String]) -> AppLanguage {
+        preferred.first?.hasPrefix("vi") == true ? .vietnamese : .english
+    }
+
+    static var device: AppLanguage { resolved(for: Locale.preferredLanguages) }
 }
 
 /// The app's UI strings. Book text, chapter titles and narration never come
 /// through here: only the interface around the book is translated.
 enum L10n {
 
-    static var locale: Locale { AppLanguage.selected.locale }
+    /// The resolved language's own locale, so `system` formats numbers and
+    /// percentages in the language the interface is actually drawn in.
+    static var locale: Locale { (AppLanguage.selected.code ?? AppLanguage.device.code).map(Locale.init(identifier:)) ?? .autoupdatingCurrent }
 
+    /// The language's own bundle; `system` resolves to vi or en by the phone's
+    /// first language, never to the bundle iOS would have picked for us.
     static func bundle(for language: AppLanguage) -> Bundle {
-        guard let code = language.code,
+        let code = language.code ?? AppLanguage.device.code
+        guard let code,
               let path = Bundle.main.path(forResource: code, ofType: "lproj"),
               let bundle = Bundle(path: path)
         else { return .main }

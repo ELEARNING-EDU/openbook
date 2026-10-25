@@ -535,3 +535,27 @@ Hành động tiếp theo chính xác:
 - Player: chương → divider → "Giọng đọc: …" → `− 1× +`.
 - Hết nháy nền tối khi thoát sách: preferredColorScheme chuyển từ ReaderView lên NavigationStack
   của Library/Home, chỉ giữ khi path có sách. 47/47 test xanh, đã cài lại simulator. Chưa commit.
+
+### 2026-10-25 (tiếp) — language audit + Android handoff
+- iOS commit `9da6500`. App đang override tiếng Việt dù máy chính là English; bỏ override thì UI
+  theo máy đúng. Cần quyết định: giữ vi hay mặc định theo máy (kèm fix relaunch cho "Theo máy").
+- Spec full player đã đặt tại `android/docs/full-player-parity.md` và gửi agent Android.
+
+### 2026-10-25 (tiếp) — ngôn ngữ theo máy
+- Quy tắc: máy ưu tiên tiếng Việt → UI Việt, còn lại → English; hệ thống ngôn ngữ trong Settings
+  vẫn override được. Resolve tường minh (không dựa fallback bundle). 49/49 test xanh; đã kiểm chứng
+  bằng cài sạch trên simulator mới với en-VN và vi-VN. Chưa commit.
+
+### 2026-10-25 — EPUB compatibility + performance audit (chưa sửa code)
+- Corpus 31 file tổng hợp + 1 EPUB thật (Gutenberg) tại `build/qa/epub-corpus/` (build/ bị gitignore);
+  test `EpubReaderTests/EpubCorpusTests.swift` (tự skip khi thiếu corpus).
+- PASS: EPUB2/NCX, EPUB3/nav, OPF gốc, streamed zip, %-encoded/unicode, absolute href,
+  linear="no", font obfuscation, fixed-layout, image-heavy, nested TOC, RTL, CJK, BOM/entities,
+  ZIP64, HTML lỗi, spine thiếu idref, NFD, thiếu mimetype, Gutenberg thật; từ chối đúng: thiếu
+  container, spine rỗng, PDF đổi đuôi.
+- FAIL: (1) EPUB DRM AES/LCP **mở được** và vẽ 25 trang ký tự rác — chưa phát hiện
+  `META-INF/encryption.xml`; (2) tên file zip CHƯƠNG HOA vs href thường → mất chương im lặng (2/4);
+  (3) entry `./OEBPS/...` → từ chối cả sách hợp lệ; (4) nav.xhtml lỗi XML → mất tiêu đề chương (nhẹ).
+- Hiệu năng: 1.500 trang/1,13M ký tự mở 1,34 s; 1.000 chương ngắn mở 4,51 s (paginate đồng bộ
+  trên main thread); 1 chương 585k ký tự 0,28 s; RAM sau khi mở 157–264 MB. Không crash/OOM.
+- Đề xuất sửa 3 điểm đầu (~40 dòng + test), chờ duyệt. Chi tiết: `build/qa/epub-corpus/REPORT.md`.

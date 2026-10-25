@@ -377,3 +377,39 @@ Chưa commit gì trong lần này; thay đổi nằm trên 3 tệp đã sửa + 
   thấy thư viện trắng bên trái, reader tối trượt ra; frame cuối thư viện trắng hoàn toàn.
   Hook tạm đã gỡ, build + cài lại bản sạch; 47/47 test vẫn xanh.
 - Chưa commit.
+
+### 2026-10-25 (tiếp) — kiểm tra ngôn ngữ theo máy
+- Commit `9da6500` đã tạo. `COORDINATOR_STATUS.md` để ngoài commit.
+- Máy simulator: `AppleLanguages = (en-VN, vi-VN)`, `AppleLocale = en_VN` (Anh là chính).
+- App đang **ghim tiếng Việt**: prefs app `appLanguage = vi`, `AppleLanguages = (vi)` — do đã chọn
+  trong Settings trước đó, không phải giá trị mặc định của bản cài mới.
+- Bỏ override (launch `-appLanguage system -AppleLanguages '(en-VN)'`) → UI đổi sang tiếng Anh
+  ("READING", "Page 3/4", "Continue reading") ⇒ cơ chế `system` theo ngôn ngữ máy chạy đúng.
+- Đã trả prefs về như cũ (`appLanguage = vi`, `AppleLanguages = (vi)`) và chụp lại UI tiếng Việt.
+- Lưu ý cần xử lý nếu muốn "Theo máy": chọn system chỉ xoá `AppleLanguages` cho lần chạy sau;
+  `Bundle.main` đã chốt localization từ lúc launch nên UI hiện tại không đổi ngay (phải relaunch).
+- Đã gửi spec full player cho Android: `android/docs/full-player-parity.md`, prompt qua Orca terminal;
+  Android đang kiểm tra/sửa (chưa commit).
+
+### 2026-10-25 (tiếp) — quy tắc ngôn ngữ: Việt nếu máy ưu tiên Việt, còn lại English
+- `AppLanguage.resolved(for: Locale.preferredLanguages)` + `AppLanguage.device`: chỉ khi phần tử
+  **đầu tiên** bắt đầu bằng `vi` mới là tiếng Việt; mọi trường hợp khác (kể cả danh sách rỗng)
+  là tiếng Anh. Không dựa vào fallback của `Bundle.main` (trước đây có thể chọn `vi` nhờ vị trí 2).
+- `L10n.bundle(for: .system)` lấy bundle theo `AppLanguage.device`; `L10n.locale` cũng theo ngôn ngữ
+  đã resolve (số/trang định dạng đúng ngôn ngữ đang hiển thị).
+- `EpubReaderApp.init`: khi đang ở "Theo máy" thì xoá `AppleLanguages` còn sót từ lần chọn trước,
+  để app thực sự theo máy ở lần mở sau.
+- Test: +2 test `AppLanguage.resolved(for:)` (vi-VN đầu → vi; en-VN/ja/rỗng → en) và
+  `bundle(.system) == bundle(.device)`. Tổng **49/49 xanh**.
+- Kiểm chứng trên simulator mới (iOS 26.5, cài sạch, không prefs): máy `en-VN` (chính) → UI tiếng Anh
+  ("READING", "Page 3/4 · 60%", "Continue reading"); đổi `AppleLanguages` máy sang `vi-VN` → UI tiếng
+  Việt ("Chưa có sách đang đọc", "Mở Thư viện", "Trang chủ"). Simulator test đã xoá.
+- Simulator chính: đã bỏ override (`appLanguage`/`AppleLanguages`) và khôi phục metadata + tiến độ đọc
+  từ backup prefs; hiện UI tiếng Anh theo máy (en-VN), 8 sách còn nguyên.
+- **Chưa commit** phần ngôn ngữ.
+
+### 2026-10-25 (tiếp) — kiểm thử EPUB lạ + hiệu năng sách lớn
+- Đã tạo corpus và chạy qua pipeline thật; chi tiết + số đo trong `build/qa/epub-corpus/REPORT.md`.
+- 4 lỗi: DRM/LCP vẽ ký tự rác thay vì báo lỗi; chapter lookup phân biệt hoa/thường (mất chương);
+  entry `./` bị từ chối; nav lỗi XML mất tiêu đề chương.
+- Sách 1.500 trang mở 1,34 s, 1.000 chương 4,51 s; chưa sửa gì, chờ duyệt hướng sửa.
