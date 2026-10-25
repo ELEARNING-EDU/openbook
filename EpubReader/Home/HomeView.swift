@@ -23,7 +23,9 @@ struct HomeView: View {
     @AppStorage(ReadingGoal.storageKey) private var goalMinutes = ReadingGoal.defaultMinutes
     @State private var showSettings = false
     @State private var showStats = false
+    @State private var openSettingsAfterStats = false
     @State private var seededDemoStats = false
+    @State private var openedDemoSheet = false
 
     private var palette: ReaderPalette { .shell(dark: colorScheme == .dark) }
 
@@ -58,7 +60,10 @@ struct HomeView: View {
                 .padding(.bottom, MainTabBarMetrics.contentReserve)
             }
             .background(palette.swiftPaper.ignoresSafeArea())
-            .onAppear { seedDemoStatsIfAsked() }
+            .onAppear {
+                seedDemoStatsIfAsked()
+                openStatsSheetIfAsked()
+            }
             .navigationDestination(for: BookItem.self) { book in
                 ReaderView(book: book)
             }
@@ -86,6 +91,26 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showSettings) {
                 AppSettingsView()
+            }
+            .sheet(isPresented: $showStats, onDismiss: {
+                if openSettingsAfterStats {
+                    openSettingsAfterStats = false
+                    showSettings = true
+                }
+            }) {
+                ReadingStatsSheet(
+                    summary: stats.summary(now: Date(), goalMinutes: goalMinutes),
+                    finished: library.finishedBooks(
+                        in: Calendar.current.component(.year, from: Date())
+                    ),
+                    palette: palette
+                ) {
+                    openSettingsAfterStats = true
+                    showStats = false
+                }
+                .preferredColorScheme(palette.isDark ? .dark : .light)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
             }
         }
     }
@@ -146,6 +171,15 @@ struct HomeView: View {
         stats.add(seconds: 1200, listening: false, endingAt: now.addingTimeInterval(-2 * 86_400))
         stats.add(seconds: 3600, listening: false, endingAt: now.addingTimeInterval(-12 * 86_400))
         stats.add(seconds: 18000, listening: false, endingAt: now.addingTimeInterval(-100 * 86_400))
+    }
+
+    /// Opens the sheet for capture runs: `-demoStatsSheet 1`.
+    private func openStatsSheetIfAsked() {
+        guard !openedDemoSheet,
+              UserDefaults.standard.bool(forKey: "demoStatsSheet")
+        else { return }
+        openedDemoSheet = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { showStats = true }
     }
 
     private var sectionHeading: some View {

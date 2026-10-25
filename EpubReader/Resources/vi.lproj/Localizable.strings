@@ -23,6 +23,26 @@
 "duration.minutes" = "%d phút";
 "duration.hours" = "%d giờ";
 "duration.hoursMinutes" = "%d giờ %d phút";
+"stats.title" = "Thành tích đọc";
+"stats.close" = "Đóng";
+"stats.goal" = "Mục tiêu %d phút/ngày";
+"stats.changeGoal" = "Đổi mục tiêu";
+"stats.today" = "Hôm nay";
+"stats.week" = "Tuần này";
+"stats.month" = "Tháng này";
+"stats.year" = "Năm nay";
+"stats.consistency" = "Đều đặn";
+"stats.streak.current" = "Chuỗi hiện tại";
+"stats.streak.longest" = "Kỷ lục";
+"stats.daysRead" = "Ngày đã đọc";
+"stats.days" = "%lld ngày";
+"stats.records" = "Kỷ niệm";
+"stats.longestSession" = "Phiên dài nhất";
+"stats.bestDay" = "Ngày đọc nhiều nhất";
+"stats.bestDayValue" = "%1$@ · %2$@";
+"stats.finished" = "Sách đọc xong năm nay";
+"stats.finished.empty" = "Chưa có sách nào";
+
 
 
 "library.title" = "Thư viện";

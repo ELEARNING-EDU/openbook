@@ -23,6 +23,26 @@
 "duration.minutes" = "%d min";
 "duration.hours" = "%d hr";
 "duration.hoursMinutes" = "%d hr %d min";
+"stats.title" = "Reading achievement";
+"stats.close" = "Close";
+"stats.goal" = "Goal %d min a day";
+"stats.changeGoal" = "Change goal";
+"stats.today" = "Today";
+"stats.week" = "This week";
+"stats.month" = "This month";
+"stats.year" = "This year";
+"stats.consistency" = "Consistency";
+"stats.streak.current" = "Current streak";
+"stats.streak.longest" = "Longest";
+"stats.daysRead" = "Days read";
+"stats.days" = "%lld days";
+"stats.records" = "Records";
+"stats.longestSession" = "Longest session";
+"stats.bestDay" = "Best day";
+"stats.bestDayValue" = "%1$@ · %2$@";
+"stats.finished" = "Finished this year";
+"stats.finished.empty" = "No books yet";
+
 
 
 "library.title" = "Library";

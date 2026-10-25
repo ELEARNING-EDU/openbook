@@ -163,16 +163,23 @@ final class LibraryStore: ObservableObject {
         return true
     }
 
-    func finishedBooks(in year: Int, calendar: Calendar = .current) -> [BookItem] {
+    /// A finished book with the day it was marked, for the sheet's month line.
+    struct FinishedBook: Identifiable {
+        let book: BookItem
+        let finishedAt: Date
+        var id: String { book.id }
+    }
+
+    func finishedBooks(in year: Int, calendar: Calendar = .current) -> [FinishedBook] {
         books
-            .filter { book in
-                guard let date = metadata[book.id]?.finishedAt else { return false }
-                return calendar.component(.year, from: date) == year
+            .compactMap { book in
+                guard let date = metadata[book.id]?.finishedAt,
+                      calendar.component(.year, from: date) == year
+                else { return nil }
+                return FinishedBook(book: book, finishedAt: date)
             }
             .sorted { left, right in
-                let leftDate = metadata[left.id]?.finishedAt ?? .distantPast
-                let rightDate = metadata[right.id]?.finishedAt ?? .distantPast
-                if leftDate != rightDate { return leftDate > rightDate }
+                if left.finishedAt != right.finishedAt { return left.finishedAt > right.finishedAt }
                 return left.id < right.id
             }
     }
