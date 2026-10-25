@@ -422,3 +422,13 @@ Chưa commit gì trong lần này; thay đổi nằm trên 3 tệp đã sửa + 
   thì xoá bản copy.
 - `LibraryTests` dùng sample.epub thật thay cho file giả. 54/54 test xanh.
 - Tiếp theo: chờ duyệt commit phần sửa.
+
+### 2026-10-25 (tiếp) — reading stats + finished (đã commit từng task)
+- Task 1–10 theo `docs/superpowers/plans/2026-10-25-reading-stats.md`; commit
+  `3640250..HEAD` (store, streak/summary, session, reader wiring, finished data/UI, card, sheet,
+  settings goal). 79/79 test xanh.
+- Đã kiểm: ghi thời gian thật khi mở sách + TTS (readingStats trong prefs), card vi/en/dark,
+  sheet, goal 60 qua `-readingGoalMinutes`, nhãn "Đã đọc xong".
+- Chưa kiểm bằng chạm: menu đánh dấu xong và Picker mục tiêu trong Settings (không có inject tap);
+  logic đã có unit test. Chart/heatmap để phase sau.
+- Simulator: appearance trả về light; app đang mở Home với dữ liệu demo (seed 1 lần).

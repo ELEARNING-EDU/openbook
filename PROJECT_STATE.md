@@ -568,3 +568,18 @@ Hành động tiếp theo chính xác:
 - Test: 54/54 xanh (49 cũ + 5 corpus). Corpus lỗi cũ giờ đúng: 05 = 4 chương, 28 mở được,
   10/11 bị từ chối; ảnh chụp `drm-refused.png` hiện thông báo bảo vệ bản quyền.
 - Chưa commit phần sửa. Hiệu năng không đổi (1.500 trang 1,5 s; 1.000 chương 4,4 s).
+
+### 2026-10-25 — Reading achievement card + mark finished
+- Home có thẻ "THÀNH TÍCH" trên "ĐANG ĐỌC": vòng mục tiêu ngày, số phút hôm nay, chuỗi ngày,
+  tổng tuần/tháng/năm; chạm mở sheet "Thành tích đọc" (4 ô, chuỗi/ngày đọc, phiên dài nhất,
+  ngày đọc nhiều nhất, sách đọc xong năm nay).
+- Mục tiêu mặc định 5 phút/ngày, đổi trong Settings (1/5/10/15/30/60/120). "Ngày đọc" và streak
+  dùng cùng ngưỡng này; streak và tổng luôn tính lại từ dữ liệu ngày.
+- Ghi thời gian khi reader mở + app foreground; TTS tính riêng nhưng cộng vào tổng; quá 5 phút
+  không lật trang và TTS không chạy thì ngừng cộng; phiên qua nửa đêm chia hai ngày.
+- Thư viện: menu sách có "Đánh dấu đã đọc xong"/"Bỏ đánh dấu"; sách xong hiện nhãn accent thay %,
+  rời carousel Home (vị trí đọc giữ nguyên).
+- Tests: 79/79 xanh (20 test mới cho store, 4 cho finished/metadata, 1 duration, 1 HomeFeed).
+- Ảnh chứng cứ: build/qa/reading-stats/ (card vi/en/dark, sheet vi/en, goal 60, nhãn Finished).
+  Demo trên simulator dùng `-demoStatsSeed 1` và `-demoStatsSheet 1`; dữ liệu demo còn trong app.
+- Chưa làm (phase sau): biểu đồ/heatmap, tách đọc/nghe trong UI, thông báo, xoá dữ liệu đọc.

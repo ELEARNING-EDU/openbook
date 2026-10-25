@@ -165,8 +165,10 @@ struct HomeView: View {
         seededDemoStats = true
 
         let now = Date()
-        stats.add(seconds: 720, listening: false, endingAt: now)
-        stats.add(seconds: 240, listening: true, endingAt: now)
+        // A real session, so the sheet's "longest session" record is not zero.
+        stats.startSession(at: now.addingTimeInterval(-960))
+        stats.noteActivity(at: now.addingTimeInterval(-480))
+        stats.endSession(at: now)
         stats.add(seconds: 600, listening: false, endingAt: now.addingTimeInterval(-86_400))
         stats.add(seconds: 1200, listening: false, endingAt: now.addingTimeInterval(-2 * 86_400))
         stats.add(seconds: 3600, listening: false, endingAt: now.addingTimeInterval(-12 * 86_400))
