@@ -160,4 +160,81 @@ final class ReadingStatsStoreTests: XCTestCase {
         let reopened = ReadingStatsStore(defaults: defaults, calendar: calendar)
         XCTAssertEqual(reopened.minutes(on: date(2026, 10, 25)), 7, accuracy: 0.001)
     }
+
+    func testSessionCountsFromStartToEnd() {
+        store.startSession(at: date(2026, 10, 25, 10, 0))
+        store.noteActivity(at: date(2026, 10, 25, 10, 2))
+        store.endSession(at: date(2026, 10, 25, 10, 10))
+
+        XCTAssertEqual(store.minutes(on: date(2026, 10, 25)), 7, accuracy: 0.001)
+        XCTAssertEqual(store.sessionCount, 1)
+    }
+
+    func testIdleGapIsCappedAtFiveMinutes() {
+        store.startSession(at: date(2026, 10, 25, 10, 0))
+        store.noteActivity(at: date(2026, 10, 25, 10, 2))
+        store.endSession(at: date(2026, 10, 25, 10, 40))
+
+        XCTAssertEqual(store.minutes(on: date(2026, 10, 25)), 7, accuracy: 0.001)
+    }
+
+    func testIdleGapIsNotCountedTwiceAfterActivity() {
+        store.startSession(at: date(2026, 10, 25, 10, 0))
+        store.noteActivity(at: date(2026, 10, 25, 10, 2))
+        store.noteActivity(at: date(2026, 10, 25, 10, 20))
+        store.endSession(at: date(2026, 10, 25, 10, 40))
+
+        XCTAssertEqual(store.minutes(on: date(2026, 10, 25)), 12, accuracy: 0.001)
+    }
+
+    func testListeningIsCountedWhileIdle() {
+        store.startSession(at: date(2026, 10, 25, 10, 0))
+        store.setListening(true, at: date(2026, 10, 25, 10, 0))
+        store.endSession(at: date(2026, 10, 25, 10, 30))
+
+        XCTAssertEqual(store.days["2026-10-25"]?.listeningSeconds ?? 0, 1800, accuracy: 0.001)
+        XCTAssertEqual(store.days["2026-10-25"]?.seconds ?? 0, 0, accuracy: 0.001)
+    }
+
+    func testListeningDoesNotCountAsReading() {
+        store.startSession(at: date(2026, 10, 25, 10, 0))
+        store.noteActivity(at: date(2026, 10, 25, 10, 5))
+        store.endSession(at: date(2026, 10, 25, 10, 10))
+        store.startSession(at: date(2026, 10, 25, 11, 0))
+        store.setListening(true, at: date(2026, 10, 25, 11, 0))
+        store.endSession(at: date(2026, 10, 25, 11, 5))
+
+        XCTAssertEqual(store.days["2026-10-25"]?.seconds ?? 0, 600, accuracy: 0.001)
+        XCTAssertEqual(store.days["2026-10-25"]?.listeningSeconds ?? 0, 300, accuracy: 0.001)
+    }
+
+    func testSessionCrossingMidnightSplitsDays() {
+        store.startSession(at: date(2026, 10, 25, 23, 55))
+        store.noteActivity(at: date(2026, 10, 26, 0, 0))
+        store.noteActivity(at: date(2026, 10, 26, 0, 5))
+        store.endSession(at: date(2026, 10, 26, 0, 10))
+
+        XCTAssertEqual(store.minutes(on: date(2026, 10, 25)), 5, accuracy: 0.001)
+        XCTAssertEqual(store.minutes(on: date(2026, 10, 26)), 10, accuracy: 0.001)
+    }
+
+    func testLongestSessionAndCountAreRecorded() {
+        store.startSession(at: date(2026, 10, 25, 10, 0))
+        store.noteActivity(at: date(2026, 10, 25, 10, 5))
+        store.endSession(at: date(2026, 10, 25, 10, 10))
+        store.startSession(at: date(2026, 10, 25, 12, 0))
+        store.noteActivity(at: date(2026, 10, 25, 12, 2))
+        store.endSession(at: date(2026, 10, 25, 12, 5))
+
+        XCTAssertEqual(store.longestSession, 600, accuracy: 0.001)
+        XCTAssertEqual(store.sessionCount, 2)
+    }
+
+    func testEmptySessionWritesNothing() {
+        store.startSession(at: date(2026, 10, 25, 10, 0))
+        store.endSession(at: date(2026, 10, 25, 10, 0))
+
+        XCTAssertTrue(store.days.isEmpty)
+        XCTAssertEqual(store.sessionCount, 0)
+    }
 }

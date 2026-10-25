@@ -115,6 +115,79 @@ final class ReadingStatsStore: ObservableObject {
         persist()
     }
 
+    // MARK: - Sessions
+
+    private var sessionStart: Date?
+    private var lastEvent: Date?
+    private var lastActivity: Date?
+    private var isListening = false
+    private var sessionSeconds: TimeInterval = 0
+
+    /// Opens a session if none is open. The reader calls this on appear and on
+    /// returning to the foreground; opening twice must not start a second one.
+    func startSession(at date: Date) {
+        guard sessionStart == nil else { return }
+        sessionStart = date
+        lastEvent = date
+        lastActivity = date
+        isListening = false
+        sessionSeconds = 0
+    }
+
+    /// A page turn, a tap or a spoken sentence: the reader is still at the book.
+    func noteActivity(at date: Date) {
+        guard sessionStart != nil else { return }
+        flush(to: date)
+        lastActivity = date
+    }
+
+    /// Narration is its own kind of attendance: it keeps counting while the
+    /// reader does not touch the page.
+    func setListening(_ active: Bool, at date: Date) {
+        guard sessionStart != nil else { return }
+        flush(to: date)
+        isListening = active
+        lastActivity = date
+    }
+
+    func endSession(at date: Date) {
+        guard sessionStart != nil else { return }
+        flush(to: date)
+
+        if sessionSeconds >= 1 {
+            longestSession = max(longestSession, sessionSeconds)
+            sessionCount += 1
+        }
+
+        sessionStart = nil
+        lastEvent = nil
+        lastActivity = nil
+        isListening = false
+        sessionSeconds = 0
+        persist()
+    }
+
+    /// Writes the time since the last event. Reading slots stop at the idle
+    /// limit; listening slots run to the event. Everything after an idle gap is
+    /// skipped once, so it can never be counted by a later flush.
+    private func flush(to now: Date) {
+        guard let last = lastEvent, now > last else { return }
+
+        let sliceEnd: Date
+        if isListening {
+            sliceEnd = now
+        } else {
+            sliceEnd = min(now, (lastActivity ?? last).addingTimeInterval(idleLimit))
+        }
+
+        let slice = max(0, sliceEnd.timeIntervalSince(last))
+        if slice > 0 {
+            add(seconds: slice, listening: isListening, endingAt: sliceEnd)
+            sessionSeconds += slice
+        }
+        lastEvent = now
+    }
+
     // MARK: - Storage
 
     private struct Snapshot: Codable {
