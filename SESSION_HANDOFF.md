@@ -1,7 +1,34 @@
 # Session handoff
 > English first, bản tiếng Việt ở nửa dưới của cùng tệp.
 
-Timestamp / timezone: 2026-10-22 01:15 +07 (Asia/Ho_Chi_Minh)
+Timestamp / timezone: 2026-10-23 09:35 +07 (Asia/Ho_Chi_Minh)
+
+## 2026-10-23 — main shell delivered, app left on Home
+
+- Scope: `MainView` (Home/Library/Store + floating tab bar), `HomeFeed`/`HomeView`, `StoreView`,
+  `LibraryView` list/grid and path binding, `EpubReaderApp` root, `HomeFeedTests`.
+- Verified: `xcodebuild -project EpubReader.xcodeproj -scheme EpubReader -configuration Debug
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -derivedDataPath build/dd
+  -collect-test-diagnostics never test` → exit 0, 17 tests, 0 failures; same command with `build`
+  → exit 0, `** BUILD SUCCEEDED **` (logs: `build/qa/xcodebuild-test-after-fixes.log`,
+  `build/qa/xcodebuild-build-after-fixes.log`).
+- KiloCode QA (real CLI, free Kilo model because the paid balance is 0):
+  `build/qa/kilocode-code-qa.md` (no blockers/majors; Store row a11y and list separator contrast
+  fixed afterwards), `build/qa/kilocode-device-qa.md` (capture only; text model could not see
+  images), and `build/qa/kilocode-device-visual-qa.md` (vision model, 6/6 PASS). Screenshots:
+  `build/qa/kilocode-device-01-home.png`, `03-library-grid.png`, `04-library-list.png`,
+  `05-store.png`, `06-reader.png`, final `build/qa/final-home.png`.
+- Simulator: iPhone 17 Pro, UDID `6B98AE70-9B11-4915-85AB-A3F347F40381`, iOS 26.5, booted.
+  App PID 8420, running, default launch, Home tab. Library list/grid persistence was also verified
+  across a relaunch (`build/qa/library-list-persisted.png`); layout was restored to grid afterwards.
+  No Simulator.app GUI exists on this machine;
+  simctl screenshots are the evidence. Simulator data was not reset.
+- Dirty files (no commit made): `EpubReader/App/EpubReaderApp.swift`,
+  `EpubReader/Library/LibraryView.swift`, plus new `EpubReader/App/MainView.swift`,
+  `EpubReader/Home/`, `EpubReader/Store/`, `EpubReaderTests/HomeFeedTests.swift`, and these three
+  checkpoint files. `COORDINATOR_STATUS.md` remains untracked from the coordinator.
+- Next action: owner review of the running Home screen and the listed screenshots; then decide on
+  commit/stage. Reading score/gamification stays deferred.
 
 Read first: PROJECT_STATE.md, TASKS.md, `git status --short --branch`, `git log -3 --oneline`.
 
@@ -184,3 +211,169 @@ Hành động tiếp theo chính xác:
   chờ duyệt trước khi sửa code.
 
 Prompt resume: Đọc state và đối chiếu files/Git; tiếp tục tác vụ chưa xong trong scope đã duyệt, không discard thay đổi.
+
+---
+
+## 2026-10-24 — UI tinh gọn theo yêu cầu trực tiếp của anh (đã làm xong, chưa commit)
+
+Yêu cầu anh đưa ra và cách đã sửa:
+1. Bỏ chữ "Trang Chủ / Thư Viện / Cửa hàng" ở màn hình chính → `App/MainView.swift`: `FloatingTabBar`
+   chỉ còn icon, bỏ `Text(verbatim: tab.title)`; tên tab vẫn còn để dùng cho VoiceOver.
+2. Sách đang đọc dở bỏ nhãn % rời → `Home/HomeView.swift`: bỏ `ReadPercentLabel` trong
+   `ContinueReadingCard`, giữ một dòng duy nhất "Trang x/y · %" (`placeLabel`).
+3. Bìa sách không còn tên sách + tên tác giả, cả trang đang đọc lẫn thư viện →
+   `Library/LibraryView.swift`: `BookCover` giờ chỉ là gradient màu theo title + gáy sẫm màu.
+   Màu vẫn bám theo title nên mỗi sách một màu.
+4. Tab Thư viện: mọi chức năng gom vào nút `...` hiện dạng popup (`Menu`) — Chọn, Sắp xếp (submenu),
+   Đổi dạng lưới/danh sách; nút `+` import sách ghép đôi ở cạnh còn lại. Đã bỏ `ToolbarItemGroup`
+   với 3 nút riêng và bỏ nút cài đặt khỏi toolbar.
+5. Nút cài đặt chuyển sang tab Trang Chủ → `Home/HomeView.swift`: `gearshape` ở `.topBarTrailing`,
+   mở sheet `AppSettingsView`.
+
+Kiểm chứng: `xcodebuild test` (iPhone 17 Pro, iOS 26.5) → 33 tests, 0 failures;
+`xcodebuild build` → BUILD SUCCEEDED. Không sửa test nào vì logic (HomeFeed/LibraryStore/L10n) không đổi.
+
+Chưa commit gì trong lần này; thay đổi nằm trên 3 tệp đã sửa + trạng thái cũ chưa commit từ trước.
+
+### 2026-10-24 (tiếp) — vòng chỉnh thứ hai theo phản hồi của anh
+- Khôi phục chữ trên `FloatingTabBar`; bỏ `navigationTitle` ở Home và Library (anh muốn bỏ title
+  phía trên, không phải chữ ở tab).
+- Library: `+` và `...` gộp vào **một capsule**, dùng đúng metrics/màu của nút trong reader
+  (`ReaderMetrics.buttonSize` 44, `buttonIconSize` 15, divider 22, `controlFill`,
+  stroke `swiftInk@0.14`, shadow 0.20/7/3).
+- Lưới: bìa nhỏ lại (`adaptive(minimum: 96)`, spacing 16/18) → 3 cuốn/hàng.
+- Nút `...` của từng cuốn ở dạng lưới: dời xuống cùng hàng với `%`, bỏ khoanh tròn + nền, chỉ còn glyph.
+- Dạng list giữ nguyên nút `...` bên phải như cũ (anh sẽ yêu cầu riêng).
+- Kiểm chứng: `xcodebuild build` → BUILD SUCCEEDED; đã chụp màn hình Home + Library trên
+  iPhone 17 Pro (iOS 26.5) qua DeviceHub.
+
+### 2026-10-24 (tiếp) — vòng chỉnh 3
+- Library: cặp nút đổi thứ tự — `...` ngoài cùng, `+` phía trong; bỏ thanh navigation (chỉ hiện khi
+  đang chọn nhiều sách) và vẽ cặp nút trên nền giấy để không còn quầng trắng của toolbar glass.
+  Nền capsule = `palette.cardFill`, viền `swiftInk@0.10`, bóng 0.08/6/2.
+- Menu từng cuốn sách: chỉ còn Chỉnh sửa + Xoá, bỏ Chọn.
+- Home: ẩn navigation bar, nút cài đặt tự vẽ (44pt, `cardFill`, viền 0.10) thay cho chip trắng hệ thống.
+- Build SUCCEEDED, đã chụp lại Home + Library.
+
+### 2026-10-25 — Full player trong phần đọc sách
+- `Reader/NowPlayingView.swift` (mới): sheet mở bằng cách bấm vào **title của player**. Gồm bìa + tên
+  sách + tác giả + tên chương, slider tua toàn sách, play/pause cỡ lớn, 2 nút chuyển chương
+  (trước/sau), menu hẹn giờ tắt (Tắt / 5 / 15 / 30 / 60 phút) và menu chọn giọng đọc.
+- `SpeechController`: thêm `skipChapter(by:)`, `setSleepTimer(minutes:)` (Task ngủ rồi pause),
+  `availableVoices()`, `setVoice(id:)` (lưu UserDefaults `narrationVoiceID`), `selectedVoice` dùng
+  cho utterance.
+- `ReaderViewModel.narrationPlace(fraction:)` + `NarrationMath.place` (thuần, có test).
+- `ReaderView`: `showNowPlaying`, title player bọc trong Button, sheet mới; thêm hook
+  `-demoNowPlaying <giây>` để chụp ảnh.
+- L10n: thêm 8 key ở cả en/vi (reader.player.open/progress/previous/next, reader.sleep,
+  reader.sleep.off/minutes, reader.voice).
+- Kiểm chứng: `xcodebuild test` → **37 tests, 0 failures** (thêm `NarrationMathTests`, 4 test);
+  ảnh chụp sheet trên iPhone 17 Pro.
+- Chưa kiểm bằng tay: bấm title để mở (demo mở bằng state), kéo slider, chờ hết hẹn giờ, đổi giọng
+  trên máy có nhiều voice.
+
+### 2026-10-25 (tiếp) — chỉnh popup player
+- Bìa 54 → 96; thêm dòng "Tốc độ đọc · 1×" dưới tên chương.
+- Trên slider: trái "Trang x/y", phải "%" (truyền `pageNumber`/`pageCount` từ ReaderView).
+- Hẹn giờ tắt và giọng đọc thành 2 nút icon tròn, bấm ra menu; icon hẹn giờ đổi màu accent khi
+  đang bật.
+- `ReaderPalette.popupPaper` (giấy reader +14% trắng sáng / +12% tối) và `popupControlFill`
+  (+55% / +28%) cho nền panel và nút; dùng thêm `.presentationBackground` để nền sheet cũng theo màu.
+- Kiểm chứng: 37/37 test xanh; ảnh chụp theme "paper" xác nhận panel sáng hơn trang, nút nổi rõ.
+- Lưu ý: theme "original" có giấy trắng nên panel cũng trắng — khi đó chỉ còn bóng đổ phân tách.
+
+### 2026-10-25 (tiếp) — popup player, vòng 2
+- Tốc độ đọc giờ là **menu bấm được** (các mốc 0.5×…1.5×), có chevron; trước đó chỉ là chữ.
+- Hẹn giờ + giọng đọc gộp vào **cùng hàng** với chuyển chương và play/pause (5 nút, spacing 12;
+  play 66 → 62 cho vừa).
+- Nút trong popup dùng `palette.controlFill`/`swiftInk` — đúng màu nút của màn đọc theo theme;
+  bỏ `popupControlFill` khỏi `ReaderTheme`.
+- 37/37 test xanh; ảnh chụp xác nhận.
+
+### 2026-10-25 (tiếp) — popup player, vòng 3
+- Tốc độ thành nút `− 1× +` full-width (cao 48), nằm dưới hàng transport.
+- Transport: sleep (trái ngoài cùng) · lùi chương · play 60 · tiến chương · giọng đọc;
+  bốn nút phụ đều 48pt.
+- Nguyên nhân "backward/forward không ấn được": nút bị `.disabled` khi `canSkip*` false.
+  Demo resume ở chương cuối nên ⏭ luôn tắt (opacity 0.3, chạm không ăn). Bỏ disabled;
+  `skipChapter` clamp qua `NarrationMath.skipTarget` — ở đầu/cuối sách thì phát lại chính chương đó,
+  nên nút luôn phản hồi. Thêm 1 test (38/38 xanh).
+- Nút dùng `palette.controlFill` / `swiftInk` / `swiftAccent` nên đổi đúng theo theme + dark.
+- Kiểm chứng: build xanh, 38/38 test, ảnh chụp theme paper (sáng) và focus (tối).
+- Không tap được bằng máy: máy này không có Simulator.app GUI và không có công cụ inject tap,
+  nên hành vi chạm chỉ suy ra từ logic + ảnh chụp.
+
+### 2026-10-25 (tiếp) — popup player, vòng 4
+- Full player không còn tự mở khi vào sách: hook demo `demoNowPlaying`/`demoSpeak` giờ chạy
+  **một lần mỗi lần launch** (`ReaderView.demoApplied`, `demoNarrationApplied` static) thay vì mỗi
+  lần mở sách. Mở sách chỉ hiện player row; bấm tiêu đề mới mở full player.
+- Nút ⏮ disable ở chương đầu, ⏭ disable ở chương cuối (`canSkipBackward/Forward` dùng lại;
+  bỏ `NarrationMath.skipTarget` + test vòng 3).
+- Nút `− 1× +` chuyển vào bookRow, ngay dưới tên chương, dạng capsule nhỏ (cao 34, không tràn ngang).
+- Sheet dùng detent `.height(352)` thay `.medium` → panel thấp hơn, bớt khoảng trống.
+- Kiểm chứng: build xanh, 37/37 test; ảnh chụp: sách mở với player row (không tự mở sheet),
+  và sheet mới có nút tốc độ dưới chương.
+
+### 2026-10-25 (tiếp) — popup chọn giọng đọc (giọng hệ thống)
+- Nút giọng trong full player giờ mở `VoicePickerSheet` (sheet, không còn `Menu`).
+- `VoiceCatalog` nhóm giọng đã cài theo ngôn ngữ/vùng (`vi-VN`, `en-GB`…), Tiếng Việt lên đầu,
+  tên giọng A→Z; tiêu đề nhóm lấy bản địa hoá của locale (vd "Tiếng Việt (Việt Nam)").
+- Mỗi dòng: nghe thử (play/stop, `VoicePreviewer` riêng, tạm dừng narration khi nghe thử),
+  nhãn chất lượng + locale, nút "Dùng"/✓ cho giọng đang dùng.
+- Cuối sheet: khối "Muốn thêm giọng đọc?" giải thích iOS chỉ cho tải trong Cài đặt + nút mở
+  `UIApplication.openSettingsURLString` (không dùng deep link private).
+- `SpeechController.availableVoices()` trả về **toàn bộ** giọng đã cài (trước chỉ lọc `vi`);
+  giọng mặc định vẫn là tiếng Việt.
+- L10n: thêm 16 key `reader.voice.*` ở cả `en.lproj` và `vi.lproj` (khớp key).
+- Test: thêm `EpubReaderTests/VoiceCatalogTests.swift` (4 test) → **41/41 pass**.
+- Ảnh chụp simulator: sheet hiện 68 giọng đã cài, nhóm Tiếng Việt đầu tiên, giọng "Linh" đang dùng.
+- Chưa commit.
+
+### 2026-10-25 (tiếp) — tìm kiếm giọng + mặc định theo ngôn ngữ máy
+- Popup giọng có ô tìm kiếm: gõ tên ngôn ngữ ("việt", "anh"), mã locale ("en-GB") hoặc tên giọng
+  ("Linh"); khớp ngôn ngữ thì giữ cả nhóm, khớp tên thì lọc đúng dòng. Không có kết quả → câu báo.
+- Thứ tự nhóm: **ngôn ngữ của điện thoại trước**, rồi Tiếng Việt, rồi A→Z; trong nhóm vẫn A→Z.
+- Giọng mặc định khi user chưa chọn: theo `Locale.preferredLanguages.first`, fallback `vi-VN`,
+  rồi giọng vi bất kỳ, rồi giọng đầu tiên đã cài (`SpeechController.defaultVoice()`).
+- L10n thêm `reader.voice.search`, `.clearSearch`, `.noResults` (en + vi khớp key).
+- Test: VoiceCatalogTests lên 8 test (ưu tiên ngôn ngữ máy, tìm theo ngôn ngữ, theo tên, query rỗng)
+  → **45/45 pass**. Ảnh chụp: ô tìm kiếm + nhóm Tiếng Việt đầu danh sách.
+- Chưa làm: tải engine/model TTS open-source trong app (tuỳ chọn, chưa triển khai).
+- Chưa commit.
+
+### 2026-10-25 (tiếp) — giọng theo ngôn ngữ sách, tên giọng cạnh tốc độ
+- Popup giọng **không tự mở**: chỉ còn một chỗ đặt `showVoices = true` là nút voice trong full
+  player. (Lần trước bản cài trên simulator còn hook chụp ảnh `demoVoices`; hook đã gỡ và **đã cài
+  lại bản sạch** — xác nhận bằng grep + ảnh chụp mở sách: chỉ có player row.)
+- Cạnh `− tốc độ +` trong bookRow hiện **tên giọng đang đọc** (`speech.currentVoiceName`).
+- Giọng mặc định/giọng đã lưu phải **khớp ngôn ngữ sách**: `SpeechController.bookLanguage` phát hiện
+  bằng `NLLanguageRecognizer` trên ~1200 ký tự đầu; giọng lưu mà khác ngôn ngữ sách thì bị bỏ qua,
+  dùng `defaultVoice(for:)` (sách → ngôn ngữ máy → vi-VN → giọng vi → giọng đầu).
+- Popup chỉ liệt kê giọng cùng ngôn ngữ sách (`VoiceCatalog.voices(_:speaking:)`); nếu máy không có
+  giọng nào cho ngôn ngữ đó thì hiện tất cả để không bị sheet rỗng. Tiêu đề đổi thành
+  "N giọng cho sách này".
+- Test: thêm 2 test lọc theo ngôn ngữ sách → **47/47 pass**.
+- Ảnh chụp: popup chỉ có nhóm Tiếng Việt (Linh ✓, "1 giọng cho sách này"); player có "Linh" cạnh 1×.
+- Chưa commit.
+
+### 2026-10-25 (tiếp) — sách mẫu đa ngôn ngữ
+- Thêm `SampleBooks/make_books.py` + 5 EPUB mẫu (2 chương, có `dc:language`):
+  01 English, 02 French, 03 Spanish, 04 Japanese, 05 Chinese.
+- Đã copy vào simulator `Documents/Books` (cùng 3 sách cũ) → thư viện 8 sách.
+- Kiểm chứng lọc giọng theo ngôn ngữ sách: English → 25 giọng en (en-IN, en-US…);
+  Japanese → 1 giọng ja (Kyoko); Chinese → 2 giọng zh (Tingting zh-CN, Meijia zh-TW).
+- Chưa mở thử French/Spanish; chưa commit (SampleBooks/ đang untracked).
+
+### 2026-10-25 (tiếp) — bố cục player + hết nháy nền khi thoát sách
+- BookRow của full player theo đúng bố cục yêu cầu: tên chương → đường kẻ mảnh →
+  "Giọng đọc: <tên>" → `− tốc độ +` (capsule) trên dòng riêng. Key mới:
+  `reader.voice.currentName` = "Giọng đọc: %@" / "Voice: %@".
+- Nháy nền: `.preferredColorScheme` của reader nằm trên ReaderView nên sau khi pop, thư viện
+  vẫn nhận scheme tối cho tới khi animation xong → nền đen rồi mới trắng. Đã **chuyển** preference
+  lên `NavigationStack` của `LibraryView` và `HomeView`, chỉ áp khi `path` không rỗng
+  (`readerScheme`), và **bỏ** dòng đó khỏi ReaderView. Khi pop, path rỗng ngay → thư viện sáng
+  suốt transition; status bar reader vẫn trắng vì path còn sách.
+- Kiểm chứng: chụp liên tiếp lúc pop (12 frame, hook tạm `-demoCloseAfter`): frame giữa transition
+  thấy thư viện trắng bên trái, reader tối trượt ra; frame cuối thư viện trắng hoàn toàn.
+  Hook tạm đã gỡ, build + cài lại bản sạch; 47/47 test vẫn xanh.
+- Chưa commit.

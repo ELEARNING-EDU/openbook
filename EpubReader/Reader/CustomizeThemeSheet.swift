@@ -69,7 +69,7 @@ struct CustomizeThemeSheet: View {
 
     private var topBar: some View {
         ZStack {
-            Text("Tuỳ chỉnh giao diện")
+            Text("customize.title")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(palette.swiftInk)
 
@@ -85,7 +85,7 @@ struct CustomizeThemeSheet: View {
                         .background(palette.cardFill, in: Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Huỷ thay đổi")
+                .accessibilityLabel(Text("customize.cancel"))
 
                 Spacer()
 
@@ -99,7 +99,7 @@ struct CustomizeThemeSheet: View {
                         .background(palette.isDark ? Color.white : Color.black, in: Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Giữ thay đổi")
+                .accessibilityLabel(Text("customize.keep"))
             }
         }
         .padding(.horizontal, 16)
@@ -127,13 +127,18 @@ struct CustomizeThemeSheet: View {
 
     private var textSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("Chữ")
+            sectionTitle("customize.section.text")
 
             VStack(spacing: 0) {
                 Button {
                     showFonts = true
                 } label: {
-                    row(icon: "textformat.size", title: "Phông chữ", value: custom.fontName, chevron: true)
+                    row(
+                        icon: "textformat.size",
+                        title: L10n.string("customize.font"),
+                        value: custom.fontName,
+                        chevron: true
+                    )
                 }
                 .buttonStyle(.plain)
 
@@ -141,7 +146,7 @@ struct CustomizeThemeSheet: View {
 
                 HStack(spacing: 14) {
                     rowIcon("bold")
-                    Text("Chữ đậm")
+                    Text("customize.bold")
                         .font(.system(size: 16))
                         .foregroundStyle(palette.swiftInk)
                     Spacer(minLength: 8)
@@ -158,12 +163,12 @@ struct CustomizeThemeSheet: View {
 
     private var layoutSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("Khuyến nghị & tuỳ chọn bố cục")
+            sectionTitle("customize.section.layout")
 
             VStack(spacing: 0) {
                 HStack(spacing: 14) {
                     rowIcon("slider.horizontal.3")
-                    Text("Tuỳ chỉnh")
+                    Text("customize.enabled")
                         .font(.system(size: 16))
                         .foregroundStyle(palette.swiftInk)
                     Spacer(minLength: 8)
@@ -177,7 +182,7 @@ struct CustomizeThemeSheet: View {
                 Divider().overlay(palette.swiftInk.opacity(0.1)).padding(.leading, 14)
 
                 sliderRow(
-                    caption: "GIÃN DÒNG",
+                    caption: "customize.lineSpacing",
                     icon: "text.alignleft",
                     value: binding(\.lineSpacing),
                     range: ReaderCustom.lineSpacingRange,
@@ -185,7 +190,7 @@ struct CustomizeThemeSheet: View {
                     label: custom.lineSpacingLabel
                 )
                 sliderRow(
-                    caption: "GIÃN CHỮ",
+                    caption: "customize.characterSpacing",
                     icon: "character",
                     value: binding(\.characterSpacing),
                     range: ReaderCustom.characterSpacingRange,
@@ -193,7 +198,7 @@ struct CustomizeThemeSheet: View {
                     label: custom.characterSpacingLabel
                 )
                 sliderRow(
-                    caption: "GIÃN TỪ",
+                    caption: "customize.wordSpacing",
                     icon: "textformat.abc",
                     value: binding(\.wordSpacing),
                     range: ReaderCustom.wordSpacingRange,
@@ -201,7 +206,7 @@ struct CustomizeThemeSheet: View {
                     label: custom.wordSpacingLabel
                 )
                 sliderRow(
-                    caption: "LỀ",
+                    caption: "customize.margin",
                     icon: "rectangle.portrait",
                     value: binding(\.margin),
                     range: ReaderCustom.marginRange,
@@ -214,7 +219,7 @@ struct CustomizeThemeSheet: View {
             VStack(spacing: 0) {
                 HStack(spacing: 14) {
                     rowIcon("rectangle.split.3x1")
-                    Text("Cột")
+                    Text("customize.columns")
                         .font(.system(size: 16))
                         .foregroundStyle(palette.swiftInk)
                     Spacer(minLength: 8)
@@ -244,7 +249,7 @@ struct CustomizeThemeSheet: View {
 
                 HStack(spacing: 14) {
                     rowIcon("text.justify")
-                    Text("Căn đều hai bên")
+                    Text("customize.justify")
                         .font(.system(size: 16))
                         .foregroundStyle(palette.swiftInk)
                     Spacer(minLength: 8)
@@ -264,7 +269,7 @@ struct CustomizeThemeSheet: View {
             withAnimation(.easeOut(duration: 0.2)) { settings.resetCurrentTheme() }
             opening = ReaderCustom()
         } label: {
-            Text("Đặt lại giao diện")
+            Text("customize.reset")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Color.red)
                 .frame(maxWidth: .infinity)
@@ -306,14 +311,15 @@ struct CustomizeThemeSheet: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(palette.sheetPaper)
-        .navigationTitle("Phông chữ")
+        .navigationTitle("customize.fonts")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     // MARK: - Small parts
 
-    private func sectionTitle(_ text: String) -> some View {
-        Text(text.uppercased())
+    private func sectionTitle(_ key: LocalizedStringKey) -> some View {
+        Text(key)
+            .textCase(.uppercase)
             .font(.system(size: 12, weight: .semibold))
             .kerning(0.8)
             .foregroundStyle(palette.swiftInkSoft)
@@ -353,7 +359,7 @@ struct CustomizeThemeSheet: View {
     }
 
     private func sliderRow(
-        caption: String,
+        caption: LocalizedStringKey,
         icon: String,
         value: Binding<Double>,
         range: ClosedRange<Double>,
@@ -362,6 +368,7 @@ struct CustomizeThemeSheet: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(caption)
+                .textCase(.uppercase)
                 .font(.system(size: 11, weight: .semibold))
                 .kerning(0.6)
                 .foregroundStyle(palette.swiftInkSoft)

@@ -55,7 +55,7 @@ struct ThemesSettingsSheet: View {
     /// Just the panel's name: it is closed by pulling it down, the way a sheet is,
     /// rather than by a button that competes with the looks in the grid.
     private var header: some View {
-        Text("Giao diện & Cài đặt")
+        Text("settings.sheet.title")
             .font(.system(size: 17, weight: .bold))
             .foregroundStyle(palette.swiftInk)
             .frame(maxWidth: .infinity)
@@ -89,7 +89,7 @@ struct ThemesSettingsSheet: View {
                     .background(panelFill, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(palette.isDark ? "Chuyển sang nền sáng" : "Chuyển sang nền tối")
+            .accessibilityLabel(Text(palette.isDark ? "settings.appearance.toLight" : "settings.appearance.toDark"))
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
@@ -121,7 +121,7 @@ struct ThemesSettingsSheet: View {
             HStack(spacing: 10) {
                 Image(systemName: "textformat")
                     .font(.system(size: 15, weight: .semibold))
-                Text("Tuỳ chỉnh")
+                Text("settings.customize")
                     .font(.system(size: 17, weight: .semibold))
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right")
@@ -137,7 +137,7 @@ struct ThemesSettingsSheet: View {
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 18)
-        .accessibilityHint("Mở màn tuỳ chỉnh phông chữ, giãn dòng và bố cục")
+        .accessibilityHint(Text("settings.customize.hint"))
     }
 
     private var panelFill: Color { palette.isDark ? Color.white.opacity(0.13) : Color.black.opacity(0.05) }
@@ -182,7 +182,7 @@ private struct ThemeCard: View {
                     .foregroundStyle(palette.swiftInk)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                Text(palette.name)
+                Text(palette.localizedName)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(palette.swiftInk)
             }
@@ -196,7 +196,7 @@ private struct ThemeCard: View {
                         .foregroundStyle(palette.swiftInk)
                         .padding(.top, 4)
                         .padding(.trailing, 8)
-                        .accessibilityLabel("Đã tuỳ chỉnh")
+                        .accessibilityLabel(Text("settings.customized"))
                 }
             }
             .overlay(
@@ -210,7 +210,7 @@ private struct ThemeCard: View {
             .shadow(color: .black.opacity(0.18), radius: 6, y: 3)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(customised ? "\(palette.name), đã tuỳ chỉnh" : palette.name)
+        .accessibilityLabel(Text(verbatim: customised ? L10n.format("settings.customized.a11y", palette.localizedName) : palette.localizedName))
         .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }

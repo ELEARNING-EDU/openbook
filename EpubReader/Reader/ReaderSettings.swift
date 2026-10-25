@@ -10,7 +10,7 @@ enum ColumnSetting: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .auto: return "Tự động"
+        case .auto: return L10n.string("columns.auto")
         case .one: return "1"
         case .two: return "2"
         }

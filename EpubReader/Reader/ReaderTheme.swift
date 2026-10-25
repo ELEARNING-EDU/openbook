@@ -117,6 +117,27 @@ struct PaletteInk: Equatable {
 /// settings panel actually paint with.
 struct ReaderPalette: Equatable, Identifiable {
 
+    /// The app shell's own paper, resolved against the phone's appearance.
+    ///
+    /// Home, Library, Store and their dialogs are not the reader: the theme and
+    /// day/night choice inside a book never repaint them. This palette follows
+    /// the system instead, and `MainView` hands down the current face.
+    static func shell(dark: Bool) -> ReaderPalette {
+        let ink = dark
+            ? PaletteInk(0x121110, 0x2A2724, 0xF2EDE4, 0xA49B8F, 0xD9A06A)
+            : PaletteInk(0xFAF7F2, 0xE7E1D6, 0x1C1814, 0x6E655B, 0x9E5932)
+        return ReaderPalette(
+            id: "shell",
+            name: "Shell",
+            paper: ink.paper,
+            paperEdge: ink.paperEdge,
+            ink: ink.ink,
+            inkSoft: ink.inkSoft,
+            accent: ink.accent,
+            bold: false
+        )
+    }
+
     let id: String
     let name: String
     let paper: UIColor
@@ -128,6 +149,10 @@ struct ReaderPalette: Equatable, Identifiable {
     let bold: Bool
 
     var isDark: Bool { paper.perceivedBrightness < 0.5 }
+
+    /// The theme's name in the app's language. The stored id never changes, so a
+    /// language switch cannot lose the reader's saved theme.
+    var localizedName: String { L10n.string("theme.\(id)") }
 
     var swiftPaper: Color { Color(paper) }
     var swiftPaperEdge: Color { Color(paperEdge) }
@@ -174,6 +199,12 @@ struct ReaderPalette: Equatable, Identifiable {
     /// it.
     var sheetPaper: Color {
         Color(paper.mixed(with: isDark ? .white : .black, amount: isDark ? 0.19 : 0.045))
+    }
+
+    /// The full player's panel: the page's own paper, lifted toward white so the
+    /// popup reads as sitting above the page rather than as part of it.
+    var popupPaper: Color {
+        Color(paper.mixed(with: .white, amount: isDark ? 0.12 : 0.14))
     }
 
     /// The hairline that draws the top of an open sheet, strongest where the panel

@@ -21,11 +21,11 @@ struct SearchSheet: View {
                 results
             }
             .background(palette.swiftPaper)
-            .navigationTitle("Tìm trong sách")
+            .navigationTitle("reader.search")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Xong", action: onDone)
+                    Button("common.done", action: onDone)
                 }
             }
             .preferredColorScheme(palette.isDark ? .dark : .light)
@@ -38,7 +38,7 @@ struct SearchSheet: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(palette.swiftInkSoft)
 
-            TextField("Tìm trong sách", text: $query)
+            TextField("reader.search", text: $query)
                 .font(.system(size: 16))
                 .foregroundStyle(palette.swiftInk)
                 .autocorrectionDisabled()
@@ -69,9 +69,9 @@ struct SearchSheet: View {
     @ViewBuilder
     private var results: some View {
         if trimmed.count < 2 {
-            note("Nhập ít nhất hai chữ để tìm trong sách.")
+            note("search.note.min")
         } else if hits.isEmpty {
-            note("Không tìm thấy “\(trimmed)”.")
+            note("search.note.none \(trimmed)")
         } else {
             List(hits) { hit in
                 Button {
@@ -85,7 +85,7 @@ struct SearchSheet: View {
                             .font(.system(size: 14))
                             .foregroundStyle(.primary)
                             .lineLimit(3)
-                        Text("tr. \(hit.pageIndex + 1)")
+                        Text(verbatim: L10n.format("reader.pageRef", hit.pageIndex + 1))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -97,8 +97,8 @@ struct SearchSheet: View {
         }
     }
 
-    private func note(_ text: String) -> some View {
-        Text(text)
+    private func note(_ key: LocalizedStringKey) -> some View {
+        Text(key)
             .font(.system(size: 14))
             .foregroundStyle(palette.swiftInkSoft)
             .multilineTextAlignment(.center)

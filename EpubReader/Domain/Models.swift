@@ -68,10 +68,10 @@ enum EpubError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notReadable: return "Không đọc được tệp EPUB."
-        case .missingContainer: return "Thiếu META-INF/container.xml — tệp không phải EPUB hợp lệ."
-        case .missingPackage: return "Không tìm thấy tệp gói (.opf) được container.xml chỉ tới."
-        case .emptySpine: return "Sách không có chương nào trong spine."
+        case .notReadable: return L10n.string("error.epub.notReadable")
+        case .missingContainer: return L10n.string("error.epub.missingContainer")
+        case .missingPackage: return L10n.string("error.epub.missingPackage")
+        case .emptySpine: return L10n.string("error.epub.emptySpine")
         }
     }
 }

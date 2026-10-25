@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import NaturalLanguage
 
 /// Splits text into sentence ranges (UTF-16, so they line up with `NSRange`).
 enum SentenceSplitter {
@@ -33,7 +34,10 @@ enum NarrationState: Equatable {
 final class SpeechController: NSObject, ObservableObject {
 
     static let rateOptions: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5]
+    /// Minutes the player can be told to stop after; `nil` is "no timer".
+    static let sleepOptions: [Int] = [5, 15, 30, 60]
     private static let rateKey = "narrationRateFactor"
+    private static let voiceKey = "narrationVoiceID"
 
     @Published private(set) var state: NarrationState = .idle
     /// Range of the sentence being spoken, in chapter coordinates.
@@ -41,6 +45,14 @@ final class SpeechController: NSObject, ObservableObject {
     @Published private(set) var currentChapter = 0
     @Published private(set) var voiceName = "—"
     @Published private(set) var rateFactor: Double = 1.0
+    /// The chosen voice, by its system identifier.
+    @Published private(set) var voiceID: String?
+    /// The language the open book is written in, so the picker can keep to
+    /// voices that can actually pronounce it.
+    @Published private(set) var bookLanguage: String?
+    /// Minutes left on the sleep timer, or `nil` when it is off.
+    @Published private(set) var sleepMinutes: Int?
+    private var sleepTask: Task<Void, Never>?
 
     private let synthesizer = AVSpeechSynthesizer()
     private var chapters: [Chapter] = []
@@ -64,12 +76,19 @@ final class SpeechController: NSObject, ObservableObject {
 
         let saved = UserDefaults.standard.double(forKey: Self.rateKey)
         rateFactor = Self.rateOptions.contains(saved) ? saved : 1.0
+        voiceID = UserDefaults.standard.string(forKey: Self.voiceKey)
 
         activateAudioSession()
     }
 
     func configure(chapters: [Chapter]) {
         self.chapters = chapters
+        guard bookLanguage == nil,
+              let sample = chapters.lazy.map(\.text.string).first(where: { $0.count > 20 })
+        else { return }
+        bookLanguage = NLLanguageRecognizer
+            .dominantLanguage(for: String(sample.prefix(1200)))?
+            .rawValue
     }
 
     /// Starts narration at the sentence containing `offset` (chapter coordinates).
@@ -94,7 +113,7 @@ final class SpeechController: NSObject, ObservableObject {
         }
 
         let utterance = AVSpeechUtterance(string: text.substring(from: sentence.location))
-        if let voice = Self.vietnameseVoice() {
+        if let voice = selectedVoice {
             utterance.voice = voice
             voiceName = "\(voice.name) [\(voice.language)]"
         } else {
@@ -170,6 +189,81 @@ final class SpeechController: NSObject, ObservableObject {
     var canSlowDown: Bool { rateFactor > Self.rateOptions[0] }
     var canSpeedUp: Bool { rateFactor < Self.rateOptions[Self.rateOptions.count - 1] }
 
+    // MARK: - Seeking
+
+    /// Moves the narration a whole chapter at a time — the player's skip buttons.
+    func skipChapter(by delta: Int) {
+        let target = currentChapter + delta
+        guard chapters.indices.contains(target) else { return }
+        let wasPaused = state == .paused
+        speak(chapter: target, fromChapterOffset: 0)
+        if wasPaused { pause() }
+    }
+
+    var canSkipBackward: Bool { currentChapter > 0 }
+    var canSkipForward: Bool { currentChapter + 1 < chapters.count }
+
+    // MARK: - Sleep timer
+
+    func setSleepTimer(minutes: Int?) {
+        sleepTask?.cancel()
+        sleepTask = nil
+        sleepMinutes = minutes
+        guard let minutes else { return }
+
+        sleepTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(minutes) * 60 * 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self else { return }
+                self.sleepMinutes = nil
+                self.pause()
+            }
+        }
+    }
+
+    // MARK: - Voices
+
+    /// Every voice installed on the phone, so the picker can offer them all
+    /// grouped by language and region.
+    static func availableVoices() -> [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices()
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// The voice that will read right now — the saved one when it speaks the
+    /// book's language, otherwise the best fit for the book.
+    var selectedVoiceID: String? {
+        selectedVoice?.identifier
+    }
+
+    /// Shown beside the speed control in the player.
+    var currentVoiceName: String {
+        selectedVoice?.name ?? "—"
+    }
+
+    /// Changing voice mid-sentence restarts that sentence in the new voice, the
+    /// same trade `setRate` makes.
+    func setVoice(id: String) {
+        guard id != voiceID else { return }
+        voiceID = id
+        UserDefaults.standard.set(id, forKey: Self.voiceKey)
+
+        guard state != .idle else { return }
+        let wasPaused = state == .paused
+        speak(chapter: currentChapter, fromChapterOffset: lastSpokenOffset)
+        if wasPaused { pause() }
+    }
+
+    private var selectedVoice: AVSpeechSynthesisVoice? {
+        if let id = voiceID,
+           let chosen = AVSpeechSynthesisVoice(identifier: id),
+           Self.speaks(chosen, bookLanguage) {
+            return chosen
+        }
+        return Self.defaultVoice(for: bookLanguage)
+    }
+
     private func step(from current: Double, by delta: Int) -> Double {
         let options = Self.rateOptions
         let index = options.firstIndex(of: current)
@@ -188,9 +282,31 @@ final class SpeechController: NSObject, ObservableObject {
         return chapter.sentences.first(where: { $0.location >= offset }) ?? chapter.sentences.last
     }
 
-    private static func vietnameseVoice() -> AVSpeechSynthesisVoice? {
+    /// Whether a voice can read the given language tag, e.g. `vi` matches `vi-VN`.
+    static func speaks(_ voice: AVSpeechSynthesisVoice, _ language: String?) -> Bool {
+        guard let language else { return true }
+        return languageCode(voice.language) == languageCode(language)
+    }
+
+    private static func languageCode(_ tag: String) -> String {
+        String(tag.split(separator: "-").first ?? Substring(tag)).lowercased()
+    }
+
+    /// The voice used until the reader picks one: one for the book's own
+    /// language when installed, then the phone's language, then Vietnamese,
+    /// then anything installed.
+    static func defaultVoice(for language: String? = nil) -> AVSpeechSynthesisVoice? {
+        let installed = AVSpeechSynthesisVoice.speechVoices()
+        if let language,
+           let voice = installed.first(where: { speaks($0, language) }) {
+            return voice
+        }
+        if let device = Locale.preferredLanguages.first,
+           let voice = AVSpeechSynthesisVoice(language: device) {
+            return voice
+        }
         if let exact = AVSpeechSynthesisVoice(language: "vi-VN") { return exact }
-        return AVSpeechSynthesisVoice.speechVoices().first { $0.language.hasPrefix("vi") }
+        return installed.first { $0.language.hasPrefix("vi") } ?? installed.first
     }
 
     private func activateAudioSession() {

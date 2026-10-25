@@ -65,7 +65,7 @@ final class ReaderPageViewController: UIViewController {
         footerLabel.font = .systemFont(ofSize: 11)
         footerLabel.textColor = palette.inkSoft
         footerLabel.textAlignment = .center
-        footerLabel.text = "Trang \(content.pageNumber) / \(content.pageCount)"
+        footerLabel.text = L10n.format("reader.pageFooter", content.pageNumber, content.pageCount)
 
         cleanText = content.columns.map { column in
             let slice = NSMutableAttributedString(

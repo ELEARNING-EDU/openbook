@@ -1,6 +1,12 @@
 # Tasks
 > English table first, bảng tiếng Việt ở nửa dưới của cùng tệp.
 
+## 2026-10-23 milestone — main shell (T17)
+
+| ID | Outcome / acceptance | Status | Evidence |
+| --- | --- | --- | --- |
+| T17 | Main shell with exactly Home/Library/Store and a compact floating tab bar detached from the bottom safe area; Home continues only genuinely in-progress books (0 < fraction < 1) and resumes the saved place; Library keeps import and adds persisted list/grid; Store is a visible non-connected demo; reader behaviour untouched. | done (code uncommitted) | `xcodebuild test` → 17 tests (13 existing + 4 `HomeFeedTests`), 0 failures; `xcodebuild build` → `** BUILD SUCCEEDED **` (iPhone 17 Pro, iOS 26.5, 2026-10-23). KiloCode code/test QA `build/qa/kilocode-code-qa.md`; KiloCode visual device QA 6/6 PASS `build/qa/kilocode-device-visual-qa.md`; screenshots `build/qa/kilocode-device-*.png`, final `build/qa/final-home.png`. Reader resumed page 10/13 with no tab bar over the page. |
+
 | ID | Outcome / acceptance | Status | Dependency | Evidence |
 | --- | --- | --- | --- | --- |
 | T01 | Library: grid of generated covers, EPUB import through the file importer (security-scoped copy into `Documents/Books`), bundled sample seeded on first launch. Acceptance: importing a file adds it; a fresh install shows the sample. | done | none | commit 7cfd579; simulator launches show the library and the sample; `-demoOpenBook 1` opens it |

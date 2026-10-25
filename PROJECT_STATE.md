@@ -1,5 +1,27 @@
 # Project state
-Updated: 2026-10-22 10:20 +07 (Asia/Ho_Chi_Minh)
+Updated: 2026-10-23 09:35 +07 (Asia/Ho_Chi_Minh)
+
+## 2026-10-23 — Main shell: Home / Library / Store + floating tab bar
+- `MainView` is the app root. Exactly three tabs (Home, Library, Store); the initial tab is Home.
+  A compact, leading-aligned capsule bar floats 12 pt above the bottom safe area, leaving free
+  room on its right; each scrolling screen reserves 104 pt under its content. The bar is hidden
+  while a book is open.
+- Home lists only genuinely in-progress books (`0 < fraction < 1`), newest first, from
+  `ReadingProgressStore` via `HomeFeed.continueReading`; empty state links to Library; tapping
+  opens the existing `ReaderView`, which restored page 10/13 from saved progress.
+- Library keeps EPUB import and reader entry and adds a persisted list/grid switch
+  (`@AppStorage("libraryLayout")`), reusing the existing cover and progress row. Persistence was
+  verified across a relaunch (`build/qa/library-list-persisted.png`).
+- Store is a static demo notice: no server, purchases or catalogue.
+- Tests: 4 new `HomeFeedTests`; `xcodebuild test` → 17 tests, 0 failures (iPhone 17 Pro, iOS 26.5);
+  `xcodebuild build` → `** BUILD SUCCEEDED **`.
+- KiloCode independent QA: code/test report `build/qa/kilocode-code-qa.md` (no blockers/majors;
+  two minor accessibility/contrast findings fixed and retested); visual device report
+  `build/qa/kilocode-device-visual-qa.md` (6/6 PASS); screenshots `build/qa/kilocode-device-*.png`
+  and final `build/qa/final-home.png`.
+- App left running on Home in the booted iPhone 17 Pro simulator (UDID 6B98AE70…). The machine
+  has no Simulator.app GUI (headless simctl only), so screenshots are the visual evidence.
+- Source and tests are uncommitted; no commit was made.
 
 > English first, bản tiếng Việt ở nửa dưới của cùng tệp.
 
@@ -445,3 +467,71 @@ Hạn chế đã biết:
 Hành động tiếp theo chính xác:
 - Xin anh cho phép commit T15 (stage đúng đường dẫn, không push), rồi hỏi việc nào trong T11, T13,
   T14 làm tiếp — viết kế hoạch cho việc đó và chờ duyệt trước khi sửa code.
+
+## 2026-10-24 — Tinh gọn giao diện theo yêu cầu trực tiếp (xong, kiểm chứng bằng build + test)
+- `FloatingTabBar` bỏ chữ, chỉ còn icon (`MainView.swift`).
+- `ContinueReadingCard` bỏ nhãn % rời, giữ "Trang x/y · %" (`HomeView.swift`).
+- `BookCover` bỏ tên sách + tên tác giả, chỉ còn gradient + gáy (`LibraryView.swift`).
+- Thư viện: một nút `...` (popup: Chọn / Sắp xếp / Đổi dạng) ghép đôi nút `+` import; bỏ nút cài đặt
+  ở đây.
+- Cài đặt (`AppSettingsView`) chuyển vào tab Trang Chủ, nút `gearshape` trên toolbar.
+- Kiểm chứng: `xcodebuild test` → 33 tests / 0 failures; `xcodebuild build` → BUILD SUCCEEDED.
+
+### 2026-10-24 (tiếp) — vòng chỉnh 2
+- Tab bar có lại chữ; bỏ title lớn trên Home/Library.
+- Library: `+` + `...` chung một capsule theo metrics/màu của reader (`ReaderMetrics` 44/15).
+- Lưới nhỏ lại (min 96), `...` từng cuốn xuống hàng `%`, bỏ vòng tròn — chỉ ở grid.
+- Build SUCCEEDED; ảnh chụp xác nhận trên simulator iPhone 17 Pro.
+
+### 2026-10-24 (tiếp) — vòng chỉnh 3
+- Library: `...` ngoài, `+` trong; ẩn nav bar (trừ khi chọn nhiều), nền capsule `cardFill` mờ, bỏ quầng trắng.
+- Menu sách chỉ còn Chỉnh sửa / Xoá.
+- Home: gear tự vẽ trên nền giấy, không còn chip trắng của system toolbar.
+- Build SUCCEEDED.
+
+### 2026-10-25 — Full player
+- Thêm `NowPlayingView` mở từ title của player: thông tin sách, slider tua, play/pause, chuyển
+  chương, hẹn giờ tắt, chọn giọng đọc.
+- `SpeechController` + `ReaderViewModel.narrationPlace`/`NarrationMath`; L10n 8 key mới.
+- Test: 37/37 xanh. Chưa commit.
+
+### 2026-10-25 (tiếp) — popup player tinh chỉnh
+- Bìa to, dòng tốc độ, "Trang x/y" + % trên slider, hẹn giờ/giọng đọc dạng icon.
+- Nền panel + nút theo giấy reader nhưng sáng hơn (`popupPaper`, `popupControlFill`).
+- 37/37 test xanh. Chưa commit.
+
+### 2026-10-25 (tiếp) — popup player vòng 2
+- Speed thành menu bấm được; sleep + voice vào chung hàng transport; nút dùng `controlFill` theo theme.
+- 37/37 test xanh. Chưa commit.
+
+### 2026-10-25 (tiếp) — popup player vòng 3
+- Speed `− rate +` full-width; 4 nút phụ 48pt, sleep ngoài cùng trái.
+- Bỏ disabled ở skip; `NarrationMath.skipTarget` clamp hai đầu (38/38 test).
+- Ảnh chụp paper + focus dark xác nhận màu theo theme. Chưa commit.
+
+### 2026-10-25 (tiếp) — popup player vòng 4
+- Demo hook chỉ chạy 1 lần/launch → vào sách không tự mở full player.
+- ⏮/⏭ disable đúng ở chương đầu/cuối. Nút tốc độ nhỏ nằm dưới tên chương. Sheet height 352.
+- 37/37 test xanh. Chưa commit.
+
+### 2026-10-25 (tiếp) — popup chọn giọng đọc
+- Giọng đọc: sheet nhóm theo vùng/ngôn ngữ, nghe thử + Dùng, hướng dẫn tải thêm trong Cài đặt.
+- 41/41 test xanh (thêm VoiceCatalogTests). Chưa commit.
+
+### 2026-10-25 (tiếp) — voice search + ngôn ngữ máy
+- Popup giọng: tìm kiếm theo ngôn ngữ/mã locale/tên giọng; nhóm ngôn ngữ điện thoại lên đầu,
+  rồi tiếng Việt. Giọng mặc định theo ngôn ngữ điện thoại. 45/45 test xanh. Chưa commit.
+
+### 2026-10-25 (tiếp) — voice theo ngôn ngữ sách
+- Popup giọng chỉ mở bằng nút voice; tên giọng hiện cạnh nút tốc độ; danh sách lọc theo ngôn ngữ
+  sách (NLLanguageRecognizer), giọng lưu không khớp ngôn ngữ sách bị bỏ qua. 47/47 test xanh.
+  Đã cài lại bản sạch lên simulator. Chưa commit.
+
+### 2026-10-25 (tiếp) — sample books
+- `SampleBooks/` có 5 EPUB mẫu en/fr/es/ja/zh + script tạo; đã cài vào simulator.
+  Đã xác nhận lọc giọng đúng cho en/ja/zh. Chưa commit.
+
+### 2026-10-25 (tiếp) — player layout + theme flash
+- Player: chương → divider → "Giọng đọc: …" → `− 1× +`.
+- Hết nháy nền tối khi thoát sách: preferredColorScheme chuyển từ ReaderView lên NavigationStack
+  của Library/Home, chỉ giữ khi path có sách. 47/47 test xanh, đã cài lại simulator. Chưa commit.

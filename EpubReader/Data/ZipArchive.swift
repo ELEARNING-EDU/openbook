@@ -163,9 +163,9 @@ enum ZipError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .corrupt: return "Tệp ZIP hỏng."
-        case .unsupportedMethod(let m): return "Kiểu nén ZIP không hỗ trợ: \(m)."
-        case .inflateFailed: return "Giải nén thất bại."
+        case .corrupt: return L10n.string("error.zip.corrupt")
+        case .unsupportedMethod(let m): return L10n.format("error.zip.unsupported", Int(m))
+        case .inflateFailed: return L10n.string("error.zip.inflate")
         }
     }
 }

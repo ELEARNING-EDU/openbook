@@ -28,11 +28,16 @@ struct ReaderView: View {
     /// Which half of the contents sheet is showing: the book's own outline, or the
     /// places the reader has marked.
     @State private var tocSection = 0
-    @State private var demoApplied = false
+    /// Screenshot hooks run once per launch, not once per book opened: reopening a
+    /// book must not re-open the full player or start narration by itself.
+    private static var demoApplied = false
+    private static var demoNarrationApplied = false
     /// The synthetic tap is armed late so it lands on the demo page, not page 1.
     @State private var demoTapArmed = false
     /// The player unfurls to the right of the bottom-left button.
     @State private var showPlayer = false
+    /// The full player, opened by tapping the player's title.
+    @State private var showNowPlaying = false
     /// How much chrome is on screen. While the voice is running the buttons step
     /// aside so the page is just paper — but the back button stays, because a
     /// reader must never be locked inside a book they can only hear.
@@ -230,6 +235,15 @@ struct ReaderView: View {
         .sheet(isPresented: $showTOC) { tocSheet }
         .sheet(isPresented: $showSettings) { settingsSheet }
         .sheet(isPresented: $showSearch, onDismiss: { scheduleAutoHide() }) { searchSheet }
+        .sheet(isPresented: $showNowPlaying, onDismiss: { scheduleAutoHide() }) {
+            NowPlayingView(
+                book: book,
+                model: model,
+                speech: speech,
+                pageNumber: pageIndex + 1,
+                pageCount: max(model.pages.count, 1)
+            )
+        }
     }
 
     // MARK: - Reader chrome
@@ -345,8 +359,8 @@ struct ReaderView: View {
     /// a touch event:
     /// `-demoPage 12` and `-demoTurn 2.0` (seconds after the pages are ready).
     private func applyDemoHooks(pageCount: Int) {
-        guard pageCount > 0, !demoApplied else { return }
-        demoApplied = true
+        guard pageCount > 0, !Self.demoApplied else { return }
+        Self.demoApplied = true
 
         if UserDefaults.standard.bool(forKey: "demoDebug") {
             for (index, page) in model.pages.enumerated() {
@@ -613,6 +627,8 @@ struct ReaderView: View {
     /// Narration needs the jump above to have settled first, so it runs on a timer
     /// and only once the pager really shows the requested page.
     private func applyNarrationDemoHook() {
+        guard !Self.demoNarrationApplied else { return }
+        Self.demoNarrationApplied = true
         let defaults = UserDefaults.standard
         if defaults.object(forKey: "demoTapY") != nil {
             // Delayed on request, so a tap can be aimed at a moment when the
@@ -657,6 +673,14 @@ struct ReaderView: View {
         if fasterSteps > 0 {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2 + 3) {
                 for _ in 0..<fasterSteps { speech.faster() }
+            }
+        }
+
+        // Opens the full player, so a capture run can photograph it.
+        let nowPlayingAfter = defaults.double(forKey: "demoNowPlaying")
+        if nowPlayingAfter > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2 + nowPlayingAfter) {
+                showNowPlaying = true
             }
         }
     }
@@ -716,7 +740,7 @@ struct ReaderView: View {
             // Bottom-right: the reader's own settings, not the book's. It steps
             // aside while the player is open, which is where its width goes.
             if chrome == .full {
-                circleButton(systemName: "gearshape", label: "Cài đặt đọc") {
+                circleButton(systemName: "gearshape", label: L10n.string("reader.settings")) {
                     showSettings = true
                     scheduleAutoHide()
                 }
@@ -747,9 +771,9 @@ struct ReaderView: View {
 
     private var audioButtonLabel: String {
         switch speech.state {
-        case .idle: return "Đọc to trang này"
-        case .playing: return "Mở trình phát đang đọc"
-        case .paused: return "Mở trình phát đang tạm dừng"
+        case .idle: return L10n.string("reader.listen")
+        case .playing: return L10n.string("reader.player.playing")
+        case .paused: return L10n.string("reader.player.paused")
         }
     }
 
@@ -772,12 +796,20 @@ struct ReaderView: View {
     /// instead of spending the row's width on an ellipsis.
     private var playerControls: some View {
         HStack(spacing: 8) {
-            MarqueeText(
-                text: playerHeadline,
-                font: .systemFont(ofSize: 13, weight: .semibold),
-                color: palette.swiftInk
-            )
-            .frame(maxWidth: .infinity)
+            // The title is the way into the full player.
+            Button {
+                showNowPlaying = true
+            } label: {
+                MarqueeText(
+                    text: playerHeadline,
+                    font: .systemFont(ofSize: 13, weight: .semibold),
+                    color: palette.swiftInk
+                )
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("reader.player.open"))
 
             if !playerIsCompact {
                 Text(speech.rateLabel)
@@ -789,15 +821,20 @@ struct ReaderView: View {
 
             HStack(spacing: 0) {
                 if !playerIsCompact {
-                    panelButton("gobackward", enabled: speech.canSlowDown) { speech.slower() }
+                    panelButton("gobackward", label: L10n.string("reader.slower"), enabled: speech.canSlowDown) {
+                        speech.slower()
+                    }
                 }
                 panelButton(
-                    speech.state == .playing ? "pause.fill" : "play.fill"
+                    speech.state == .playing ? "pause.fill" : "play.fill",
+                    label: L10n.string(speech.state == .playing ? "reader.pause" : "reader.play")
                 ) { speech.togglePlayPause() }
                 if !playerIsCompact {
-                    panelButton("goforward", enabled: speech.canSpeedUp) { speech.faster() }
+                    panelButton("goforward", label: L10n.string("reader.faster"), enabled: speech.canSpeedUp) {
+                        speech.faster()
+                    }
                 }
-                panelButton("xmark") { stopNarration() }
+                panelButton("xmark", label: L10n.string("reader.stop")) { stopNarration() }
             }
         }
         .padding(.horizontal, 10)
@@ -843,6 +880,7 @@ struct ReaderView: View {
 
     private func panelButton(
         _ systemName: String,
+        label: String? = nil,
         enabled: Bool = true,
         width: CGFloat = ReaderMetrics.panelButtonSize,
         action: @escaping () -> Void
@@ -857,6 +895,7 @@ struct ReaderView: View {
         .buttonStyle(.plain)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.3)
+        .accessibilityLabel(Text(verbatim: label ?? systemName))
     }
 
     private var playerAnimation: Animation {
@@ -1069,8 +1108,8 @@ struct ReaderView: View {
     /// back, and it must answer that tap like every other button does.
     private var leftGroup: [ToolbarButton] {
         [
-            ToolbarButton(symbol: "chevron.left", label: "Quay lại") { dismiss() },
-            ToolbarButton(symbol: "list.bullet", label: "Mục lục") {
+            ToolbarButton(symbol: "chevron.left", label: L10n.string("reader.back")) { dismiss() },
+            ToolbarButton(symbol: "list.bullet", label: L10n.string("reader.contents")) {
                 tocSection = 0
                 showTOC = true
             }
@@ -1079,12 +1118,12 @@ struct ReaderView: View {
 
     private var rightGroup: [ToolbarButton] {
         [
-            ToolbarButton(symbol: "magnifyingglass", label: "Tìm trong sách") {
+            ToolbarButton(symbol: "magnifyingglass", label: L10n.string("reader.search")) {
                 showSearch = true
             },
             ToolbarButton(
                 symbol: isPageMarked ? "bookmark.fill" : "bookmark",
-                label: isPageMarked ? "Bỏ đánh dấu trang này" : "Đánh dấu trang này"
+                label: L10n.string(isPageMarked ? "reader.bookmark.remove" : "reader.bookmark.add")
             ) {
                 toggleBookmark()
             }
@@ -1167,7 +1206,7 @@ struct ReaderView: View {
     private var loadingState: some View {
         VStack(spacing: 14) {
             ProgressView()
-            Text("Đang mở sách…")
+            Text("reader.loading")
                 .font(.footnote)
                 .foregroundStyle(palette.swiftInkSoft)
         }
@@ -1193,8 +1232,8 @@ struct ReaderView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 Picker("", selection: $tocSection) {
-                    Text("Mục lục").tag(0)
-                    Text("Đánh dấu").tag(1)
+                    Text("reader.contents").tag(0)
+                    Text("reader.marks").tag(1)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
@@ -1207,11 +1246,11 @@ struct ReaderView: View {
                 }
             }
             .background(palette.swiftPaper)
-            .navigationTitle(tocSection == 0 ? "Mục lục" : "Đã đánh dấu")
+            .navigationTitle(tocSection == 0 ? L10n.string("reader.contents") : L10n.string("reader.marked"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Xong") { showTOC = false }
+                    Button("common.done") { showTOC = false }
                 }
             }
             .preferredColorScheme(palette.isDark ? .dark : .light)
@@ -1221,7 +1260,7 @@ struct ReaderView: View {
     private var contentsList: some View {
         List {
             if model.toc.isEmpty {
-                Text("Sách này không có mục lục.")
+                Text("reader.noContents")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(model.toc) { entry in
@@ -1233,7 +1272,7 @@ struct ReaderView: View {
                             Text(entry.title)
                                 .foregroundStyle(.primary)
                             Spacer()
-                            Text("tr. \(entry.pageIndex + 1)")
+                            Text(verbatim: L10n.format("reader.pageRef", entry.pageIndex + 1))
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -1253,7 +1292,7 @@ struct ReaderView: View {
         }
         return List {
             if resolved.isEmpty {
-                Text("Chưa đánh dấu trang nào. Nút đánh dấu nằm ở góc trên bên phải.")
+                Text("reader.noMarks")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(resolved) { hit in
@@ -1269,7 +1308,7 @@ struct ReaderView: View {
                                 .font(.system(size: 14))
                                 .foregroundStyle(.primary)
                                 .lineLimit(2)
-                            Text("tr. \(hit.pageIndex + 1)")
+                            Text(verbatim: L10n.format("reader.pageRef", hit.pageIndex + 1))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                         }
@@ -1292,7 +1331,7 @@ struct ReaderView: View {
     /// A paragraph of the page the reader is on, for the customise screen to set.
     private var previewSample: String {
         guard let page = currentPage else {
-            return "Ngọn hải đăng vẫn đứng đó, quét ánh sáng qua mặt biển đêm."
+            return L10n.string("reader.previewFallback")
         }
         let text = page.text.string
             .replacingOccurrences(of: "\n", with: " ")

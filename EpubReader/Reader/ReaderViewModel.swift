@@ -137,10 +137,16 @@ final class ReaderViewModel: ObservableObject {
         return min(1, max(0, Double(before + within) / Double(total)))
     }
 
+    /// The inverse of `narrationProgress`: the chapter and offset a fraction of
+    /// the book points at. Used by the player's scrubber.
+    func narrationPlace(fraction: Double) -> (chapter: Int, offset: Int)? {
+        NarrationMath.place(fraction: fraction, chapterLengths: chapterCharacters)
+    }
+
     func chapterTitle(at index: Int) -> String {
         guard chapters.indices.contains(index) else { return "" }
         let title = chapters[index].title
-        return title.isEmpty ? "Không tên" : title
+        return title.isEmpty ? L10n.string("reader.untitled") : title
     }
 
     /// Called from the view's GeometryReader, both on appear and on size change.
@@ -351,5 +357,25 @@ final class ReaderViewModel: ObservableObject {
         chapterStartPage = starts
         toc = entries
         pagesRevision += 1
+    }
+}
+
+/// Turns a fraction of the book back into a place in it, and back again. Kept
+/// apart from the view model so the scrubber's arithmetic can be tested without
+/// opening a book.
+enum NarrationMath {
+
+    /// The chapter and offset `fraction` points at, counted in characters so a
+    /// long chapter takes more of the bar than a short one.
+    static func place(fraction: Double, chapterLengths: [Int]) -> (chapter: Int, offset: Int)? {
+        let total = chapterLengths.reduce(0, +)
+        guard total > 0 else { return nil }
+
+        var remaining = min(Int((Double(total) * min(max(fraction, 0), 1)).rounded(.down)), total - 1)
+        for (index, length) in chapterLengths.enumerated() where length > 0 {
+            if remaining < length { return (index, remaining) }
+            remaining -= length
+        }
+        return nil
     }
 }

@@ -15,7 +15,7 @@ enum EpubArchiveReader {
         let info = try packageInfo(in: archive)
         return Metadata(
             title: info.title.isEmpty ? fallbackTitle(from: url) : info.title,
-            author: info.author.isEmpty ? "Không rõ tác giả" : info.author
+            author: info.author
         )
     }
 
@@ -69,7 +69,7 @@ enum EpubArchiveReader {
 
         return RawBook(
             title: info.title.isEmpty ? fallbackTitle(from: url) : info.title,
-            author: info.author.isEmpty ? "Không rõ tác giả" : info.author,
+            author: info.author,
             chapters: chapters
         )
     }

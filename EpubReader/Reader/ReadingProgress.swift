@@ -81,6 +81,13 @@ final class ReadingProgressStore: ObservableObject {
         persist()
     }
 
+    /// Forgets the place in a book that has left the shelf.
+    func remove(bookID: String) {
+        guard positions[bookID] != nil else { return }
+        positions[bookID] = nil
+        persist()
+    }
+
     // MARK: - Storage
 
     private func load() {
