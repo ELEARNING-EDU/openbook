@@ -11,6 +11,19 @@
 "home.empty.title" = "Nothing in progress";
 "home.empty.body" = "Open a book in the Library to begin. Once you have read a page, it will appear here.";
 "home.openLibrary" = "Open Library";
+"home.stats.title" = "Achievement";
+"home.stats.today" = "%@ today";
+"home.stats.goalMet" = "%d-minute goal · met";
+"home.stats.remaining" = "%@ to go";
+"home.stats.streak" = "%lld-day streak";
+"home.stats.noStreak" = "No streak yet";
+"home.stats.week" = "Week %@";
+"home.stats.month" = "Month %@";
+"home.stats.year" = "Year %@";
+"duration.minutes" = "%d min";
+"duration.hours" = "%d hr";
+"duration.hoursMinutes" = "%d hr %d min";
+
 
 "library.title" = "Library";
 "library.layout.toList" = "List view";

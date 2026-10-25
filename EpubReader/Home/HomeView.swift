@@ -13,13 +13,17 @@ struct HomeView: View {
 
     @EnvironmentObject private var library: LibraryStore
     @ObservedObject private var progress = ReadingProgressStore.shared
+    @ObservedObject private var stats = ReadingStatsStore.shared
     /// See `LibraryView`: the window scheme belongs to the open book, so it is
     /// released here when the book closes rather than on the reader itself.
     @ObservedObject private var readerSettings = ReaderSettings.shared
 
     @Environment(\.colorScheme) private var colorScheme
 
+    @AppStorage(ReadingGoal.storageKey) private var goalMinutes = ReadingGoal.defaultMinutes
     @State private var showSettings = false
+    @State private var showStats = false
+    @State private var seededDemoStats = false
 
     private var palette: ReaderPalette { .shell(dark: colorScheme == .dark) }
 
@@ -40,6 +44,9 @@ struct HomeView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
+                    if !library.books.isEmpty {
+                        statsSection
+                    }
                     if items.isEmpty {
                         emptyState
                     } else {
@@ -51,6 +58,7 @@ struct HomeView: View {
                 .padding(.bottom, MainTabBarMetrics.contentReserve)
             }
             .background(palette.swiftPaper.ignoresSafeArea())
+            .onAppear { seedDemoStatsIfAsked() }
             .navigationDestination(for: BookItem.self) { book in
                 ReaderView(book: book)
             }
@@ -103,6 +111,41 @@ struct HomeView: View {
         .contentMargins(.horizontal, 20, for: .scrollContent)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("home.reading"))
+    }
+
+    private var statsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("home.stats.title")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .tracking(0.9)
+                .textCase(.uppercase)
+                .foregroundStyle(palette.swiftInkSoft)
+            ReadingStatsCard(
+                summary: stats.summary(now: Date(), goalMinutes: goalMinutes),
+                palette: palette
+            ) {
+                showStats = true
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
+    }
+
+    /// Seeds a few days of reading for capture runs only:
+    /// `-demoStatsSeed 1`. Never runs without the launch argument.
+    private func seedDemoStatsIfAsked() {
+        guard !seededDemoStats,
+              UserDefaults.standard.bool(forKey: "demoStatsSeed")
+        else { return }
+        seededDemoStats = true
+
+        let now = Date()
+        stats.add(seconds: 720, listening: false, endingAt: now)
+        stats.add(seconds: 240, listening: true, endingAt: now)
+        stats.add(seconds: 600, listening: false, endingAt: now.addingTimeInterval(-86_400))
+        stats.add(seconds: 1200, listening: false, endingAt: now.addingTimeInterval(-2 * 86_400))
+        stats.add(seconds: 3600, listening: false, endingAt: now.addingTimeInterval(-12 * 86_400))
+        stats.add(seconds: 18000, listening: false, endingAt: now.addingTimeInterval(-100 * 86_400))
     }
 
     private var sectionHeading: some View {

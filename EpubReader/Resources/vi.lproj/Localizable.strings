@@ -11,6 +11,19 @@
 "home.empty.title" = "Chưa có sách đang đọc";
 "home.empty.body" = "Mở một cuốn sách trong Thư viện để bắt đầu. Khi bạn đọc được một trang, nó sẽ xuất hiện ở đây.";
 "home.openLibrary" = "Mở Thư viện";
+"home.stats.title" = "Thành tích";
+"home.stats.today" = "%@ hôm nay";
+"home.stats.goalMet" = "Mục tiêu %d phút · đã đạt";
+"home.stats.remaining" = "Còn %@ để đạt mục tiêu";
+"home.stats.streak" = "Chuỗi %lld ngày";
+"home.stats.noStreak" = "Chưa có chuỗi";
+"home.stats.week" = "Tuần %@";
+"home.stats.month" = "Tháng %@";
+"home.stats.year" = "Năm %@";
+"duration.minutes" = "%d phút";
+"duration.hours" = "%d giờ";
+"duration.hoursMinutes" = "%d giờ %d phút";
+
 
 "library.title" = "Thư viện";
 "library.layout.toList" = "Dạng danh sách";

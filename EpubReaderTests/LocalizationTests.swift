@@ -23,6 +23,13 @@ final class LocalizationTests: XCTestCase {
         XCTAssertTrue(enPlural.contains("library.delete.multiple.message"))
     }
 
+    func testDurationReadsInBothLanguages() {
+        XCTAssertEqual(ReadingStatsText.duration(minutes: 0, language: .vietnamese), "0 phút")
+        XCTAssertEqual(ReadingStatsText.duration(minutes: 12, language: .english), "12 min")
+        XCTAssertEqual(ReadingStatsText.duration(minutes: 80, language: .vietnamese), "1 giờ 20 phút")
+        XCTAssertEqual(ReadingStatsText.duration(minutes: 120, language: .english), "2 hr")
+    }
+
     func testSystemLanguageIsNotAnOverride() {
         XCTAssertNil(AppLanguage.system.code)
         XCTAssertEqual(AppLanguage.vietnamese.code, "vi")
