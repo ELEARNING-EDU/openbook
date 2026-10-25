@@ -13,6 +13,8 @@ struct ReaderView: View {
     /// The place in this book, remembered across visits and shared with the
     /// library's "how far have I read" figure.
     @ObservedObject private var progress = ReadingProgressStore.shared
+    /// How long this book has been open, for Home's achievement card.
+    @ObservedObject private var stats = ReadingStatsStore.shared
     @State private var pageIndex = 0
     /// The remembered place is put back once, when the first pagination lands.
     @State private var restoredPosition = false
@@ -171,6 +173,7 @@ struct ReaderView: View {
                     palette: palette
                 )
                 model.updatePagination(for: full, safeTop: safeTop, style: settings.applied)
+                stats.startSession(at: Date())
                 scheduleAutoHide()
             }
             // A theme or a setting is a re-typeset, not a repaint: the ink, the
@@ -198,16 +201,25 @@ struct ReaderView: View {
                 // book must not lose the last of them.
                 saveToken += 1
                 savePosition()
+                stats.endSession(at: Date())
             }
             .onChange(of: scenePhase) { _, phase in
-                guard phase != .active else { return }
-                savePosition()
+                if phase == .active {
+                    stats.startSession(at: Date())
+                } else {
+                    savePosition()
+                    stats.endSession(at: Date())
+                }
+            }
+            .onChange(of: speech.state) { _, newState in
+                stats.setListening(newState == .playing, at: Date())
             }
             .onChange(of: speech.highlighted) { _, newValue in
                 // The voice drives the page — but only while it is actually
                 // speaking: paused, the reader is the one holding the book, and a
                 // late callback must not turn their page for them.
                 guard speech.state == .playing, let spoken = newValue else { return }
+                stats.noteActivity(at: Date())
                 if let target = model.pageIndex(
                     forChapterOffset: spoken.location,
                     chapter: speech.currentChapter
@@ -217,6 +229,7 @@ struct ReaderView: View {
             }
             .onChange(of: pageIndex) { _, newIndex in
                 scheduleSavePosition()
+                stats.noteActivity(at: Date())
                 guard speech.state == .playing, model.pages.indices.contains(newIndex) else { return }
                 let page = model.pages[newIndex]
                 // Filter out the page changes the voice itself just caused: those
