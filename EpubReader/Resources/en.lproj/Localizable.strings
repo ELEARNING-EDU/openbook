@@ -153,6 +153,7 @@
 "error.epub.missingContainer" = "Missing META-INF/container.xml — the file isn't a valid EPUB.";
 "error.epub.missingPackage" = "The package file (.opf) referenced by container.xml could not be found.";
 "error.epub.emptySpine" = "The book has no chapters in its spine.";
+"error.epub.protected" = "This book is protected by DRM, so it cannot be read here. Remove the DRM or open it in the app that sold it.";
 "error.zip.corrupt" = "The ZIP file is damaged.";
 "error.zip.unsupported" = "Unsupported ZIP compression: %lld.";
 "error.zip.inflate" = "Could not decompress the file.";

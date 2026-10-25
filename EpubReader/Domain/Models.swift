@@ -65,6 +65,7 @@ enum EpubError: LocalizedError {
     case missingContainer
     case missingPackage
     case emptySpine
+    case protected
 
     var errorDescription: String? {
         switch self {
@@ -72,6 +73,7 @@ enum EpubError: LocalizedError {
         case .missingContainer: return L10n.string("error.epub.missingContainer")
         case .missingPackage: return L10n.string("error.epub.missingPackage")
         case .emptySpine: return L10n.string("error.epub.emptySpine")
+        case .protected: return L10n.string("error.epub.protected")
         }
     }
 }

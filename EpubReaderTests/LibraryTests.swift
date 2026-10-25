@@ -92,7 +92,11 @@ final class LibraryStoreTests: XCTestCase {
 
     private func writeBook(_ name: String) throws -> URL {
         let url = directory.appendingPathComponent(name)
-        try Data("not really an epub".utf8).write(to: url)
+        let sample = try XCTUnwrap(
+            Bundle.main.url(forResource: "sample", withExtension: "epub"),
+            "the bundled sample book is missing from the app"
+        )
+        try FileManager.default.copyItem(at: sample, to: url)
         return url
     }
 
@@ -128,7 +132,8 @@ final class LibraryStoreTests: XCTestCase {
     func testDeletingRemovesOnlyTheAppCopyAndLeavesOtherBooks() throws {
         let external = FileManager.default.temporaryDirectory
             .appendingPathComponent("external-\(UUID().uuidString).epub")
-        try Data("external original".utf8).write(to: external)
+        let sample = try XCTUnwrap(Bundle.main.url(forResource: "sample", withExtension: "epub"))
+        try FileManager.default.copyItem(at: sample, to: external)
         defer { try? FileManager.default.removeItem(at: external) }
 
         let store = LibraryStore(directory: directory, defaults: defaults, seedSample: false)

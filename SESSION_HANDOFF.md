@@ -413,3 +413,12 @@ Chưa commit gì trong lần này; thay đổi nằm trên 3 tệp đã sửa + 
 - 4 lỗi: DRM/LCP vẽ ký tự rác thay vì báo lỗi; chapter lookup phân biệt hoa/thường (mất chương);
   entry `./` bị từ chối; nav lỗi XML mất tiêu đề chương.
 - Sách 1.500 trang mở 1,34 s, 1.000 chương 4,51 s; chưa sửa gì, chờ duyệt hướng sửa.
+
+### 2026-10-25 (tiếp) — phương án B đã sửa xong (chưa commit)
+- `EpubArchiveReader`: `entryIndex` + `data(for:in:index:)` (bỏ "./", fold hoa/thường) dùng cho
+  container, OPF, nav, NCX, chương, ảnh; `ensureUnprotected` đọc `META-INF/encryption.xml`.
+- `EpubError.protected` + chuỗi vi/en; Reader hiện thông báo thay vì ký tự rác.
+- `LibraryStore.importBook`: `validate` cấu trúc + DRM + spine trước khi thêm vào kệ; file bị từ chối
+  thì xoá bản copy.
+- `LibraryTests` dùng sample.epub thật thay cho file giả. 54/54 test xanh.
+- Tiếp theo: chờ duyệt commit phần sửa.

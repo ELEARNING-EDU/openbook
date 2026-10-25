@@ -559,3 +559,12 @@ Hành động tiếp theo chính xác:
 - Hiệu năng: 1.500 trang/1,13M ký tự mở 1,34 s; 1.000 chương ngắn mở 4,51 s (paginate đồng bộ
   trên main thread); 1 chương 585k ký tự 0,28 s; RAM sau khi mở 157–264 MB. Không crash/OOM.
 - Đề xuất sửa 3 điểm đầu (~40 dòng + test), chờ duyệt. Chi tiết: `build/qa/epub-corpus/REPORT.md`.
+
+### 2026-10-25 — sửa lỗi EPUB (phương án B)
+- Commit trước khi sửa: `95e82dd` (ngôn ngữ theo máy + corpus test).
+- Đã sửa: entry lookup khoan dung (bỏ `./`, fold hoa/thường) cho container/OPF/nav/NCX/chương/ảnh;
+  phát hiện DRM qua `META-INF/encryption.xml` khi tài nguyên văn bản bị mã hoá → `EpubError.protected`
+  (vi/en), kiểm ở read/readMetadata/validate; import từ chối sách DRM/hỏng và xoá bản copy.
+- Test: 54/54 xanh (49 cũ + 5 corpus). Corpus lỗi cũ giờ đúng: 05 = 4 chương, 28 mở được,
+  10/11 bị từ chối; ảnh chụp `drm-refused.png` hiện thông báo bảo vệ bản quyền.
+- Chưa commit phần sửa. Hiệu năng không đổi (1.500 trang 1,5 s; 1.000 chương 4,4 s).

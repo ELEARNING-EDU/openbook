@@ -101,11 +101,20 @@ final class LibraryStore: ObservableObject {
 
         do {
             let destination = directory.appendingPathComponent(source.lastPathComponent)
-            if source.standardizedFileURL != destination.standardizedFileURL {
+            let copied = source.standardizedFileURL != destination.standardizedFileURL
+            if copied {
                 if FileManager.default.fileExists(atPath: destination.path) {
                     try FileManager.default.removeItem(at: destination)
                 }
                 try FileManager.default.copyItem(at: source, to: destination)
+            }
+            do {
+                try EpubArchiveReader.validate(url: destination)
+            } catch {
+                // A DRM wrapper or a broken file is refused at the door rather
+                // than sitting on the shelf and failing when it is opened.
+                if copied { try? FileManager.default.removeItem(at: destination) }
+                throw error
             }
             metadata[destination.lastPathComponent] = LibraryMetadata(
                 title: nil,

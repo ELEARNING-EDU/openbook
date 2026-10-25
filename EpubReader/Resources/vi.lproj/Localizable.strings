@@ -153,6 +153,7 @@
 "error.epub.missingContainer" = "Thiếu META-INF/container.xml — tệp không phải EPUB hợp lệ.";
 "error.epub.missingPackage" = "Không tìm thấy tệp gói (.opf) được container.xml chỉ tới.";
 "error.epub.emptySpine" = "Sách không có chương nào trong spine.";
+"error.epub.protected" = "Sách có bảo vệ bản quyền (DRM) nên không đọc được ở đây. Hãy gỡ DRM hoặc mở bằng ứng dụng đã bán sách.";
 "error.zip.corrupt" = "Tệp ZIP hỏng.";
 "error.zip.unsupported" = "Kiểu nén ZIP không hỗ trợ: %lld.";
 "error.zip.inflate" = "Giải nén thất bại.";

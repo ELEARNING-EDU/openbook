@@ -178,7 +178,7 @@ final class EpubCorpusTests: XCTestCase {
 
     // MARK: - Library import
 
-    func testImportAcceptsEveryFileAndLeavesReadingToTheReader() throws {
+    func testImportRefusesProtectedAndBrokenFilesAtTheDoor() throws {
         _ = try corpus()
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("corpus-import-\(UUID().uuidString)")
@@ -186,13 +186,46 @@ final class EpubCorpusTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "corpus-import")!
         let store = LibraryStore(directory: directory, defaults: defaults, seedSample: false)
 
-        for file in ["01-epub2-ncx.epub", "10-drm-aes.epub", "24-renamed-pdf.epub"] {
+        store.importBook(from: url("01-epub2-ncx.epub"))
+        XCTAssertNil(store.importError)
+        XCTAssertEqual(store.books.count, 1)
+
+        for file in ["10-drm-aes.epub", "11-lcp.epub", "24-renamed-pdf.epub"] {
+            let expected: String
+            do {
+                _ = try EpubArchiveReader.read(url: url(file))
+                XCTFail("\(file) opened")
+                continue
+            } catch {
+                expected = error.localizedDescription
+            }
             store.importBook(from: url(file))
-            XCTAssertNil(store.importError, "\(file): import error \(store.importError ?? "")")
+            XCTAssertEqual(store.importError, expected, "\(file) should be refused at import")
+            XCTAssertEqual(store.books.count, 1, "\(file) must not stay on the shelf")
         }
 
-        XCTAssertEqual(store.books.count, 3, "the shelf should hold every copied file")
-        print("IMPORT|books=\(store.books.count)|errors=\(store.importError ?? "none")")
+        let leftover = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        XCTAssertEqual(leftover, ["01-epub2-ncx.epub"], "refused files must not be kept")
+        print("IMPORT|accepted=1|refused=3|leftover=\(leftover)")
+    }
+
+    func testProtectedBooksAreNamedAsSuch() throws {
+        _ = try corpus()
+        for file in ["10-drm-aes.epub", "11-lcp.epub"] {
+            do {
+                _ = try EpubArchiveReader.read(url: url(file))
+                XCTFail("\(file) opened")
+            } catch {
+                guard let epub = error as? EpubError, case .protected = epub else {
+                    XCTFail("\(file): expected .protected, got \(error)")
+                    continue
+                }
+            }
+        }
+
+        // A book that only obfuscates its fonts is still readable.
+        let obfuscated = try EpubArchiveReader.read(url: url("09-obfuscated-font.epub"))
+        XCTAssertEqual(obfuscated.chapters.count, 3)
     }
 
     /// Resident memory, so the 1000-page runs can be compared with the small ones.

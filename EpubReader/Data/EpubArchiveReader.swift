@@ -12,55 +12,66 @@ enum EpubArchiveReader {
 
     static func readMetadata(url: URL) throws -> Metadata {
         let archive = try ZipArchive(url: url)
-        let info = try packageInfo(in: archive)
+        let index = entryIndex(archive)
+        let info = try packageInfo(in: archive, index: index)
+        try ensureUnprotected(archive, index: index)
         return Metadata(
             title: info.title.isEmpty ? fallbackTitle(from: url) : info.title,
             author: info.author
         )
     }
 
+    /// The checks an import can afford: structure and protection, without
+    /// decompressing every chapter of a 1500-page book.
+    static func validate(url: URL) throws {
+        let archive = try ZipArchive(url: url)
+        let index = entryIndex(archive)
+        let info = try packageInfo(in: archive, index: index)
+        try ensureUnprotected(archive, index: index)
+        let hasChapter = info.spine.contains { idref in
+            guard let item = info.manifest[idref], isText(item) else { return false }
+            return data(
+                for: resolve(item.href, relativeTo: info.opfDirectory),
+                in: archive,
+                index: index
+            ) != nil
+        }
+        guard hasChapter else { throw EpubError.emptySpine }
+    }
+
     static func read(url: URL) throws -> RawBook {
         let archive = try ZipArchive(url: url)
-        let info = try packageInfo(in: archive)
+        let index = entryIndex(archive)
+        let info = try packageInfo(in: archive, index: index)
+        try ensureUnprotected(archive, index: index)
 
         // Chapter titles, keyed by the fully resolved archive path.
         var titles: [String: String] = [:]
         if let navHref = info.navHref {
             let navPath = resolve(navHref, relativeTo: info.opfDirectory)
-            if let data = archive.data(forEntryNamed: navPath) {
+            if let data = data(for: navPath, in: archive, index: index) {
                 titles = chapterTitles(from: data, at: navPath)
             }
         }
         if titles.isEmpty, let ncxHref = info.ncxHref {
             let ncxPath = resolve(ncxHref, relativeTo: info.opfDirectory)
-            if let data = archive.data(forEntryNamed: ncxPath) {
+            if let data = data(for: ncxPath, in: archive, index: index) {
                 titles = chapterTitles(from: data, at: ncxPath)
             }
         }
 
-        // The archive stores names case-sensitively; EPUBs disagree about case in
-        // the hrefs they write, so pictures are looked up through a folded index.
-        var entryNames: [String: String] = [:]
-        for name in archive.allEntryNames() where entryNames[name.lowercased()] == nil {
-            entryNames[name.lowercased()] = name
-        }
-
         var chapters: [RawChapter] = []
         for idref in info.spine {
-            guard let item = info.manifest[idref] else { continue }
-            guard item.mediaType.contains("xhtml")
-                    || item.mediaType.contains("html")
-                    || item.href.hasSuffix(".xhtml")
-                    || item.href.hasSuffix(".html") else { continue }
+            guard let item = info.manifest[idref], isText(item) else { continue }
 
             let path = resolve(item.href, relativeTo: info.opfDirectory)
-            guard let html = archive.data(forEntryNamed: path) else { continue }
+            guard let html = data(for: path, in: archive, index: index) else { continue }
             chapters.append(
                 RawChapter(
                     title: titles[path] ?? "",
                     href: item.href,
                     html: html,
-                    images: images(in: html, chapterPath: path, archive: archive, entryNames: entryNames)
+                    images: images(in: html, chapterPath: path, archive: archive, index: index)
                 )
             )
         }
@@ -94,14 +105,14 @@ enum EpubArchiveReader {
         var opfDirectory = ""
     }
 
-    private static func packageInfo(in archive: ZipArchive) throws -> PackageInfo {
-        guard let container = archive.data(forEntryNamed: "META-INF/container.xml") else {
+    private static func packageInfo(in archive: ZipArchive, index: [String: String]) throws -> PackageInfo {
+        guard let container = data(for: "META-INF/container.xml", in: archive, index: index) else {
             throw EpubError.missingContainer
         }
         guard let opfPath = ContainerParser().parse(container) else {
             throw EpubError.missingContainer
         }
-        guard let opfData = archive.data(forEntryNamed: opfPath) else {
+        guard let opfData = data(for: opfPath, in: archive, index: index) else {
             throw EpubError.missingPackage
         }
 
@@ -145,6 +156,57 @@ enum EpubArchiveReader {
         return parts.joined(separator: "/")
     }
 
+    /// Archive names folded for lookup. The archive itself is case-sensitive but
+    /// EPUB writers disagree about case, and some file everything under
+    /// "./OEBPS/…", so a chapter must be found by its folded name when the exact
+    /// one is absent. The first name wins, so a duplicate only loses itself.
+    private static func entryIndex(_ archive: ZipArchive) -> [String: String] {
+        var index: [String: String] = [:]
+        for name in archive.allEntryNames() {
+            let clean = normalize(name)
+            if index[clean.lowercased()] == nil { index[clean.lowercased()] = name }
+        }
+        return index
+    }
+
+    private static func normalize(_ path: String) -> String {
+        var clean = path
+        while clean.hasPrefix("./") { clean.removeFirst(2) }
+        return clean
+    }
+
+    private static func data(
+        for path: String,
+        in archive: ZipArchive,
+        index: [String: String]
+    ) -> Data? {
+        let clean = normalize(path)
+        if let exact = archive.data(forEntryNamed: clean) { return exact }
+        guard let name = index[clean.lowercased()] else { return nil }
+        return archive.data(forEntryNamed: name)
+    }
+
+    private static func isText(_ item: ManifestItem) -> Bool {
+        item.mediaType.contains("xhtml")
+            || item.mediaType.contains("html")
+            || item.href.hasSuffix(".xhtml")
+            || item.href.hasSuffix(".html")
+    }
+
+    /// `encryption.xml` appears in two very different books: a shop's DRM wrapper
+    /// (chapters encrypted — nothing can be shown) and a publisher's obfuscated
+    /// fonts (text plain). Only encrypted text is a refusal.
+    private static func ensureUnprotected(_ archive: ZipArchive, index: [String: String]) throws {
+        guard let xml = data(for: "META-INF/encryption.xml", in: archive, index: index) else {
+            return
+        }
+        let textExtensions: Set<String> = ["xhtml", "html", "htm"]
+        for uri in EncryptionParser().encryptedPaths(in: xml)
+        where textExtensions.contains((uri as NSString).pathExtension.lowercased()) {
+            throw EpubError.protected
+        }
+    }
+
     /// The pictures one chapter's `<img>` tags point at, keyed by the raw `src`, so
     /// the reader can put them back without knowing anything about the archive.
     ///
@@ -155,7 +217,7 @@ enum EpubArchiveReader {
         in html: Data,
         chapterPath: String,
         archive: ZipArchive,
-        entryNames: [String: String]
+        index: [String: String]
     ) -> [String: Data] {
         let source = String(decoding: html, as: UTF8.self)
         let directory = (chapterPath as NSString).deletingLastPathComponent
@@ -170,8 +232,7 @@ enum EpubArchiveReader {
 
             // `pic.png?v=2` still names the file `pic.png`.
             let path = resolve(String(src.split(separator: "?", maxSplits: 1).first ?? ""), relativeTo: base)
-            guard let name = entryNames[path.lowercased()],
-                  let data = archive.data(forEntryNamed: name),
+            guard let data = data(for: path, in: archive, index: index),
                   data.count <= maxImageBytes,
                   carried + data.count <= maxChapterImageBytes
             else { continue }
@@ -357,5 +418,34 @@ final class TocParser: NSObject, XMLParserDelegate {
             break
         }
         buffer = ""
+    }
+}
+
+/// Collects the resource paths `META-INF/encryption.xml` says are encrypted.
+/// Font obfuscation and DRM use the same element, so the caller decides which
+/// kinds of resource mean a book that cannot be read.
+final class EncryptionParser: NSObject, XMLParserDelegate {
+    private var paths: [String] = []
+
+    func encryptedPaths(in data: Data) -> [String] {
+        let parser = XMLParser(data: data)
+        parser.delegate = self
+        parser.shouldProcessNamespaces = false
+        parser.parse()
+        return paths
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        didStartElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName: String?,
+        attributes attributeDict: [String: String]
+    ) {
+        // The prefix is optional in real files: `CipherReference` and
+        // `enc:CipherReference` both occur.
+        if elementName.hasSuffix("CipherReference"), let uri = attributeDict["URI"] {
+            paths.append(uri)
+        }
     }
 }
