@@ -73,6 +73,87 @@ final class ReadingStatsStoreTests: XCTestCase {
         XCTAssertEqual(firstDay, 600, accuracy: 0.001)
     }
 
+    func testGoalMetExactlyCounts() {
+        store.add(seconds: 300, listening: false, endingAt: date(2026, 10, 25, 12, 0))
+        store.add(seconds: 299, listening: false, endingAt: date(2026, 10, 26, 12, 0))
+
+        XCTAssertEqual(store.streak(now: date(2026, 10, 25, 22, 0), goalMinutes: 5).daysRead, 1)
+        XCTAssertEqual(store.streak(now: date(2026, 10, 26, 22, 0), goalMinutes: 5).daysRead, 1)
+    }
+
+    func testStreakEndsTodayWhenMet() {
+        for day in 23...25 {
+            store.add(seconds: 600, listening: false, endingAt: date(2026, 10, day, 12, 0))
+        }
+
+        let streak = store.streak(now: date(2026, 10, 25, 22, 0), goalMinutes: 5)
+        XCTAssertEqual(streak.current, 3)
+    }
+
+    func testStreakEndsYesterdayWhenTodayIsNotYetMet() {
+        store.add(seconds: 600, listening: false, endingAt: date(2026, 10, 23, 12, 0))
+        store.add(seconds: 600, listening: false, endingAt: date(2026, 10, 24, 12, 0))
+
+        let streak = store.streak(now: date(2026, 10, 25, 8, 0), goalMinutes: 5)
+        XCTAssertEqual(streak.current, 2)
+    }
+
+    func testGapBreaksStreakAndLongestIsKept() {
+        for day in 18...20 {
+            store.add(seconds: 600, listening: false, endingAt: date(2026, 10, day, 12, 0))
+        }
+        for day in 24...25 {
+            store.add(seconds: 600, listening: false, endingAt: date(2026, 10, day, 12, 0))
+        }
+
+        let streak = store.streak(now: date(2026, 10, 25, 22, 0), goalMinutes: 5)
+        XCTAssertEqual(streak.current, 2)
+        XCTAssertEqual(streak.longest, 3)
+        XCTAssertEqual(streak.daysRead, 5)
+    }
+
+    func testChangingGoalRecomputesStreak() {
+        store.add(seconds: 600, listening: false, endingAt: date(2026, 10, 24, 12, 0))
+        store.add(seconds: 600, listening: false, endingAt: date(2026, 10, 25, 12, 0))
+
+        XCTAssertEqual(store.streak(now: date(2026, 10, 25, 22, 0), goalMinutes: 5).current, 2)
+        XCTAssertEqual(store.streak(now: date(2026, 10, 25, 22, 0), goalMinutes: 15).current, 0)
+        XCTAssertEqual(store.streak(now: date(2026, 10, 25, 22, 0), goalMinutes: 15).daysRead, 0)
+    }
+
+    func testSummaryBucketsUseCalendarBoundaries() {
+        store.add(seconds: 600, listening: false, endingAt: date(2026, 10, 28, 9, 0))  // today
+        store.add(seconds: 300, listening: false, endingAt: date(2026, 10, 27, 9, 0))  // this week
+        store.add(seconds: 900, listening: false, endingAt: date(2026, 10, 25, 9, 0))  // Sunday, previous week
+        store.add(seconds: 7200, listening: false, endingAt: date(2026, 10, 1, 9, 0))  // earlier this month
+        store.add(seconds: 3600, listening: false, endingAt: date(2025, 12, 31, 9, 0)) // last year
+
+        let summary = store.summary(now: date(2026, 10, 28, 12, 0), goalMinutes: 5)
+
+        XCTAssertEqual(summary.todayMinutes, 10)
+        XCTAssertEqual(summary.weekMinutes, 15)
+        XCTAssertEqual(summary.monthMinutes, 150)
+        XCTAssertEqual(summary.yearMinutes, 150)
+        XCTAssertEqual(summary.todaySeconds, 600, accuracy: 0.001)
+        XCTAssertTrue(summary.todayReachedGoal)
+        XCTAssertEqual(summary.bestDayMinutes, 120)
+        XCTAssertEqual(summary.bestDay, calendar.startOfDay(for: date(2026, 10, 1)))
+    }
+
+    func testNoDataSummaryIsZero() {
+        let summary = store.summary(now: date(2026, 10, 25, 12, 0), goalMinutes: 5)
+
+        XCTAssertEqual(summary.todayMinutes, 0)
+        XCTAssertEqual(summary.weekMinutes, 0)
+        XCTAssertEqual(summary.monthMinutes, 0)
+        XCTAssertEqual(summary.yearMinutes, 0)
+        XCTAssertEqual(summary.streak, ReadingStreak(current: 0, longest: 0, daysRead: 0))
+        XCTAssertFalse(summary.todayReachedGoal)
+        XCTAssertNil(summary.bestDay)
+        XCTAssertEqual(summary.bestDayMinutes, 0)
+        XCTAssertEqual(summary.longestSessionMinutes, 0)
+    }
+
     func testDaysSurviveANewStore() {
         store.add(seconds: 420, listening: false, endingAt: date(2026, 10, 25, 9, 30))
 

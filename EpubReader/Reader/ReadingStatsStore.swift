@@ -142,3 +142,106 @@ final class ReadingStatsStore: ObservableObject {
         defaults.set(data, forKey: Self.key)
     }
 }
+
+/// A run of days that reached the goal, plus the best run ever recorded.
+struct ReadingStreak: Equatable {
+    let current: Int
+    let longest: Int
+    let daysRead: Int
+}
+
+/// Everything the Home card and the sheet need, computed once per render.
+struct ReadingSummary: Equatable {
+    let todaySeconds: Double
+    let todayMinutes: Int
+    let weekMinutes: Int
+    let monthMinutes: Int
+    let yearMinutes: Int
+    let goalMinutes: Int
+    let todayReachedGoal: Bool
+    let streak: ReadingStreak
+    let longestSessionMinutes: Int
+    let bestDay: Date?
+    let bestDayMinutes: Int
+}
+
+extension ReadingStatsStore {
+
+    func streak(now: Date, goalMinutes: Int) -> ReadingStreak {
+        let threshold = TimeInterval(goalMinutes * 60)
+        let qualifying = Set(
+            days
+                .filter { $0.value.total >= threshold }
+                .keys
+                .compactMap(date(fromKey:))
+                .map { calendar.startOfDay(for: $0) }
+        ).sorted()
+
+        var longest = 0
+        var run = 0
+        var previous: Date?
+        for day in qualifying {
+            if let previous,
+               calendar.dateComponents([.day], from: previous, to: day).day == 1 {
+                run += 1
+            } else {
+                run = 1
+            }
+            longest = max(longest, run)
+            previous = day
+        }
+
+        func reached(_ day: Date) -> Bool {
+            (days[dayKey(for: day)]?.total ?? 0) >= threshold
+        }
+
+        var cursor = calendar.startOfDay(for: now)
+        if !reached(cursor) {
+            cursor = calendar.date(byAdding: .day, value: -1, to: cursor) ?? cursor
+        }
+        var current = 0
+        while reached(cursor) {
+            current += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+
+        return ReadingStreak(current: current, longest: longest, daysRead: qualifying.count)
+    }
+
+    func summary(now: Date, goalMinutes: Int) -> ReadingSummary {
+        let today = calendar.startOfDay(for: now)
+        let todaySeconds = days[dayKey(for: today)]?.total ?? 0
+
+        func minutes(in interval: DateInterval?) -> Int {
+            guard let interval else { return 0 }
+            return Int((total(from: interval.start, to: interval.end) / 60).rounded())
+        }
+
+        let best = days.max { $0.value.total < $1.value.total }
+        let bestDate = best.flatMap { date(fromKey: $0.key) }
+        let goalSeconds = TimeInterval(goalMinutes * 60)
+
+        return ReadingSummary(
+            todaySeconds: todaySeconds,
+            todayMinutes: Int((todaySeconds / 60).rounded()),
+            weekMinutes: minutes(in: calendar.dateInterval(of: .weekOfYear, for: now)),
+            monthMinutes: minutes(in: calendar.dateInterval(of: .month, for: now)),
+            yearMinutes: minutes(in: calendar.dateInterval(of: .year, for: now)),
+            goalMinutes: goalMinutes,
+            todayReachedGoal: todaySeconds >= goalSeconds,
+            streak: streak(now: now, goalMinutes: goalMinutes),
+            longestSessionMinutes: Int((longestSession / 60).rounded()),
+            bestDay: bestDate.map { calendar.startOfDay(for: $0) },
+            bestDayMinutes: Int(((best?.value.total ?? 0) / 60).rounded())
+        )
+    }
+
+    private func date(fromKey key: String) -> Date? {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return calendar.date(from: DateComponents(
+            year: parts[0], month: parts[1], day: parts[2]
+        ))
+    }
+}
