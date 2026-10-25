@@ -146,6 +146,37 @@ final class LibraryStore: ObservableObject {
         return true
     }
 
+    // MARK: - Finished
+
+    var finishedIDs: Set<String> {
+        Set(metadata.compactMap { $0.value.finishedAt == nil ? nil : $0.key })
+    }
+
+    /// Manual "I finished this": keeps the reading place and the file, and is
+    /// reversible from the same book menu.
+    @discardableResult
+    func markFinished(id: String, finished: Bool) -> Bool {
+        guard metadata[id] != nil else { return false }
+        metadata[id]?.finishedAt = finished ? Date() : nil
+        persistMetadata()
+        reload()
+        return true
+    }
+
+    func finishedBooks(in year: Int, calendar: Calendar = .current) -> [BookItem] {
+        books
+            .filter { book in
+                guard let date = metadata[book.id]?.finishedAt else { return false }
+                return calendar.component(.year, from: date) == year
+            }
+            .sorted { left, right in
+                let leftDate = metadata[left.id]?.finishedAt ?? .distantPast
+                let rightDate = metadata[right.id]?.finishedAt ?? .distantPast
+                if leftDate != rightDate { return leftDate > rightDate }
+                return left.id < right.id
+            }
+    }
+
     // MARK: - Deleting
 
     /// Removes the app's own copies. Returns the ids that are actually gone, so

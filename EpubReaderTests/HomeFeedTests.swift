@@ -80,6 +80,18 @@ final class HomeFeedTests: XCTestCase {
         XCTAssertTrue(items.isEmpty)
     }
 
+    func testFinishedBooksLeaveTheContinueCarousel() {
+        let books = [book("a"), book("b")]
+        let positions = [
+            "a": progress(0.4, minutesAgo: 10),
+            "b": progress(0.5, minutesAgo: 2)
+        ]
+
+        let items = HomeFeed.continueReading(books: books, positions: positions, finished: ["b"])
+
+        XCTAssertEqual(items.map(\.book.id), ["a"])
+    }
+
     func testNoSavedPositionsMeansNothingToContinue() {
         let items = HomeFeed.continueReading(books: [book("a")], positions: [:])
 

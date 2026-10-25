@@ -10,6 +10,9 @@ struct LibraryMetadata: Codable, Equatable {
     var title: String?
     var author: String?
     var importedAt: Date
+    /// Set when the reader marks the book finished; nil means not finished.
+    /// Optional so metadata written before this field still decodes.
+    var finishedAt: Date?
 }
 
 /// How the shelf orders its books.

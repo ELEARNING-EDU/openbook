@@ -10,17 +10,19 @@ struct ContinueReadingItem: Identifiable {
 
 enum HomeFeed {
 
-    /// The books worth offering to continue: opened at least once and not
+    /// The books worth offering to continue: opened at least once, not marked
     /// finished, most recently read first.
     ///
     /// A saved position belongs to a file, so progress left behind by a book
     /// that has since been deleted from the shelf is ignored.
     static func continueReading(
         books: [BookItem],
-        positions: [String: BookProgress]
+        positions: [String: BookProgress],
+        finished: Set<String> = []
     ) -> [ContinueReadingItem] {
         books.compactMap { book in
-            guard let progress = positions[book.id],
+            guard !finished.contains(book.id),
+                  let progress = positions[book.id],
                   progress.fraction > 0,
                   progress.fraction < 1
             else { return nil }

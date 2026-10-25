@@ -153,6 +153,49 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testMarkingFinishedPersistsAndCanBeUndone() throws {
+        try writeBook("a.epub")
+        let store = LibraryStore(directory: directory, defaults: defaults, seedSample: false)
+
+        XCTAssertTrue(store.markFinished(id: "a.epub", finished: true))
+        XCTAssertNotNil(store.metadata(for: "a.epub")?.finishedAt)
+        XCTAssertTrue(store.finishedIDs.contains("a.epub"))
+
+        let reopened = LibraryStore(directory: directory, defaults: defaults, seedSample: false)
+        XCTAssertTrue(reopened.finishedIDs.contains("a.epub"))
+
+        XCTAssertTrue(reopened.markFinished(id: "a.epub", finished: false))
+        XCTAssertNil(reopened.metadata(for: "a.epub")?.finishedAt)
+        XCTAssertFalse(reopened.finishedIDs.contains("a.epub"))
+        XCTAssertFalse(reopened.markFinished(id: "missing.epub", finished: true))
+    }
+
+    @MainActor
+    func testFinishedBooksAreListedByFinishYear() throws {
+        try writeBook("a.epub")
+        try writeBook("b.epub")
+        let store = LibraryStore(directory: directory, defaults: defaults, seedSample: false)
+        store.markFinished(id: "a.epub", finished: true)
+        store.markFinished(id: "b.epub", finished: true)
+
+        let thisYear = Calendar.current.component(.year, from: Date())
+        XCTAssertEqual(Set(store.finishedBooks(in: thisYear).map(\.id)), ["a.epub", "b.epub"])
+        XCTAssertTrue(store.finishedBooks(in: thisYear - 1).isEmpty)
+    }
+
+    func testOldMetadataWithoutFinishedAtStillDecodes() throws {
+        let data = try XCTUnwrap("""
+        {"a.epub":{"title":"Cũ","author":"Tác giả","importedAt":0}}
+        """.data(using: .utf8))
+
+        let decoded = try JSONDecoder().decode([String: LibraryMetadata].self, from: data)
+
+        XCTAssertEqual(decoded["a.epub"]?.title, "Cũ")
+        XCTAssertEqual(decoded["a.epub"]?.author, "Tác giả")
+        XCTAssertNil(decoded["a.epub"]?.finishedAt)
+    }
+
+    @MainActor
     func testAFailedRemovalKeepsTheBookAndReportsIt() throws {
         let url = try writeBook("locked.epub")
         let store = LibraryStore(directory: directory, defaults: defaults, seedSample: false)

@@ -29,7 +29,11 @@ struct HomeView: View {
     }
 
     private var items: [ContinueReadingItem] {
-        HomeFeed.continueReading(books: library.books, positions: progress.positions)
+        HomeFeed.continueReading(
+            books: library.books,
+            positions: progress.positions,
+            finished: library.finishedIDs
+        )
     }
 
     var body: some View {
