@@ -14,7 +14,7 @@
 "home.stats.title" = "Thành tích";
 "home.stats.today" = "%@ hôm nay";
 "home.stats.goalMet" = "Mục tiêu %d phút · đã đạt";
-"home.stats.remaining" = "Còn %@ để đạt mục tiêu";
+"home.stats.remaining" = "Còn %@ nữa";
 "home.stats.streak" = "Chuỗi %lld ngày";
 "home.stats.noStreak" = "Chưa có chuỗi";
 "home.stats.week" = "Tuần %@";
@@ -42,6 +42,10 @@
 "stats.bestDayValue" = "%1$@ · %2$@";
 "stats.finished" = "Sách đọc xong năm nay";
 "stats.finished.empty" = "Chưa có sách nào";
+"settings.reading.title" = "Thành tích đọc";
+"settings.reading.goal" = "Mục tiêu mỗi ngày";
+"settings.reading.minutes" = "%d phút/ngày";
+"settings.reading.footer" = "Một ngày đọc và chuỗi ngày được tính theo mục tiêu này.";
 
 
 

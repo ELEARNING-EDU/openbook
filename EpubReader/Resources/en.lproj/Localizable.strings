@@ -42,6 +42,10 @@
 "stats.bestDayValue" = "%1$@ · %2$@";
 "stats.finished" = "Finished this year";
 "stats.finished.empty" = "No books yet";
+"settings.reading.title" = "Reading stats";
+"settings.reading.goal" = "Daily goal";
+"settings.reading.minutes" = "%d min a day";
+"settings.reading.footer" = "A reading day and the streak follow this goal.";
 
 
 

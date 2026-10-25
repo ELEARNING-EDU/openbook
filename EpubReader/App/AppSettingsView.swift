@@ -7,6 +7,7 @@ struct AppSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage(AppLanguage.storageKey) private var languageID = AppLanguage.system.rawValue
+    @AppStorage(ReadingGoal.storageKey) private var goalMinutes = ReadingGoal.defaultMinutes
 
     private var palette: ReaderPalette { .shell(dark: colorScheme == .dark) }
 
@@ -40,6 +41,21 @@ struct AppSettingsView: View {
                     Text("settings.language")
                 } footer: {
                     Text("settings.language.footer")
+                }
+
+                Section {
+                    Picker("settings.reading.goal", selection: $goalMinutes) {
+                        ForEach(ReadingGoal.options, id: \.self) { option in
+                            Text(verbatim: L10n.format("settings.reading.minutes", option))
+                                .tag(option)
+                        }
+                    }
+                    .foregroundStyle(palette.swiftInk)
+                    .tint(palette.swiftAccent)
+                } header: {
+                    Text("settings.reading.title")
+                } footer: {
+                    Text("settings.reading.footer")
                 }
             }
             .scrollContentBackground(.hidden)

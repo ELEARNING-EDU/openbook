@@ -65,7 +65,7 @@ struct ReadingStatsCard: View {
                         Text(verbatim: goalLine)
                             .font(.system(size: 12))
                             .foregroundStyle(palette.swiftInkSoft)
-                            .lineLimit(1)
+                            .lineLimit(2)
                     }
                     Spacer(minLength: 8)
                     streak
