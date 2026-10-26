@@ -14,15 +14,15 @@ the verification that closed it in the same row. Status changes happen here.
 
 | ID | Outcome / acceptance | Status | Depends on | Evidence |
 | --- | --- | --- | --- | --- |
-| T-061 | The search field's placeholder reads "Tìm trong sách" (today: "Nhập chữ cần tìm…") | Pending | — | — |
-| T-062 | A search snippet shows 2 lines (today `maxLines = 3`) | Pending | — | — |
-| T-063 | A search row labels its page "tr. 4" (today "Trang 4") | Pending | — | — |
+| T-061 | The search field's placeholder reads "Tìm trong sách" | Verified complete | — | `search_placeholder` is "Tìm trong sách" (vi) / "Search in book" (en), used by `SearchSheet`; verified 2026-10-26 while triaging the open list |
+| T-062 | A search snippet shows 2 lines | Verified complete | — | `SearchSheet` snippet `maxLines = 2` with ellipsis; verified 2026-10-26 |
+| T-063 | A search row labels its page "tr. 4" | Verified complete | — | `page_short` = "tr. %1$d" (vi) / "p. %1$d" (en), used by the search row; verified 2026-10-26 |
 | T-064 | A mark is removed by swiping its row (today a ✕ button) | Pending | — | — |
-| T-065 | Search opens as a sheet, not a full screen | Pending | — | — |
+| T-065 | Search opens as a sheet, not a full screen | Verified complete | — | `ReaderScreen` opens `SearchSheet` inside a `ModalBottomSheet`; `SearchScreen.kt` remains only as dead code to delete later |
 | T-066 | At tablet width, `Cột — Tự động` resolves to 2 columns and the page still fits; checked on a second device/density | Pending | — | — |
 | T-067 | A two-column page that carries two chapters renders and highlights correctly (the only case where the highlight's chapter comparison is load-bearing) | Pending | — | — |
 | T-068 | A long chapter title truncates gracefully in the running head (the sample book has only short titles) | Pending | — | — |
-| T-069 | `<img>` in chapter XHTML renders (the `Html.fromHtml` `ImageGetter` is null today) | Pending | — | the working tree already carries `epub/ChapterImages.kt` (uncommitted, unverified); the premise here describes HEAD, not the tree |
+| T-069 | `<img>` in chapter XHTML renders | Verified complete | — | `EpubArchive.inlineImages` resolves the bytes, `HtmlText.placePictures` inserts `ImageSpan`s via `ChapterImages.picture` (decoded at the column width and capped); new `imageHeavyBookCarriesThePicturesTheMarkupAsksFor` asserts the 15-image-heavy corpus keeps its pictures (111 tests total) |
 | T-070 | The book's own CSS is honoured, or explicitly ignored by a documented rule (today every style comes from the reader's settings) | Pending | — | — |
 | T-071 | `<blockquote>`/quote blocks get styling beyond the colour already applied | Pending | — | — |
 | T-072 | Bookmarks anchor to a word, not a character offset, so they survive a re-typeset with different metrics | Pending | — | — |

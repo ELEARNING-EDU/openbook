@@ -99,4 +99,22 @@ class EpubArchiveTest {
         }
         assertTrue(error.message.orEmpty().contains("missing.opf"))
     }
+
+    @Test
+    fun imageHeavyBookCarriesThePicturesTheMarkupAsksFor() {
+        val corpus = File(
+            System.getProperty("epubCorpus")
+                ?: "/Users/cuong/Workspace/Orca/OpenBook/ios/build/qa/epub-corpus",
+        )
+        val book = File(File(corpus, "books"), "15-image-heavy.epub")
+        org.junit.Assume.assumeTrue("corpus not on this machine", book.isFile)
+
+        val parsed = EpubArchive.read(book)
+        val withPictures = parsed.chapters.filter { it.images.isNotEmpty() }
+        assertTrue("no chapter kept its pictures", withPictures.isNotEmpty())
+        assertTrue(
+            "a picture's bytes are empty",
+            withPictures.all { chapter -> chapter.images.values.all { it.isNotEmpty() } },
+        )
+    }
 }
