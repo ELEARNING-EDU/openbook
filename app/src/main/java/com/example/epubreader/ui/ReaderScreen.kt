@@ -1,20 +1,31 @@
 package com.example.epubreader.ui
 
+import android.os.SystemClock
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.epubreader.library.ReadingLogStore
+import java.time.LocalDate
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,9 +61,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +75,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.epubreader.R
 import com.example.epubreader.epub.EpubArchive
 import com.example.epubreader.epub.HtmlText
 import com.example.epubreader.model.BookItem
@@ -81,6 +96,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.io.File
 
 /**
@@ -196,10 +212,7 @@ data class DemoOptions(
 @Composable
 fun ReaderScreen(
     book: BookItem,
-    settings: ReaderSettings,
     onBack: () -> Unit,
-    /** The shelf's own book of places, so opening a book resumes it. */
-    positions: ReadingPositions,
     demo: DemoOptions = DemoOptions.None,
     /**
      * Whether the harness's staged states are still waiting to be played. They are one
@@ -210,6 +223,14 @@ fun ReaderScreen(
     demoPending: Boolean = true,
     onDemoUsed: () -> Unit = {},
 ) {
+    val stores = androidx.lifecycle.viewmodel.compose.viewModel<ReaderStoresViewModel>()
+    val reader = androidx.lifecycle.viewmodel.compose.viewModel<ReaderViewModel>(key = book.id)
+    val readerState by reader.state.collectAsStateWithLifecycle()
+    val settings = stores.settings
+    val positions = stores.positions
+    val bookmarks = stores.bookmarks
+    val readingLogStore = stores.readingLog
+
     val staged = if (demoPending) demo else DemoOptions.None
     val density = LocalDensity.current
     val statusBarTop = WindowInsets.statusBars.getTop(density)
@@ -218,8 +239,8 @@ fun ReaderScreen(
     var size by remember { mutableStateOf(IntSize.Zero) }
     var raw by remember { mutableStateOf<RawBook?>(null) }
     var engine by remember { mutableStateOf<ReaderEngine?>(null) }
-    var failure by remember { mutableStateOf<String?>(null) }
-    var pageIndex by remember { mutableIntStateOf(0) }
+    val failure = readerState.failure
+    val pageIndex = readerState.pageIndex
 
     /**
      * The page a contents/search jump is on its way to, or -1.
@@ -245,12 +266,19 @@ fun ReaderScreen(
     var currentSentence by remember { mutableIntStateOf(-1) }
     var speechNote by remember { mutableStateOf<String?>(null) }
     val holder = remember { CurlHolder() }
-    val bookmarks = remember { BookmarkStore(context) }
-    LaunchedEffect(book.id) { bookmarks.open(book.id) }
+    LaunchedEffect(book.id) {
+        reader.begin(book.id)
+        bookmarks.open(book.id)
+    }
 
     // Where this book was left, read once per visit: the reader is put back there after
     // the first typeset, and every page they settle on afterwards writes the new place.
-    val savedPosition = remember(book.id) { positions.of(book.id) }
+    val savedPosition = readerState.savedPosition
+
+    // Short status lines, localized here so the callbacks below need no context.
+    val sleepDoneNote = stringResource(R.string.speech_timer_done)
+    val noSentencesNote = stringResource(R.string.speech_no_sentences)
+    val noSentenceAtTapNote = stringResource(R.string.speech_no_sentence_at_tap)
 
     // The active theme's own typography, and the palette it paints with. Both are
     // Compose state, so any edit in the appearance screens re-typesets from here.
@@ -296,18 +324,32 @@ fun ReaderScreen(
 
     BackHandler(onBack = onBack)
 
+    // When the reader asked for this book, for the open-time measurements in the log.
+    val loadStart = remember(book.path) { SystemClock.elapsedRealtime() }
+
     // The archive is read once per book: re-typesetting must not touch the file again.
     LaunchedEffect(book.path) {
         raw = null
         engine = null
-        pageIndex = 0
-        failure = null
+        reader.setPage(0)
+        reader.fail(null)
+        val readStart = SystemClock.elapsedRealtime()
         try {
             raw = withContext(Dispatchers.IO) { EpubArchive.read(File(book.path)) }
+            Log.i(
+                TAG,
+                "read ${File(book.path).name}: ${SystemClock.elapsedRealtime() - readStart} ms, " +
+                    "${raw?.chapters?.size} chapters",
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (t: Throwable) {
-            failure = t.message ?: t.toString()
+            // The reader sees a localized line; the detail stays in the log.
+            Log.w(TAG, "could not read ${book.path}", t)
+            reader.fail(
+                (t as? com.example.epubreader.model.EpubException)?.problem
+                    ?: com.example.epubreader.model.EpubProblem.NOT_ZIP,
+            )
         }
     }
 
@@ -336,7 +378,7 @@ fun ReaderScreen(
             showPlayer = false
             // The platform HTML importer must run on the main thread, and the spans are
             // mutated by the paginator, so every restyle gets a fresh set.
-            val spanned = archive.chapters.map { HtmlText.toSpannable(it, columnWidth, maxImageHeight) }
+            val spanned = toSpannableInChunks(archive.chapters, columnWidth, maxImageHeight)
             val built = withContext(Dispatchers.Default) {
                 ReaderEngine.build(archive, spanned, pageMetrics, spec, palette)
             }
@@ -347,15 +389,21 @@ fun ReaderScreen(
                 "typeset ${settings.describe(density.density)}: ${built.pageCount} pages (${built.typesetNote})" +
                     (anchor?.let { "; anchor ${built.chapterTitle(it.first)}+${it.second} -> page ${target + 1}" } ?: ""),
             )
-            pageIndex = target
+            reader.setPage(target)
             engine = built
         } else {
-            failure = null
+            reader.fail(null)
             try {
-                val spanned = archive.chapters.map { HtmlText.toSpannable(it, columnWidth, maxImageHeight) }
+                val typesetStart = SystemClock.elapsedRealtime()
+                val spanned = toSpannableInChunks(archive.chapters, columnWidth, maxImageHeight)
                 val built = withContext(Dispatchers.Default) {
                     ReaderEngine.build(archive, spanned, pageMetrics, spec, palette)
                 }
+                Log.i(
+                    TAG,
+                    "typeset ${archive.chapters.size} chapters -> ${built.pageCount} pages in " +
+                        "${SystemClock.elapsedRealtime() - typesetStart} ms",
+                )
                 // The place the reader left the book, if it has been open before. The
                 // anchor is the text, not the old page number: coming back after a
                 // re-typeset must land on the words, not on whatever page 7 has become.
@@ -375,12 +423,20 @@ fun ReaderScreen(
                             } ?: "; first read, page 1"
                             ),
                 )
-                pageIndex = target
+                reader.setPage(target)
                 engine = built
+                Log.i(
+                    TAG,
+                    "first page ready for ${book.title}: ${SystemClock.elapsedRealtime() - loadStart} ms total",
+                )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (t: Throwable) {
-                failure = t.message ?: t.toString()
+                Log.w(TAG, "could not typeset ${book.path}", t)
+                reader.fail(
+                    (t as? com.example.epubreader.model.EpubException)?.problem
+                        ?: com.example.epubreader.model.EpubProblem.NOT_ZIP,
+                )
             }
         }
     }
@@ -391,10 +447,63 @@ fun ReaderScreen(
     val searchSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val playerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    LaunchedEffect(ready) { speech.source = ready }
+    LaunchedEffect(ready) {
+        speech.source = ready
+        ready?.let { speech.useLanguage(it.bookLanguage) }
+    }
 
     val speechState = speech.state
     val chromeVisible = chrome.visible
+
+    // Reading time: the reader is on screen and the app is in front. The ledger itself is
+    // pure JVM (`ReadingLog`); this block only decides which seconds are "alive".
+    val logStore = readingLogStore
+    val readingLog = remember { logStore.load() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var foreground by remember {
+        mutableStateOf(
+            lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED),
+        )
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            foreground = event == Lifecycle.Event.ON_RESUME
+            if (event == Lifecycle.Event.ON_PAUSE) logStore.save(readingLog)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            logStore.save(readingLog)
+        }
+    }
+    var lastPageTurnAt by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(pageIndex) { lastPageTurnAt = SystemClock.elapsedRealtime() }
+    LaunchedEffect(book.path) {
+        var sessionSeconds = 0
+        var lastAccrual = 0L
+        var lastSave = SystemClock.elapsedRealtime()
+        while (true) {
+            delay(1000)
+            val now = SystemClock.elapsedRealtime()
+            if (!foreground) continue
+            val listening = speech.state == SpeechState.PLAYING
+            // Five quiet minutes with neither a page turn nor the voice stop the count.
+            if (!listening && now - lastPageTurnAt > IDLE_CUTOFF_MS) continue
+            if (lastAccrual != 0L && now - lastAccrual > SESSION_GAP_MS) sessionSeconds = 0
+            sessionSeconds++
+            readingLog.addSecond(System.currentTimeMillis(), listening = listening)
+            readingLog.noteSession(
+                LocalDate.now(),
+                sessionSeconds,
+                newSession = sessionSeconds == 1,
+            )
+            lastAccrual = now
+            if (now - lastSave >= SAVE_INTERVAL_MS) {
+                logStore.save(readingLog)
+                lastSave = now
+            }
+        }
+    }
     // While the voice has the book the player is not optional: it is the only control
     // level (b) leaves on the page, so it opens itself even when narration began from a
     // tap on a sentence rather than from the headset.
@@ -419,38 +528,40 @@ fun ReaderScreen(
         }
     }
 
-    // The chapter the voice is in, for the full player's caption.
-    val voiceChapter = ready?.let { source ->
-        val chapter = if (currentSentence >= 0) {
+    // The chapter the voice is in, for the full player's caption and chapter skips.
+    val voiceChapterIndex = ready?.let { source ->
+        if (currentSentence >= 0) {
             source.chapterOfSentence(currentSentence)
         } else {
             source.chapterOfPage(holder.view?.pageIndex ?: pageIndex)
         }
-        source.chapterTitle(chapter)
-    }.orEmpty()
+    } ?: 0
+    val voiceChapter = ready?.chapterTitle(voiceChapterIndex).orEmpty()
 
     /**
-     * The full player's back and forward: one sentence at a time, in the voice's own
-     * place, so a skip is heard as a skip rather than as a new page.
+     * The full player's back and forward: to the head of the previous/next chapter,
+     * read from its first sentence. The buttons are off at the first and last chapter.
      */
-    fun skipSentence(step: Int) {
+    fun skipChapter(step: Int) {
         val source = ready ?: return
-        val page = holder.view?.pageIndex ?: pageIndex
-        val from = if (currentSentence >= 0) currentSentence + step else source.firstSentenceOnPage(page)
-        if (from < 0 || from >= source.sentenceCount) return
-        // A skip is the reader's hand, not the narrator's cursor: while the voice is
-        // paused the page must show the sentence the skip landed on, or the highlight
-        // would move somewhere off screen. A playing voice turns the page itself.
+        val target = voiceChapterIndex + step
+        if (target !in 0 until source.chapterCount) return
+        val from = source.firstSentenceOfChapter(target)
+        if (from < 0) return
         if (speech.state == SpeechState.PAUSED) {
-            val target = source.sentencePage(from)
-            if (target >= 0 && target != page) {
-                pageIndex = target
+            val page = source.sentencePage(from)
+            if (page >= 0 && page != (holder.view?.pageIndex ?: pageIndex)) {
+                reader.setPage(page)
                 jumpTarget = -1
-                holder.view?.setPageIndex(target)
+                holder.view?.setPageIndex(page)
             }
         }
         speech.skip(from)
-        Log.i(TAG, "skip $step -> sentence #$from (${source.sentenceText(from).take(40)}) speech=${speech.state}")
+        Log.i(
+            TAG,
+            "chapter $step -> #$target, sentence #$from " +
+                "(${source.sentenceText(from).take(40)}) speech=${speech.state}",
+        )
     }
 
     // The sleep timer runs from the moment it is chosen, whether or not the sheet is
@@ -468,7 +579,7 @@ fun ReaderScreen(
         }
         Log.i(TAG, "sleep timer: ${sleepMinutes}min up -> stopping the voice")
         speech.stop()
-        speechNote = "Hết giờ hẹn — đã dừng đọc"
+        speechNote = sleepDoneNote
     }
 
     // Whether the voice was running a moment ago, so stopping it can be told apart from
@@ -537,7 +648,7 @@ fun ReaderScreen(
      * restart the sentence it is speaking.
      */
     fun pageShown(page: Int) {
-        pageIndex = page
+        reader.setPage(page)
         // A page notification means whatever jump was in flight has landed (a run reports
         // once, on arrival) or has been taken over by a hand — either way the voice may
         // follow again. Guarding this on `page == jumpTarget` would leave the voice frozen
@@ -648,7 +759,7 @@ fun ReaderScreen(
             // toolbar last moved.
             scheduleAutoHide()
         } else {
-            speechNote = "Trang này không có câu nào để đọc"
+            speechNote = noSentencesNote
         }
     }
 
@@ -768,7 +879,7 @@ fun ReaderScreen(
             // The view is the only imperative piece here, so the state has to
             // follow it: the AndroidView update pushes the state back otherwise.
             val target = (staged.page - 1).coerceIn(0, source.pageCount - 1)
-            pageIndex = target
+            reader.setPage(target)
             holder.view?.setPageIndex(target)
         }
         if (staged.sizeStep != 0 && !demoSizeStepped) {
@@ -792,7 +903,7 @@ fun ReaderScreen(
             if (sentence != null) {
                 speech.start(sentence)
             } else {
-                speechNote = "Không tìm thấy câu nào tại điểm chạm"
+                speechNote = noSentenceAtTapNote
                 Log.w(TAG, "demo tap found no sentence at ${staged.tapX},${staged.tapY}")
             }
         }
@@ -927,7 +1038,7 @@ fun ReaderScreen(
         if (ready == null && failure == null) {
             LoadingOverlay()
         }
-        failure?.let { message -> FailureOverlay(message) }
+        failure?.let { FailureOverlay(it) }
 
         val pageMetrics = metrics
         if (pageMetrics != null) {
@@ -957,18 +1068,33 @@ fun ReaderScreen(
                     // only a button that had lost its row.
                     if (ready != null && chrome == ChromeMode.FULL) {
                         ButtonPair(modifier = Modifier.animateContentSize()) {
-                            PairButton(onClick = onBack) { ChevronGlyph() }
+                            PairButton(
+                                onClick = onBack,
+                                contentDescription = stringResource(R.string.reader_back),
+                            ) { ChevronGlyph() }
                             PairDivider()
-                            PairButton(onClick = { showToc = true }) { ListGlyph() }
+                            PairButton(
+                                onClick = { showToc = true },
+                                contentDescription = stringResource(R.string.reader_contents),
+                            ) { ListGlyph() }
                         }
                     }
                     // Right pair: find something, and mark the place. It is the one pair
                     // the voice's level gives up entirely.
                     if (ready != null && chrome == ChromeMode.FULL) {
                         ButtonPair {
-                            PairButton(onClick = { showSearch = true }) { SearchGlyph() }
+                            PairButton(
+                                onClick = { showSearch = true },
+                                contentDescription = stringResource(R.string.reader_search),
+                            ) { SearchGlyph() }
                             PairDivider()
-                            PairButton(onClick = { toggleBookmark() }) {
+                            PairButton(
+                                onClick = { toggleBookmark() },
+                                contentDescription = stringResource(
+                                    if (pageMarked()) R.string.reader_bookmark_remove
+                                    else R.string.reader_bookmark_add,
+                                ),
+                            ) {
                                 BookmarkGlyph(filled = pageMarked())
                             }
                         }
@@ -997,6 +1123,7 @@ fun ReaderScreen(
                         CircleButton(
                             onClick = { audioButtonTapped() },
                             active = speechState != SpeechState.IDLE,
+                            contentDescription = stringResource(R.string.reader_read_aloud),
                         ) {
                             if (speechState == SpeechState.IDLE) {
                                 EarphoneGlyph()
@@ -1029,6 +1156,7 @@ fun ReaderScreen(
                                     progress = readProgress,
                                     canSlowDown = speech.canSlowDown,
                                     canSpeedUp = speech.canSpeedUp,
+                                    compact = chrome == ChromeMode.FULL,
                                     onTitle = { showPlayerSheet = true },
                                     onSlower = { speech.slower() },
                                     onPlayPause = { speech.togglePlayPause() },
@@ -1051,7 +1179,10 @@ fun ReaderScreen(
                     // measured against the same box at both levels and does not change
                     // width when the chrome steps down.
                     if (ready != null && chrome == ChromeMode.FULL) {
-                        CircleButton(onClick = { showSettings = true }) { GearGlyph() }
+                        CircleButton(
+                            onClick = { showSettings = true },
+                            contentDescription = stringResource(R.string.reader_settings),
+                        ) { GearGlyph() }
                     } else {
                         Spacer(modifier = Modifier.width(44.dp))
                     }
@@ -1129,11 +1260,23 @@ fun ReaderScreen(
                 chapter = voiceChapter,
                 playing = speechState == SpeechState.PLAYING,
                 progress = readProgress,
+                page = pageIndex + 1,
+                pageCount = ready?.pageCount ?: 0,
                 rateLabel = speech.rateLabel,
+                canSlowDown = speech.canSlowDown,
+                canSpeedUp = speech.canSpeedUp,
                 sleepMinutes = sleepMinutes,
                 sleepLeftSeconds = sleepLeft,
                 voices = speech.voices,
                 voiceName = speech.voiceName,
+                voiceLabel = speech.voices.firstOrNull { it.name == speech.voiceName }?.label
+                    ?: stringResource(R.string.voice_default_name),
+                previewing = speech.previewing,
+                canPreviousChapter = ready != null && voiceChapterIndex > 0,
+                canNextChapter = ready != null &&
+                    voiceChapterIndex < (ready?.chapterCount ?: 0) - 1,
+                bookLanguage = ready?.bookLanguage
+                    ?: LocalConfiguration.current.locales[0],
                 onSeek = { fraction ->
                     val source = ready
                     val sentence = source?.sentenceAtBookFraction(fraction) ?: -1
@@ -1144,7 +1287,7 @@ fun ReaderScreen(
                         // sentence the way a reported page change would.
                         val page = source.sentencePage(sentence)
                         if (page >= 0) {
-                            pageIndex = page
+                            reader.setPage(page)
                             jumpTarget = -1
                             holder.view?.setPageIndex(page)
                         }
@@ -1152,13 +1295,18 @@ fun ReaderScreen(
                         Log.i(TAG, "slider ${(fraction * 100).toInt()}% -> sentence #$sentence (page ${page + 1})")
                     }
                 },
-                onPrevious = { skipSentence(-1) },
-                onNext = { skipSentence(1) },
+                onPreviousChapter = { skipChapter(-1) },
+                onNextChapter = { skipChapter(1) },
                 onPlayPause = { speech.togglePlayPause() },
+                onSlower = { speech.slower() },
+                onFaster = { speech.faster() },
                 onSleep = { minutes ->
                     sleepMinutes = minutes
                     Log.i(TAG, "sleep timer: ${if (minutes == 0) "off" else "$minutes min"}")
                 },
+                onVoicePickerOpen = { speech.refreshVoices() },
+                onPreview = { voice, sample -> speech.preview(voice, sample) },
+                onPreviewStop = { speech.stopPreview() },
                 onVoice = { name -> speech.setVoice(name) },
             )
         }
@@ -1249,17 +1397,22 @@ private fun ProgressLine(fraction: Float) {
  */
 @Composable
 private fun PlayerSlot(visible: Boolean, content: @Composable () -> Unit) {
+    // The pill unfurls from the disc: scale from 0.55 pinned to its left edge, the
+    // spring the spec asks for (320 ms, damping 0.78). Folding back shrinks to 0.75
+    // rather than vanishing.
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(tween(CHROME_FADE_MS)) +
-            expandHorizontally(
-                animationSpec = tween(PLAYER_UNFURL_MS),
-                expandFrom = Alignment.Start,
+            scaleIn(
+                animationSpec = PLAYER_SPRING,
+                initialScale = 0.55f,
+                transformOrigin = TransformOrigin(0f, 0.5f),
             ),
         exit = fadeOut(tween(CHROME_FADE_MS)) +
-            shrinkHorizontally(
-                animationSpec = tween(PLAYER_UNFURL_MS),
-                shrinkTowards = Alignment.Start,
+            scaleOut(
+                animationSpec = PLAYER_SPRING,
+                targetScale = 0.75f,
+                transformOrigin = TransformOrigin(0f, 0.5f),
             ),
     ) {
         content()
@@ -1274,6 +1427,7 @@ private fun PlayerRow(
     progress: Float,
     canSlowDown: Boolean,
     canSpeedUp: Boolean,
+    compact: Boolean,
     onTitle: () -> Unit,
     onSlower: () -> Unit,
     onPlayPause: () -> Unit,
@@ -1281,7 +1435,7 @@ private fun PlayerRow(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .height(PLAYER_ROW_HEIGHT)
             .drawBehind { softRoundShadow(24.dp.toPx()) }
@@ -1289,43 +1443,80 @@ private fun PlayerRow(
             .background(ReaderTheme.Paper.copy(alpha = 0.92f))
             .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.14f), RoundedCornerShape(24.dp)),
     ) {
-        val showRate = maxWidth >= 400.dp
+        val openPlayer = stringResource(R.string.player_open)
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(start = PLAYER_ROW_INSET, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MarqueeText(
-                text = headline,
+            // The title and the speed beside it are one target: tapping anywhere on that
+            // part of the capsule opens the full player, and the speed sits right after
+            // the title rather than at the far end of the bar.
+            Row(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable(onClick = onTitle),
-                fontSize = 13.sp,
-                color = ReaderTheme.Ink,
-                scrolling = playing,
-            )
-            if (showRate) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = rateLabel,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 11.sp,
-                    color = ReaderTheme.InkSoft,
-                    maxLines = 1,
+                    .fillMaxHeight()
+                    .clickable(onClickLabel = openPlayer, onClick = onTitle),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MarqueeText(
+                    text = headline,
+                    modifier = Modifier.weight(1f, fill = false),
+                    fontSize = 13.sp,
+                    color = ReaderTheme.Ink,
+                    scrolling = playing,
                 )
+                if (!compact) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = rateLabel,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.sp,
+                        color = ReaderTheme.InkSoft,
+                        maxLines = 1,
+                    )
+                }
             }
-            PanelButton(onClick = onSlower, enabled = canSlowDown, width = PLAYER_BUTTON_WIDTH) {
-                SeekBackGlyph()
+            // Compact (toolbar showing) keeps only play/pause and stop, so the pill
+            // sits quietly beside the toolbar; the full set returns with the chrome.
+            if (!compact) {
+                PanelButton(
+                    onClick = onSlower,
+                    enabled = canSlowDown,
+                    width = PLAYER_BUTTON_WIDTH,
+                    height = PLAYER_ROW_HEIGHT,
+                    description = stringResource(R.string.player_slower),
+                ) {
+                    SeekBackGlyph()
+                }
             }
-            PanelButton(onClick = onPlayPause, width = PLAYER_BUTTON_WIDTH) {
+            PanelButton(
+                onClick = onPlayPause,
+                width = PLAYER_BUTTON_WIDTH,
+                height = PLAYER_ROW_HEIGHT,
+                description = stringResource(if (playing) R.string.pause else R.string.play),
+            ) {
                 if (playing) PauseGlyph() else PlayGlyph()
             }
-            PanelButton(onClick = onFaster, enabled = canSpeedUp, width = PLAYER_BUTTON_WIDTH) {
-                SeekForwardGlyph()
+            if (!compact) {
+                PanelButton(
+                    onClick = onFaster,
+                    enabled = canSpeedUp,
+                    width = PLAYER_BUTTON_WIDTH,
+                    height = PLAYER_ROW_HEIGHT,
+                    description = stringResource(R.string.player_faster),
+                ) {
+                    SeekForwardGlyph()
+                }
             }
-            PanelButton(onClick = onClose, width = PLAYER_BUTTON_WIDTH) { CloseGlyph() }
+            PanelButton(
+                onClick = onClose,
+                width = PLAYER_BUTTON_WIDTH,
+                height = PLAYER_ROW_HEIGHT,
+                description = stringResource(R.string.stop_reading),
+            ) { CloseGlyph() }
         }
 
         // The voice's own progress: how much of the book's text it has read, not how
@@ -1373,7 +1564,7 @@ private fun LoadingOverlay() {
             CircularProgressIndicator(color = ReaderTheme.Accent, strokeWidth = 2.dp)
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "Đang mở sách…",
+                text = stringResource(R.string.reader_opening),
                 fontFamily = FontFamily.Serif,
                 fontSize = 14.sp,
                 color = ReaderTheme.InkSoft,
@@ -1383,14 +1574,14 @@ private fun LoadingOverlay() {
 }
 
 @Composable
-private fun FailureOverlay(message: String) {
+private fun FailureOverlay(problem: com.example.epubreader.model.EpubProblem) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp),
         ) {
             Text(
-                text = "Không mở được sách",
+                text = stringResource(R.string.reader_open_failed_title),
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
@@ -1398,10 +1589,11 @@ private fun FailureOverlay(message: String) {
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = message,
+                text = epubProblemText(problem),
                 fontFamily = FontFamily.Serif,
                 fontSize = 13.sp,
                 color = ReaderTheme.InkSoft,
+                textAlign = TextAlign.Center,
             )
         }
     }
@@ -1435,13 +1627,13 @@ private fun TocContent(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TabPill(
-            label = "Mục lục",
+            label = stringResource(R.string.toc_tab),
             selected = tab == 0,
             onClick = { tab = 0 },
         )
         Spacer(modifier = Modifier.width(8.dp))
         TabPill(
-            label = "Đánh dấu (${marks.size})",
+            label = stringResource(R.string.marks_tab, marks.size),
             selected = tab == 1,
             onClick = { tab = 1 },
         )
@@ -1449,7 +1641,7 @@ private fun TocContent(
 
     if (tab == 0) {
         if (titles.isEmpty()) {
-            SheetNote("Sách này không có mục lục.")
+            SheetNote(stringResource(R.string.toc_empty))
         } else {
             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
                 items(titles.size) { index ->
@@ -1472,7 +1664,7 @@ private fun TocContent(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "tr. ${page + 1}",
+                            text = stringResource(R.string.page_short, page + 1),
                             fontFamily = FontFamily.Serif,
                             fontSize = 12.sp,
                             color = ReaderTheme.InkSoft,
@@ -1483,7 +1675,7 @@ private fun TocContent(
         }
     } else {
         if (marks.isEmpty()) {
-            SheetNote("Chưa có đánh dấu nào. Nút đánh dấu trên thanh trên cùng giữ trang đang mở.")
+            SheetNote(stringResource(R.string.marks_empty))
         } else {
             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
                 items(
@@ -1513,7 +1705,7 @@ private fun TocContent(
                                 contentAlignment = Alignment.CenterEnd,
                             ) {
                                 Text(
-                                    text = "Xoá",
+                                    text = stringResource(R.string.action_delete),
                                     fontFamily = FontFamily.Serif,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 13.sp,
@@ -1588,13 +1780,21 @@ private fun SheetNote(message: String) {
     )
 }
 
+/** Quiet time after the last page turn or spoken word that stops the clock. */
+private const val IDLE_CUTOFF_MS = 5 * 60 * 1000L
+
+/** A pause this long starts a new reading session in the ledger. */
+private const val SESSION_GAP_MS = 2 * 60 * 1000L
+
+private const val SAVE_INTERVAL_MS = 15_000L
+
 /** Chrome hides itself after this, so the page is just paper. */
 private const val AUTO_HIDE_MS = 4500L
 
 private const val CHROME_FADE_MS = 250
 
-/** How long the player takes to unfurl from the disc, and to fold back into it. */
-private const val PLAYER_UNFURL_MS = 260
+/** The pill's unfurl: 320 ms with enough damping to settle without overshooting. */
+private val PLAYER_SPRING = spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
 
 /** The player's frame: narrower than a toolbar button so the headline gets the room. */
 private val PLAYER_BUTTON_WIDTH = 32.dp
@@ -1604,7 +1804,25 @@ private val PLAYER_ROW_HEIGHT = 48.dp
 /** The capsule's own inset, which is where the headline starts. */
 private val PLAYER_ROW_INSET = 14.dp
 
-private val AUDIO_LINE_HEIGHT = 2.5.dp
+private val AUDIO_LINE_HEIGHT = 3.dp
+
+/**
+ * `Html.fromHtml` has to run on the main thread, so a 1,000-chapter book is converted
+ * in small batches with a yield between them: the spinner keeps drawing and Back still
+ * works while the pages are being built.
+ */
+private suspend fun toSpannableInChunks(
+    chapters: List<com.example.epubreader.model.RawChapter>,
+    columnWidth: Float,
+    maxImageHeight: Float,
+): List<android.text.SpannableStringBuilder> {
+    val out = ArrayList<android.text.SpannableStringBuilder>(chapters.size)
+    for ((index, chapter) in chapters.withIndex()) {
+        out += HtmlText.toSpannable(chapter, columnWidth, maxImageHeight)
+        if (index % 8 == 7) yield()
+    }
+    return out
+}
 
 /**
  * A picture may take at most this much of the column's height. iOS cuts a plate to the

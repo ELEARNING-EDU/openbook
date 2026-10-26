@@ -1,25 +1,32 @@
 package com.example.epubreader
 
-import android.graphics.Color
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.example.epubreader.settings.AppLanguageStore
 import com.example.epubreader.ui.DemoOptions
 import com.example.epubreader.ui.EpubReaderApp
 
+@dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    /**
+     * The app's own language is applied here, before any resource is resolved, so the
+     * phone's language is only the default: choosing Vietnamese or English overrides the
+     * app's resources and leaves the device's setting untouched.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguageStore.read(newBase).wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // The pages are drawn edge to edge, so the system bars stay transparent
-        // and only the icon colour is forced to dark.
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
-        )
+        // Transparent bars; their icon colour is set from what is on screen — the phone's
+        // setting across the shell, the reader's paper inside a book.
+        enableEdgeToEdge()
 
         val autoOpenFirstBook = intent?.getBooleanExtra(EXTRA_DEMO_OPEN_BOOK, false) ?: false
         val demo = DemoOptions(

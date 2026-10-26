@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import android.text.SpannableStringBuilder
+import com.example.epubreader.R
 import com.example.epubreader.reader.FontCatalog
 import com.example.epubreader.reader.Palette
 import com.example.epubreader.reader.ReaderSettings
@@ -94,6 +96,11 @@ fun CustomizeScreen(
 
     val ink = ReaderTheme.Ink
     val inkSoft = ReaderTheme.InkSoft
+    val columnOptions = listOf(
+        TypeConfig.COLUMNS_AUTO to stringResource(R.string.customize_columns_auto),
+        1 to "1",
+        2 to "2",
+    )
 
     Box(
         modifier = Modifier
@@ -108,9 +115,12 @@ fun CustomizeScreen(
                     .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                CircleButton(onClick = { cancel() }) { CloseGlyph() }
+                CircleButton(
+                    onClick = { cancel() },
+                    contentDescription = stringResource(R.string.action_close),
+                ) { CloseGlyph() }
                 Text(
-                    text = "Tuỳ chỉnh giao diện",
+                    text = stringResource(R.string.customize_title),
                     modifier = Modifier.weight(1f),
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.Bold,
@@ -120,7 +130,11 @@ fun CustomizeScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                CircleButton(onClick = onApply, active = true) { CheckGlyph(color = ReaderTheme.Paper) }
+                CircleButton(
+                    onClick = onApply,
+                    active = true,
+                    contentDescription = stringResource(R.string.action_save),
+                ) { CheckGlyph(color = ReaderTheme.Paper) }
             }
 
             Column(
@@ -131,7 +145,7 @@ fun CustomizeScreen(
             ) {
                 PreviewBlock(draft = draft, palette = settings.palette)
 
-                SectionLabel(text = "Chữ")
+                SectionLabel(text = stringResource(R.string.customize_text_section))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -149,7 +163,7 @@ fun CustomizeScreen(
                         )
                     }
                     Text(
-                        text = "Phông chữ",
+                        text = stringResource(R.string.customize_font),
                         modifier = Modifier.weight(1f),
                         fontFamily = FontFamily.Serif,
                         fontSize = 16.sp,
@@ -167,7 +181,7 @@ fun CustomizeScreen(
                     Box(modifier = Modifier.rotate(180f).size(12.dp)) { ChevronGlyph(color = inkSoft) }
                 }
                 SwitchRow(
-                    label = "Chữ đậm",
+                    label = stringResource(R.string.customize_bold),
                     leading = {
                         Text(
                             text = "B",
@@ -181,9 +195,9 @@ fun CustomizeScreen(
                     onChange = { apply(draft.copy(bold = it)) },
                 )
 
-                SectionLabel(text = "Tuỳ chỉnh")
+                SectionLabel(text = stringResource(R.string.customize_section))
                 SwitchRow(
-                    label = "Tuỳ chỉnh",
+                    label = stringResource(R.string.customize_section),
                     checked = draft.custom,
                     onChange = { apply(draft.copy(custom = it)) },
                 )
@@ -232,21 +246,21 @@ fun CustomizeScreen(
                 ) {
                     Box(modifier = Modifier.width(34.dp)) { ColumnsGlyph(color = ink) }
                     Text(
-                        text = "Cột",
+                        text = stringResource(R.string.customize_columns),
                         modifier = Modifier.weight(1f),
                         fontFamily = FontFamily.Serif,
                         fontSize = 16.sp,
                         color = ink,
                     )
                     Segmented(
-                        options = COLUMN_OPTIONS,
+                        options = columnOptions,
                         selected = draft.columns,
                         onSelect = { apply(draft.copy(columns = it)) },
                     )
                 }
 
                 SwitchRow(
-                    label = "Căn đều hai bên",
+                    label = stringResource(R.string.customize_justify),
                     leading = { JustifyGlyph(color = ink) },
                     checked = draft.justified,
                     onChange = { apply(draft.copy(justified = it)) },
@@ -265,7 +279,7 @@ fun CustomizeScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Đặt lại giao diện",
+                        text = stringResource(R.string.customize_reset),
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
@@ -388,9 +402,12 @@ private fun FontList(
                     .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                CircleButton(onClick = onDismiss) { ChevronGlyph() }
+                CircleButton(
+                    onClick = onDismiss,
+                    contentDescription = stringResource(R.string.reader_back),
+                ) { ChevronGlyph() }
                 Text(
-                    text = "Phông chữ",
+                    text = stringResource(R.string.customize_font_list),
                     modifier = Modifier.weight(1f),
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.Bold,
@@ -574,12 +591,6 @@ private val LINE_RANGE = 1.0f..2.0f
 private val LETTER_RANGE = -0.02f..0.20f
 private val WORD_RANGE = 0f..0.60f
 private val MARGIN_RANGE = 12f..56f
-
-private val COLUMN_OPTIONS = listOf(
-    TypeConfig.COLUMNS_AUTO to "Tự động",
-    1 to "1",
-    2 to "2",
-)
 
 /** The same red the platform uses for a destructive action. */
 private val RESET_RED = ComposeColor(0xFFB3261E)

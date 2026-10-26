@@ -1,9 +1,13 @@
+import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.kover)
 }
 
 android {
@@ -16,6 +20,11 @@ android {
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+    }
+
+    lint {
+        abortOnError = true
+        checkDependencies = true
     }
 
     buildTypes {
@@ -38,6 +47,30 @@ android {
     }
 }
 
+kover {
+    reports {
+        filters {
+            includes {
+                classes(
+                    "com.example.epubreader.library.*",
+                    "com.example.epubreader.reader.*",
+                    "com.example.epubreader.epub.*",
+                    "com.example.epubreader.model.*",
+                    "*ViewModel",
+                )
+            }
+        }
+        verify {
+            rule("Domain, data and ViewModels (branch)") {
+                bound {
+                    minValue = 80
+                    coverageUnits = CoverageUnit.BRANCH
+                }
+            }
+        }
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
@@ -57,6 +90,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
+
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.compose.ui.tooling.preview)
+
+    testImplementation(libs.junit)
 }

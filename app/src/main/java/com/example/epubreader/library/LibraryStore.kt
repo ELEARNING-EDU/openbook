@@ -3,25 +3,39 @@ package com.example.epubreader.library
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.example.epubreader.R
 import com.example.epubreader.epub.EpubArchive
 import com.example.epubreader.model.BookItem
 import com.example.epubreader.model.EpubException
+import com.example.epubreader.model.EpubProblem
 import java.io.File
 
 /**
  * Owns the on-device library: a `Books/` folder inside the app's private files.
+ *
+ * The folder is the library; `SharedPreferences` only carries what the reader changed
+ * about a file — its title, its author, and when it arrived. The EPUB itself is never
+ * rewritten, and the document the reader picked from outside the app is only ever read.
  */
 class LibraryStore(context: Context) {
 
     private val appContext = context.applicationContext
 
+    private val metadata = appContext.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
+
     private val directory: File
         get() = File(appContext.filesDir, "Books").also { if (!it.exists()) it.mkdirs() }
 
-    /** Copies the EPUB shipped inside the app the first time, so the shelf is never bare. */
+    /**
+     * Copies the EPUB shipped inside the app the first time, so the shelf is never bare.
+     *
+     * Once the reader has deleted that sample, it stays deleted: the flag is what keeps
+     * a cold launch from quietly putting a book back on the shelf.
+     */
     fun ensureSeeded() {
         val target = File(directory, SEED_FILE_NAME)
         if (target.exists()) return
+        if (metadata.getBoolean(KEY_SAMPLE_DELETED, false)) return
         runCatching {
             appContext.assets.open(SEED_ASSET).use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
@@ -31,37 +45,135 @@ class LibraryStore(context: Context) {
 
     fun books(): List<BookItem> =
         directory.listFiles { file -> file.isFile && file.name.endsWith(".epub", true) }
-            ?.sortedBy { it.name.lowercase() }
             ?.map { file -> describe(file) }
             ?: emptyList()
 
     private fun describe(file: File): BookItem {
-        val metadata = runCatching { EpubArchive.readMetadata(file) }.getOrNull()
+        val stored = BookMetadataCodec.decode(metadata.getString(metaKey(file.name), null))
+        val info = runCatching { EpubArchive.readMetadata(file) }.getOrNull()
+        val importedAt = stored?.importedAt?.takeIf { it > 0L }
+            ?: file.lastModified().takeIf { it > 0L }
+            ?: System.currentTimeMillis()
+        if (stored?.importedAt != importedAt) {
+            // First sight of this file: freeze its arrival time now, so a later edit or
+            // copy cannot move it up or down the "recently imported" order.
+            persist(file.name, stored?.copy(importedAt = importedAt) ?: BookMetadata(importedAt = importedAt))
+        }
         return BookItem(
             id = file.name,
             path = file.absolutePath,
-            title = metadata?.title?.takeIf { it.isNotBlank() } ?: file.nameWithoutExtension,
-            author = metadata?.author?.takeIf { it.isNotBlank() } ?: "Không rõ tác giả",
+            title = stored?.title?.takeIf { it.isNotBlank() }
+                ?: info?.title?.takeIf { it.isNotBlank() }
+                ?: file.nameWithoutExtension,
+            author = stored?.author?.takeIf { it.isNotBlank() }
+                ?: info?.author?.takeIf { it.isNotBlank() }
+                ?: appContext.getString(R.string.unknown_author),
+            importedAt = importedAt,
+            finishedAt = stored?.finishedAt?.takeIf { it > 0L },
         )
+    }
+
+    /**
+     * Replaces the reader's title and author for one book. The id, the file, the reading
+     * position and the marks are untouched: this is a label, not a new book.
+     */
+    fun updateMetadata(id: String, title: String, author: String): BookItem? {
+        val file = directory.listFiles { candidate -> candidate.isFile && candidate.name == id }
+            ?.firstOrNull() ?: return null
+        val stored = BookMetadataCodec.decode(metadata.getString(metaKey(id), null))
+        val next = BookMetadata(
+            title = title.trim().takeIf { it.isNotBlank() },
+            author = author.trim().takeIf { it.isNotBlank() },
+            importedAt = stored?.importedAt?.takeIf { it > 0L } ?: file.lastModified(),
+            finishedAt = stored?.finishedAt ?: 0L,
+        )
+        persist(id, next)
+        return describe(file)
+    }
+
+    /** Marks a book finished (now) or clears the mark; reading position is untouched. */
+    fun markFinished(id: String, finished: Boolean): BookItem? {
+        val file = directory.listFiles { candidate -> candidate.isFile && candidate.name == id }
+            ?.firstOrNull() ?: return null
+        val stored = BookMetadataCodec.decode(metadata.getString(metaKey(id), null))
+        val next = (stored ?: BookMetadata(importedAt = file.lastModified())).copy(
+            finishedAt = if (finished) System.currentTimeMillis() else 0L,
+        )
+        persist(id, next)
+        return describe(file)
+    }
+
+    /**
+     * Removes app-managed copies only. The reader's original document, wherever the
+     * system picker found it, is not ours to delete and is never referenced here.
+     */
+    fun delete(ids: Collection<String>): LibraryFiles.Report {
+        val report = LibraryFiles.delete(directory, ids)
+        if (report.deleted.isNotEmpty()) {
+            val edit = metadata.edit()
+            for (id in report.deleted) edit.remove(metaKey(id))
+            if (SEED_FILE_NAME in report.deleted) edit.putBoolean(KEY_SAMPLE_DELETED, true)
+            edit.apply()
+        }
+        return report
     }
 
     /** Copies a document chosen through the Storage Access Framework into the library. */
     fun import(uri: Uri): BookItem {
         val name = sanitise(displayName(uri) ?: "sach-${System.currentTimeMillis()}.epub")
-        val target = File(directory, name)
+        val unique = uniqueName(name)
+        val target = File(directory, unique)
+        val started = android.os.SystemClock.elapsedRealtime()
         try {
             appContext.contentResolver.openInputStream(uri)?.use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
-            } ?: throw EpubException("Không mở được tệp đã chọn.")
+            } ?: throw java.io.IOException("the picked document could not be opened")
 
-            // Refuse anything that is not actually an EPUB.
-            runCatching { EpubArchive.readMetadata(target) }
-                .getOrElse { throw EpubException("Tệp không đọc được như một EPUB hợp lệ.") }
+            // Refuse anything that is not a readable, unencrypted EPUB. The archive
+            // decides which problem it is (not a ZIP, no container, no OPF, empty
+            // spine, DRM); the UI turns that into the matching localized line.
+            try {
+                EpubArchive.readMetadata(target)
+            } catch (problem: EpubException) {
+                throw problem
+            } catch (t: Throwable) {
+                throw EpubException(EpubProblem.NOT_ZIP, t.message ?: "not an EPUB")
+            }
 
+            android.util.Log.i(
+                "LibraryStore",
+                "import ${target.name}: ${android.os.SystemClock.elapsedRealtime() - started} ms, " +
+                    "${target.length()} bytes",
+            )
+            persist(
+                unique,
+                BookMetadata(importedAt = System.currentTimeMillis().coerceAtLeast(target.lastModified())),
+            )
             return describe(target)
         } catch (t: Throwable) {
             target.delete()
+            android.util.Log.w(
+                "LibraryStore",
+                "refused ${target.name}: " +
+                    ((t as? EpubException)?.problem?.name ?: t.javaClass.simpleName),
+            )
             throw t
+        }
+    }
+
+    private fun persist(id: String, value: BookMetadata) {
+        metadata.edit().putString(metaKey(id), BookMetadataCodec.encode(value)).apply()
+    }
+
+    /** Never let a second import silently replace a book already on the shelf. */
+    private fun uniqueName(name: String): String {
+        if (!File(directory, name).exists()) return name
+        val stem = name.removeSuffix(".epub")
+        var counter = 2
+        while (true) {
+            val candidate = "$stem ($counter).epub"
+            if (!File(directory, candidate).exists()) return candidate
+            counter++
         }
     }
 
@@ -87,8 +199,13 @@ class LibraryStore(context: Context) {
         return base.ifBlank { "sach-${System.currentTimeMillis()}.epub" }
     }
 
+    private fun metaKey(id: String): String = "$KEY_META_PREFIX$id"
+
     private companion object {
         const val SEED_ASSET = "sample.epub"
         const val SEED_FILE_NAME = "ngon-hai-dang-cuoi-cung.epub"
+        const val META_PREFS = "libraryMetadata"
+        const val KEY_META_PREFIX = "meta."
+        const val KEY_SAMPLE_DELETED = "sampleDeleted"
     }
 }

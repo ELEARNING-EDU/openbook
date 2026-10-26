@@ -1,16 +1,351 @@
 # Session handoff — Sách (Android EPUB reader)
 
-Updated: 2026-10-22T09:45+07:00 (Asia/Saigon)
+Updated: 2026-10-26T12:30+07:00 (Asia/Saigon)
 
 Canonical handoff. `PROJECT_STATE.md` holds the state and the reasoning; `TASKS.md` holds the
-work; this file says where the last session stopped and what to do next.
+work; this file says where the last session stopped and what to do next. The top checkpoint
+below supersedes the older Part 12 details further down.
 
 ## Read first
 
 1. `PROJECT_STATE.md` — "Facts at a glance", then "Verified current state" and Part 12.
 2. `TASKS.md` — the `Open` block is the whole to-do list; `Closed` carries the evidence.
 3. This file — the last session, the uncommitted work, the open questions.
-4. `docs/` is the app's user guide only; it holds no project state.
+4. `docs/` is the app's user guide; `docs/qa/2026-10-23/` holds the test/QA evidence.
+
+## Latest checkpoint — 2026-10-26 (Home parity: stats, shelves, week chart)
+
+- HEAD is now `694069c` on branch `android` (checkpoint commit with the parity, robustness,
+  Home, Hilt/DI, ViewModel and quality-gate work); nothing pushed. Left out of it: the
+  environment-removed skill folders/`CLAUDE.md` and the untracked `docs/qa/` evidence (16 MB).
+- Spec: `docs/home-ui-parity.md`. Scope: Home, Library labels/menu, reading ledger, settings —
+  no reader/TTS/import/player changes.
+- Data: `reader/ReadingLog` (pure) + `library/ReadingLogStore`; `ReaderScreen` adds a one-second
+  RESUMED loop (5-min idle cutoff, 2-min session gap, midnight split by local date, save every
+  15 s and on pause/close); `BookItem.finishedAt` + `BookMetadata.finishedAt` (old 3-field
+  records still decode) + `LibraryStore.markFinished`.
+- Selectors: `library/HomeSections` — reading ≤5, added ≤5, same-author suggestions (≥2, no
+  duplicates), finished within 12 months, under-six collapses to card + reading.
+- UI: `ui/HomeScreen.kt` (30sp title, achievement card with 44dp ring and real-seconds goal
+  line, 300dp reading cards, shared off-screen frame per shelf row, 17sp marquee titles, chart
+  88dp / 18dp bars / goal line), `LibraryScreen` large title + `Đã đọc xong` label + mark/unmark
+  menu, settings dialog goal chips. Gear only at the top, 200ms fade.
+- Tests: **106/106** (`HomeSectionsTest` 10, `ReadingLogTest` 10), `assembleDebug` green.
+  APK `13,791,702 bytes`.
+- Device (`emulator-5558`, vi + en, light + dark): Home card `2 phút hôm nay`, 53%, `Còn 3 phút
+  nữa`, `Tuần 2 phút · Tháng 2 phút · Năm 2 phút`, 5 reading cards, 5 newly added, 3 same-author
+  suggestions, 1 finished, chart with Monday accent bar and goal line; Library `Thư viện` with
+  `Đã đọc xong` and the mark-finished menu; goal chips; language switch. Screenshots
+  `home-vi`, `home-vi-dark`, `home3-mid`, `home3-chart`, `settings-goal2`, `lib-vi3`,
+  `home1`/`home2` (English) in the session temp dir.
+- Not done: achievements sheet (optional in the spec), on-device under-six Home, marquee
+  mid-scroll capture, TalkBack enabled run; the QA library has two accidental duplicate imports
+  from the SAF taps (test data only).
+- Owner follow-ups (same day, all in): reading cards 10dp apart (`PageSize.Fixed(300.dp)`), shelf
+  frames wrap content so padding is even, Library capsule `… | +`, list cover 64dp with
+  `Trang n/m · %` under the author, pencil/bin icons in the book menu, weekday labels fixed to
+  `Mo…Su`/`T2…CN` (vi SHORT names had all read "Th"). Screenshots `home4-vi`, `home5-frame`,
+  `home6-week`, `lib4-list`, `lib5-list`, `lib6/7-list-progress`, `grid-menu-icons`.
+- Second owner follow-up (same day): reading card 152dp so the content sits tight, floating tab
+  bar 4dp above the nav inset (content reserve 88dp), and an empty shelf now opens Library,
+  whose empty state has an `Import EPUB` button (verified by wiping the debug app's Books folder
+  with `sampleDeleted=true`). Screenshots `home8-tight`, `empty-library2`, `lib8-three`.
+- Demo library for review: 17 corpus books in `files/Books` (debug `run-as`), with
+  `reading_positions`, `libraryMetadata` and `readingLog` seeded to the spec shape (5 reading,
+  5 added, 4 suggestions, 3 finished, 22 min today, 2-day streak). Home screenshots
+  `home-full-vi-top`, `home-full-vi-mid`, `home-full-vi-chart`; app left in Vietnamese.
+- Next action: owner review of Home; then commit when asked.
+
+## Previous checkpoint — 2026-10-26 (robustness, DRM, benchmark, player motion)
+
+- HEAD is now `694069c` on branch `android` (checkpoint commit with the parity, robustness,
+  Home, Hilt/DI, ViewModel and quality-gate work); nothing pushed. Left out of it: the
+  environment-removed skill folders/`CLAUDE.md` and the untracked `docs/qa/` evidence (16 MB).
+- Spec: `docs/epub-robustness-player-qa.md` (iOS `98d47c4`). Implemented inside `epub/`, the import
+  path, the two string sets and the mini player; no reader rewrite, no new dependency.
+- Parser: `ZipExtract` uses `ZipFile` (central directory) instead of `ZipInputStream`, so the
+  stored-entry-with-data-descriptor case (`04`) no longer throws; names are NFC-normalised and
+  matched case-insensitively (closes `05`, `30`); ZIP64 (`20`) and `./` (`28`) already worked.
+  `EpubArchive.readMetadata` now validates container → OPF → spine → one existing chapter → no
+  encrypted text, without decompressing the book, so import refuses early. `read` refuses DRM
+  before touching a chapter and skips+logs missing chapter files.
+- DRM: `META-INF/encryption.xml` `CipherReference URI` ending in `.xhtml/.html/.htm` means
+  protected; fonts only stays readable (`09`). `10`/`11` refused, never painted.
+- Errors: `EpubProblem` on `EpubException` → five `epub_error_*` strings (EN+VI, 140/140 keys).
+  `LibraryStore.import` deletes its copy on failure and logs name + problem.
+- Test: `EpubCorpusTest` runs the whole 32-file corpus in place (`-DepubCorpus=` override).
+  **86/86 JVM tests** pass (was 54; `EpubCorpusTest` adds 32).
+- Pagination: chapter conversion yields every 8 chapters; `ReaderScreen` logs read/paginate/
+  first-page ms, import logs ms in `LibraryStore`.
+- Player: spring 320 ms / damping 0.78, scale 0.55 anchored at the disc → 0.75 on close; compact
+  pill when the toolbar shows (rate + `±` hidden); full pill when the chrome hides; disc frame-timed
+  at 30°/s and holds its angle; 3 dp progress line; TalkBack labels; animator scale 0 stops disc
+  and marquee. No auto-open of the sheet.
+- Measured on `emulator-5558` with the release APK (signed with the debug key): 1,250 pages
+  first-page **1,044 ms**, 1,000 chapters **1,419 ms**, single huge chapter **3,220 ms** (misses
+  ≤1.5 s), image-heavy 137 ms, Gutenberg 457 ms; peak PSS 128 MB / RSS 267 MB; TTS ≈0.6 s; 96%
+  janky page turns under the software renderer. Table in `TASKS.md` T-100.
+- Animation evidence (session temp dir): `compact-playing2` (compact with toolbar),
+  `player-only-full` (full pill, no toolbar), `spr1`/`spr2` (slow-motion unfurl at animator scale
+  10), `rmA`/`rmB` (identical disc crops at scale 0), `spinA`/`spinB` (different crops while
+  playing), `pauseA`/`pauseB` (identical crops when paused). Logs show
+  `chrome=full|player_only`, `speech state: PLAYING|PAUSED`, `playerOpen=`.
+- Not done: chapter-jump/scrubber timings, import memory, Perfetto, real hardware; 32 dp wide
+  player buttons stay below 48 dp (T-085); the one-huge-chapter book is over the open target.
+- Next action: owner review of the numbers; then commit when asked.
+
+## Previous checkpoint — 2026-10-25 (mini player title/rate, full-player header, chapter icons)
+
+- HEAD is now `694069c` on branch `android` (checkpoint commit with the parity, robustness,
+  Home, Hilt/DI, ViewModel and quality-gate work); nothing pushed. Left out of it: the
+  environment-removed skill folders/`CLAUDE.md` and the untracked `docs/qa/` evidence (16 MB).
+- The owner's three follow-ups after the parity pass; Android only, iOS untouched.
+  - `ReaderScreen.PlayerRow`: the headline and `speech.rateLabel` are one clickable `Row`
+    (`weight(1f)`, full height, `player_open`), so a tap on that part opens the full player
+    and the speed sits right after the title. The `maxWidth >= 400.dp` gate is deleted; the
+    pill is ~313dp on this device, so the rate had never shown there.
+  - `AudioPlayerSheet` header: the text column (title / author / chapter / hairline /
+    `Voice: …` / `− speed +`) now sits **left**, the 96dp cover **right**; the old strip
+    above `Page n / m` is folded into the column.
+  - `Components.SkipPreviousGlyph`/`SkipNextGlyph` (M3 `skip_previous`/`skip_next`, bar +
+    triangle, 18dp) replace the seek rings on the sheet's chapter buttons; the mini player's
+    `±` keep the rings (they change speed). Disabled tint unchanged (`Ink` at 30%).
+- Verified: `:app:testDebugUnitTest` **54/54** (0 failures/errors), `:app:assembleDebug`
+  green; APK `13,192,927 bytes`, sha256
+  `ae4c4cc66e4cd28e2424b9a33a3dbd4c850b3515adc023f676f1bc69da408b42`. `emulator-5558`
+  (AVD `E2`, the renamed `OpenBookReview`; Vietnamese sample, paused at page 2): pill
+  `Ngọn Hải Đăng Cuối Cùng · 1. Ngọn đèn trên mũi đá` + `1×`; real tap at `(500,2794)` inside
+  `[252,2722][720,2866]` opened the sheet; the header shows the 96dp cover on the **left** and
+  the text column (title / author / chapter / hairline / `Voice: …` / `− 1× +`) on its right;
+  real tap on `⏭` logged `chapter 1 -> #2, sentence #17` and the sheet/reader moved to
+  chapter 2, page 5 / 16, 20% with both skips enabled (`⏮` had been dimmed at chapter 1).
+  Screenshots `full-cover-left`, `mini-final`, `full-final-next`, `mini-final-after-skip` in
+  the session temp dir.
+- Cover side: the first build had text left / cover right; the owner then chose **cover left,
+  text right**, so the header `Row` was swapped back and rebuilt (this APK). The mini player,
+  the icons and everything else are unchanged from the earlier check.
+- AVD note: `~/.android/avd/OpenBookReview.ini` is now `E2.ini` pointing at the same
+  `OpenBookReview.avd`; launch it with `-avd E2 -port 5558`.
+- Not verified: the sound of the rate/skip changes (the AVD TTS is silent), and 360dp
+  crowding is worse now that the rate always shows — still T-085.
+- Environment: `emulator-5558` (AVD `E2`) is running this build with the full player open;
+  `emulator-5556` belongs to `com.cleanstorage.app`.
+- Next action: the owner checks the new header on the device; commit when asked.
+
+## Previous checkpoint — 2026-10-25 (full-player parity with the iOS spec)
+
+- HEAD is now `694069c` on branch `android` (checkpoint commit with the parity, robustness,
+  Home, Hilt/DI, ViewModel and quality-gate work); nothing pushed. Left out of it: the
+  environment-removed skill folders/`CLAUDE.md` and the untracked `docs/qa/` evidence (16 MB).
+- Source of truth: `docs/full-player-parity.md` (iOS `9da6500`, the owner's decisions). Only
+  deviations inside the full player and the voice picker were changed; iOS untouched.
+- Done, all in the working tree:
+  - `reader/VoiceCatalog.kt` (new, pure JVM): resolves the book's language
+    (`dc:language` → script/diacritic guess → phone), matches voices by language only
+    (`vi` = `vi-VN`), offers every voice when the device has none for the book, ignores a
+    saved voice from another language, and groups/search-orders the picker.
+  - Book language wired end to end: `RawBook.language` + `EpubArchive.Package.language`
+    (DOM and regex fallback), `ReaderEngine.bookLanguage`, `speech.useLanguage()`.
+  - `SpeechReader`: `applyLanguage` (set language → reload → pick saved/book/phone/`vi-VN` →
+    persist only on `SUCCESS`), `refreshVoices()`, `setVoice(String)` without the null path,
+    `preview(voice, sample)` on a **second** `TextToSpeech` that pauses the book first and is
+    shut down with the reader.
+  - `ReaderScreen`: `skipChapter(±1)` (chapter head, disabled at first/last, stays paused)
+    replaces the sentence skips; passes chapter bounds, book language, voice label,
+    `previewing` and the preview callbacks to the sheet; pill title gets "Open player".
+  - `AudioPlayerSheet` rewritten to the spec: 96dp cover, title/author/chapter, hairline,
+    `Voice: <name>`, 34dp speed capsule, `Page n / m` + `%`, book-wide scrubber, and one
+    transport row (Sleep · previous chapter · 60dp play · next chapter · Voice) with 48dp
+    targets. The Voice button opens the new picker dialog: header, count, search, language
+    groups, `quality · locale`, preview with a stop square, **Use**/tick, "Get more voices"
+    → system TTS settings.
+  - Strings: 24 new keys in EN + VI, 5 stale ones removed,
+    `speech_no_vietnamese_voice` → `speech_no_voice_for_language(locale, code)`. 135/135.
+- Theme flash: checked, no change needed — nothing sets the Activity/window theme from the
+  reader (only the status/nav icon appearance follows the paper). Verified on device below.
+- Verified: `:app:testDebugUnitTest` **54/54** (0 failures/errors; `VoiceCatalogTest` is 11,
+  `EpubArchiveTest` now also asserts `language == "vi"`), `:app:assembleDebug` green; APK
+  `12,716,645 bytes`, sha256 `ca4b621bab0a1cd2183fbd5196e0ffb19412c478fffd545e515f204e738753e2`.
+  AVD `OpenBookReview` (`emulator-5558`), screenshots `vp1`–`vp3`, `en1`–`en6`, `dark1`,
+  `back1`–`back4`, `slp0`/`slp1` in the session temp dir:
+  - picker: `Voice` · `11 voices for this book` · search · `Vietnamese (Vietnam)` · rows with
+    `High · vi-VN` · **Use** / tick (the vi-VN default reads as `language` because the engine
+    names it `vi-VN-language`);
+  - real tap on **Use** → `voice -> vi-vn-x-vic-local (vi-VN, code=0)`, sheet shows
+    `Voice: x vic local`, transport still `Play` (paused);
+  - preview → `preview -> vi-vn-x-vic-local` on the second engine, stop square in the row, and
+    after closing the sheet reads `Play` (the book was left paused);
+  - chapter skips: from the cover `chapter 1 -> #1 …` through `chapter 1 -> #6, sentence #72`,
+    `Next chapter` then `enabled=false` in the a11y tree with page 12/13, `Previous chapter`
+    `enabled=false` at the cover chapter; state `PAUSED` on every line;
+  - English book: an imported copy of the sample with `dc:language=en` logged
+    `book language -> en`, `setLanguage(en) -> 0`, `voices for en: 51`; the picker showed
+    `51 voices for this book` / `English (Australia)`, `united` kept the English groups,
+    `zzz` said `No voices match.`; a preview on `x aua network` logged
+    `preview -> en-au-x-aua-network`;
+  - wrong-language memory: after the English session saved `en-au-x-aua-network`, reopening
+    the Vietnamese book showed the Vietnamese default again;
+  - sleep timer: `sleep timer: 5 min` with `4:57` under the clock (accent), then `off`;
+  - theme: dark reader (`demoDark 1`) → Back — the first screenshot after the key is already
+    the light Home, no dark frame; `Get more voices` opened
+    `com.android.settings…TextToSpeechSettingsActivity`.
+- Kept as-is: the speed multiplier maps 1:1 to `TextToSpeech.setSpeechRate` (Android's
+  argument is already a multiplier; the spec's conversion note is iOS's `AVSpeechUtterance.rate`).
+- Not verified: the sound of a preview or of a faster rate (this AVD's TTS produces no audio
+  and finishes instantly), and the picker with a third language (no Japanese/Chinese book
+  imported — the rules are covered by `VoiceCatalogTest`).
+- Next action: nothing open from the owner. Older backlog unchanged (T-085, T-075/076/078/079).
+
+## Previous checkpoint — 2026-10-25 (third UI pass: capsule, bubbles, player controls)
+
+- HEAD is now `694069c` on branch `android` (checkpoint commit with the parity, robustness,
+  Home, Hilt/DI, ViewModel and quality-gate work); nothing pushed. Left out of it: the
+  environment-removed skill folders/`CLAUDE.md` and the untracked `docs/qa/` evidence (16 MB).
+- Done, all in the working tree:
+  - Library header: import and `…` are one 44dp capsule again, with `+` *inside* on the left,
+    a hairline divider, then `…`. Both are bare `IconHit` targets (no circle of their own).
+  - The shelf menu and a book's Edit/Delete now open `BubbleMenu`: a fixed-width card with
+    12dp corners, a shadow, and a 16 × 8dp tail centred under the `…` — a message bubble.
+    `BubbleRow`/`BubbleDivider` replace `MenuRow`/`MenuDivider` inside them (`danger` colours
+    Delete); `DropdownMenu` is no longer used in the library.
+  - Grid: the per-book `…` lost its ring — `BookActions` is a bare 40dp glyph below the cover
+    on the right; no title/author (unchanged from the second pass).
+  - Full player sheet: takes `page`/`pageCount` and the rate callbacks. "Reading progress" →
+    `Page n / m`. Under the transport one row holds `− 1.25× +` (the label comes from
+    `speech.rateFactor`, so it recomposes), a Sleep timer button (accent + countdown when
+    armed) and a Voice button; each opens its own `DropdownMenu` with a tick on the current
+    choice. New `player_slower`/`player_faster` in EN/VI; `ChoiceChip` gone.
+  - Rate fix: every change goes through `SpeechReader.setRate` (clamp → persist → log
+    `rate -> Nx` → restart the sentence, staying paused if paused).
+- Verified: `:app:testDebugUnitTest` 43/43, `:app:assembleDebug` OK, APK 12,710,585 bytes,
+  sha256 `085fa0b9fb1e4bd3cc275e3492140cd66aae561c40f5832d80b2c3323b1f9ec7`.
+  `emulator-5554`: capsule, both bubble popups, ring-free grid `…` (screenshots `p3-lib3`,
+  `p3-bubble3`, `p3-bookbubble`). AVD `OpenBookReview` (`emulator-5558`): sheet opened by a
+  real tap, `0.75×` → `+` → `1.25×` in the header and in the capsule, prefs
+  `narrationRateFactor=1.25`, `Page 2 / 3`, Sleep menu (Off ticked, 5/15/30/60) and Voice
+  menu (Default + 11 vi-VN voices).
+- Emulators: `Pixel_9_Pro_XL` is shared with other work and lost the foreground twice
+  (`com.cleanstorage.app`, `com.wordquest.game`). A second AVD `OpenBookReview` was made by
+  copying `config.ini` into a new directory (fresh userdata, cold boot) and runs on port
+  5558; delete `~/.android/avd/OpenBookReview.avd` + `~/.android/avd/OpenBookReview.ini` to
+  remove it. After the final reinstall both emulators are left on Home with the final APK.
+- Not verified on device: the actual audio speed change (this AVD's TTS finishes sentences
+  almost instantly — no sound is produced, so 1.25× cannot be heard; the label, pref and
+  `rate` log are the proof), and the dark-mode look of the new bubbles.
+- Next action: nothing open from the owner. Older backlog unchanged (T-085, T-075/076/078/079).
+
+## Previous checkpoint — 2026-10-24 (second UI pass: Home, Library header, grid, menu icons)
+
+- HEAD is now `694069c` on branch `android` (checkpoint commit with the parity, robustness,
+  Home, Hilt/DI, ViewModel and quality-gate work); nothing pushed. Left out of it: the
+  environment-removed skill folders/`CLAUDE.md` and the untracked `docs/qa/` evidence (16 MB).
+- Done:
+  - Home: the entire "Your library" section (heading, count, shelf row) removed; only the
+    "Reading now" pager remains. `home_your_library` + `book_count` strings deleted in EN/VI;
+    `HomeScreen` no longer takes `progress`.
+  - Library header: import and `…` are now two separate 40dp `ShellIconButton`s, 8dp apart,
+    instead of one capsule.
+  - Library grid: title and author removed from cards; under each cover a row holds the
+    percentage on the left and the book's `…` on the right. Selection still badges the cover
+    and hides the `…`. List view unchanged.
+  - Popup: every row has an icon — grid, list, clock (`Recently imported`), serif `A`
+    (`Title`), person (`Author`), tick (`Select`). New `ClockGlyph`/`PersonGlyph` in
+    `ui/Components.kt`.
+- Verified: `:app:testDebugUnitTest` 43/43, `:app:assembleDebug` OK, APK 12,710,217 bytes,
+  sha256 `1f1754870cbf8c04b216370f808873b54d8b49308dea743b8afc31be6ecb45da`, reinstalled.
+  Device screenshots confirm each change; a real tap on a grid `…` opens Edit/Delete.
+- Device left on Library, grid view, Author sort, English, light; `uimode night no`.
+- Next action: nothing open from the owner. Older backlog unchanged (T-085, T-075/076/078/079).
+
+## Previous checkpoint — 2026-10-24 (four UI changes)
+
+- HEAD unchanged: `315c8e6` on branch `android`. Nothing committed, staged or pushed; the
+  working tree holds every iteration plus this polish.
+- Done, all in the working tree:
+  - Home/Store/Library no longer print their screen titles; only the bottom tab bar names
+    the tabs. Home keeps the settings gear, Store keeps its `DEMO` badge, Library keeps its
+    control capsule.
+  - `ContinueCard` lost `ReadBar`; it shows `Page n / m · N%` and "Read on".
+  - `BookCover` is gradient + spine + border only. Title/author now sit outside the cover:
+    beside the thumbnail on Home's pager, under the cover on Home's shelf and Library's
+    grid, beside it in Library's list.
+  - Library's `+` and a new `…` share one 40dp pill. `…` opens `LibraryMenu` with
+    Grid/List, the three sorts, a divider and Select (hidden when the shelf is empty).
+    `ViewToggle` and the old sort button are deleted; `library_options` is the new
+    accessibility label in EN/VI.
+- Verified: `:app:testDebugUnitTest` 43/43 pass; `:app:assembleDebug` BUILD SUCCESSFUL,
+  APK 12,710,813 bytes, sha256
+  `7cf70633b054c487fd3d13ad48098d756d12f18200ab599ff81274ce77322838`.
+- Device `emulator-5554`: screenshots confirm Home (no title, no bar, text-free covers with
+  title/author/% beneath), Library grid (titles under covers), the open popup, List chosen
+  from the popup, Select at "0 selected", and Store with only DEMO.
+- Note: an unrelated app (`com.cleanstorage.app`) kept stealing the foreground during QA;
+  force-stopping it was needed between taps. One stray tap into a book moved the first
+  sample's position from 58% to 92% — that is real saved progress, not test data.
+- Device left on Library, list view, Author sort, English, light; `uimode night no`.
+- Next action: nothing open from the owner. Older backlog: T-085 (reading-bar headline at
+  360dp), T-075/T-076/T-078/T-079 need owner decisions.
+
+## Previous checkpoint — 2026-10-23 (reading iteration: Home, Library, language, pill)
+
+- HEAD is now `694069c` on branch `android` (checkpoint commit with the parity, robustness,
+  Home, Hilt/DI, ViewModel and quality-gate work); nothing pushed. Left out of it: the
+  environment-removed skill folders/`CLAUDE.md` and the untracked `docs/qa/` evidence (16 MB). All
+  iteration work is in the working tree (`git status --short` lists the modified files plus
+  the new `library/`, `settings/`, `ui/HomeShelf.kt`, `ui/ShellTheme.kt`, `values-vi/`,
+  `app/src/test/`, `docs/qa/`).
+- Done: Home pager of genuinely in-progress books; Library list/grid + 3 persisted sorts
+  (locale collator, id tie-break, import date frozen on first sight); metadata edit that
+  keeps id/progress/bookmarks; selection + confirmed delete that only removes app copies;
+  percentage-only rows; shell theme follows the phone while the reader keeps its own; full
+  English/Vietnamese resources with an app-only language override; floating Home/Library/Store
+  pill hidden in the reader; reader/import failures show generic localized text.
+- Fixed during review: RECENT sorting used title as a tie-break (now id only, so a rename
+  cannot reshuffle); the Select button preselected every book (now an explicit `selecting`
+  mode starting at zero).
+- Verified: `JAVA_HOME=/Users/cuong/Library/Java/JavaVirtualMachines/jbr-17.0.14/Contents/Home
+  ./gradlew :app:testDebugUnitTest` → 43/43 pass; `:app:assembleDebug` → BUILD SUCCESSFUL,
+  APK 12,711,557 bytes, sha256
+  `b6b3014b2b928883d86e0e2e472fd5d34cd0ffd2ee724bb6460659614cb9c4f2`.
+- KiloCode 7.8.15 did the independent review and three device passes; logs and screenshots
+  are in `docs/qa/2026-10-23-iteration/`. Two Kilo "failures" were tester artifacts (corrupt
+  QA leftover; three cards sharing one title) and are documented with evidence in
+  `qa-lead-verification.md`. Do not re-open them without new evidence.
+- Device: `emulator-5554` installed with the final APK; app left on Home, English, light;
+  6 books, all real titles/progress intact. `cmd uimode night no`; phone locale never changed;
+  no uninstall or data wipe. The emulator was restarted once during the session and the app
+  reopened normally.
+- Next action: none required for this scope. Optional follow-ups: a physical-device
+  audio-output check, a tablet-width pass, and the stale unused `ui/SearchScreen.kt` left
+  untouched on purpose.
+
+## Earlier checkpoint — 2026-10-23 (test suite + KiloCode QA)
+
+- HEAD unchanged: `315c8e6` on branch `android` (3 commits). Nothing committed, pushed or staged.
+- Added the first automated suite: **26 JUnit 4 JVM tests** under
+  `app/src/test/java/com/example/epubreader/` — `SentencesTest` (11), `ReadingPositionTest`
+  (6), `EpubArchiveTest` (6, real `sample.epub` plus missing-container/missing-OPF errors),
+  `ZipExtractTest` (3). Test-only dependency: JUnit 4.13.2 in
+  `gradle/libs.versions.toml` + `testImplementation(libs.junit)`.
+- Verified: `./gradlew :app:testDebugUnitTest` → BUILD SUCCESSFUL, 26/26, 0 failures/skips;
+  `./gradlew :app:assembleDebug` → BUILD SUCCESSFUL, APK 12,182,409 bytes, sha256
+  `26a8795c257ad81fa4422b02ece0a903665d339045a60e00e1d1828b3ea5d991`.
+- KiloCode 7.8.15 (real CLI child; Orca exposes no Kilo worker type) reviewed the change,
+  re-ran both Gradle tasks and returned **APPROVE** (`docs/qa/2026-10-23/kilo-review.log`,
+  `kilo-reverify.log`). Device QA on `emulator-5554` passed: Home / Library / Store, reader
+  resumed (`Trang 2 / 12`), page turn to `3 / 12`, Back to Home, no crash; a vision pass
+  verified every PNG (`kilo-device-qa-report.md`). The first QA attempt falsely claimed the
+  reader opened while still on Home; it was caught from the screenshots and re-run with exact
+  coordinates.
+- Installed APK, app left open in the reader: chapter 6, `Trang 12 / 13`
+  (`docs/qa/2026-10-23/device-final-reader.png`). Emulator data was not wiped. The emulator
+  was restarted once at 10:39 after its previous background process shut down; the app
+  reopened at the same page. A system CleanStorage permission dialog appeared during a tap
+  and was dismissed with Back (nothing granted or deleted), then the reader was reopened.
+- Working tree: `M ReaderTheme.kt` is the pre-existing owner highlight edit — **do not
+  revert**; `M app/build.gradle.kts`, `M gradle/libs.versions.toml`; untracked
+  `app/src/test/`, `docs/qa/`, `COORDINATOR_STATUS.md`.
+- Next action: only T-085 remains for this scope; no test or build work is outstanding.
 
 ## Where the work stands
 
@@ -80,12 +415,60 @@ work; this file says where the last session stopped and what to do next.
    scope for this round.
 7. Nothing else blocks work; `ffmpeg` is still missing, so T-074 (film of the commit animation)
    waits.
+8. **Cover side — settled** — the owner chose cover **left**, text **right** on 2026-10-25; built
+   and verified on `emulator-5558`.
+
+## P2b-a (2026-10-26)
+
+- `ReaderViewModel` + `StateFlow<ReaderUiState>` now own `pageIndex`, `failure` and
+  `savedPosition`; `ReaderScreen` forwards every page change through `setPage`, and
+  `SavedPlaces` (implemented by `ReadingPositions`) is the test seam.
+- `ReaderViewModelTest` (4) added; suite is **110/110**, lint PASS, assemble PASS, APK
+  `13,304,156 bytes` sha256 `8eeb88c1…e70d81`, installed on `emulator-5558`.
+- Device smoke: TTS followed the page to 3, Back/reopen resumed page 3. Kover still
+  **22.62%** branch (waiver W-001). Chrome/sheets/speech stay view-local (transient UI).
+
+## P2/P3 (2026-10-26)
+
+- Shell state is now `AppViewModel` + `StateFlow<AppUiState>`; `EpubReaderApp` only collects and
+  forwards events. Reader stores come from `ReaderStoresViewModel`; the reader's transient
+  page/chrome/speech state is still local (P2b remains).
+- Gates: Kover 0.9.11 (`:app:koverVerifyDebug`, 80% branch on domain/data/VM), lint gate
+  (`abortOnError`), `CONSTRAINTS.md`. Lint found and now passes after three real fixes:
+  API-27-only `windowLightNavigationBar` removed (styled in code), `LineBreaker` constant on
+  API 29+, observable locale in `ReaderScreen`. Kover **FAILS at 22.65% branch** — waiver W-001
+  in `CONSTRAINTS.md` (owner cuong, expires 2026-12-31), threshold unchanged.
+- Empty-shelf launch re-verified after the refactor: Library + "Chưa có sách nào" + Nhập EPUB
+  (`empty-after-hilt`); the 17-book demo library was restored afterwards (`home-after-hilt`).
+- Blocked: independent QA/review/test subagents — free models answer "Free usage limit reached";
+  no paid fallback used.
+
+## Hilt/DI P1 (2026-10-26)
+
+- Done: Hilt 2.60.1 + kapt in the catalog; `ReaderApplication`, `@AndroidEntryPoint`
+  `MainActivity`, `di/AppModule` (six singleton stores), `AppDependenciesViewModel`
+  (`@HiltViewModel`) consumed by `EpubReaderApp`; `ReaderScreen` receives `bookmarks` and
+  `readingLogStore` instead of constructing them. No behaviour change.
+- Verified: 106/106 tests, `assembleDebug` green; emulator launch crash-free, Home + reader +
+  TTS + resume-position smoke passed (screenshots `hilt-home`, `hilt-reader`, `hilt-resume`).
+- Still open: P2 screen state into ViewModel/StateFlow (ReaderScreen 1,700 lines), P3
+  Kover/lint/`CONSTRAINTS.md`; independent QA/review/test subagents blocked by "Free usage
+  limit reached" on every free model — no paid fallback used.
+
+## Tooling (2026-10-26)
+
+- Added project subagents under `.opencode/agents/`: `android-reader` (read-only),
+  `android-builder` (scoped edits + Gradle), `android-qa` (tests/adb, no edits). All pinned to
+  `opencode/deepseek-v4.1-flash-free` (zero-cost). Discovery confirmed: launching
+  `android-reader` reached the model, which refused with "Free usage limit reached" — the free
+  allowance is exhausted for now, so these agents cannot run until it resets. No app code
+  changed.
 
 ## Exact next action
 
-Build T-085's fix at the width where it bites: `wm size 720x1280` + `wm density 320`, open a book,
-start the voice, and measure the headline's box next to the rate label and the five controls
-before changing the row. 42dp of "Hải Đ" is the number to beat.
+Owner review of the T-100 numbers (especially the 3.2 s single-huge-chapter open and the
+emulator-only jank figures), then commit when authorised. T-085 (360dp headline) and the 32 dp
+player buttons are the open accessibility/width trade-off.
 
 ## Resume prompt (paste to a new agent)
 

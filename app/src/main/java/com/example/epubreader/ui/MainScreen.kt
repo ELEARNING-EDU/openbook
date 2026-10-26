@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,41 +18,57 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.epubreader.R
 import com.example.epubreader.model.BookItem
-import com.example.epubreader.reader.ReaderTheme
+import com.example.epubreader.reader.ReadingPosition
 import kotlin.math.roundToInt
 
 /** The three places the app starts from. */
-enum class MainTab(val label: String) {
-    HOME("Home"),
-    LIBRARY("Library"),
-    STORE("Store"),
+enum class MainTab(val labelRes: Int) {
+    HOME(R.string.tab_home),
+    LIBRARY(R.string.tab_library),
+    STORE(R.string.tab_store),
 }
 
-private val TAB_BAR_HEIGHT = 62.dp
+private val TAB_BAR_HEIGHT = 56.dp
+private val TAB_BAR_MARGIN = 18.dp
+private val TAB_BAR_GAP = 4.dp
+
+/** Room the floating bar keeps free at the foot of every scrolling screen. */
+private val TAB_CONTENT_RESERVE = 88.dp
 
 /**
  * The app's front door: three tabs over one shared import picker.
@@ -64,14 +81,19 @@ private val TAB_BAR_HEIGHT = 62.dp
 fun MainScreen(
     books: List<BookItem>,
     progress: Map<String, Float>,
+    reading: Map<String, ReadingPosition>,
     loading: Boolean,
-    /** The book the reader was last in this process, so Home can offer to continue it. */
-    lastOpenedId: String?,
     /** Owned above this screen, so backing out of a book returns to the tab it opened from. */
     tab: MainTab,
     onTab: (MainTab) -> Unit,
     onPick: (Uri?) -> Unit,
     onOpen: (BookItem) -> Unit,
+    onAppSettings: () -> Unit,
+    onEditBook: (BookItem, String, String) -> Unit,
+    onMarkFinished: (BookItem, Boolean) -> Unit,
+    onDeleteBooks: (List<String>) -> Unit,
+    summary: com.example.epubreader.reader.ReadingSummary,
+    week: List<com.example.epubreader.reader.WeekPoint>,
 ) {
     val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -89,92 +111,110 @@ fun MainScreen(
         }
     }
 
+    val colors = shellColors()
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    Box(modifier = Modifier.fillMaxSize().background(ReaderTheme.Paper)) {
+    Box(modifier = Modifier.fillMaxSize().background(colors.paper)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = TAB_BAR_HEIGHT + navBottom),
+                .padding(bottom = TAB_CONTENT_RESERVE + navBottom),
         ) {
             when (tab) {
                 MainTab.HOME -> HomeScreen(
                     books = books,
-                    progress = progress,
+                    reading = reading,
+                    summary = summary,
+                    week = week,
                     loading = loading,
-                    continuing = books.firstOrNull { it.id == lastOpenedId }
-                        ?: books.maxByOrNull { progress[it.id] ?: 0f },
                     onOpen = onOpen,
                     onImport = import,
+                    onBrowse = { onTab(MainTab.LIBRARY) },
+                    onAppSettings = onAppSettings,
                 )
 
                 MainTab.LIBRARY -> LibraryScreen(
                     books = books,
                     progress = progress,
+                    reading = reading,
                     loading = loading,
                     onImport = import,
                     onOpen = onOpen,
+                    onEditBook = onEditBook,
+                    onMarkFinished = onMarkFinished,
+                    onDeleteBooks = onDeleteBooks,
                 )
 
                 MainTab.STORE -> StoreScreen(onImport = import)
             }
         }
 
-        MainTabBar(
+        FloatingTabBar(
             selected = tab,
             onSelect = onTab,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(
+                    start = TAB_BAR_MARGIN,
+                    end = TAB_BAR_MARGIN,
+                    bottom = navBottom + TAB_BAR_GAP,
+                ),
         )
     }
 }
 
-/** The bar itself: three hand-drawn icons, the same language as the reader's chrome. */
+/**
+ * The floating tab bar: a compact capsule lifted off the bottom edge, leading-aligned so
+ * the room beside it stays free for a listening control later. The chosen tab keeps its
+ * name; the other two are icons.
+ */
 @Composable
-private fun MainTabBar(
+private fun FloatingTabBar(
     selected: MainTab,
     onSelect: (MainTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    val colors = shellColors()
+    Row(
         modifier = modifier
-            .fillMaxWidth()
-            .background(ReaderTheme.Paper)
-            .navigationBarsPadding(),
+            .height(TAB_BAR_HEIGHT)
+            .shadow(12.dp, CircleShape)
+            .clip(CircleShape)
+            .background(colors.raised)
+            .border(1.dp, colors.hairline, CircleShape)
+            .padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(ReaderTheme.Ink.copy(alpha = 0.12f)),
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(TAB_BAR_HEIGHT),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            for (item in MainTab.entries) {
-                val active = item == selected
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()
-                        .clickable { onSelect(item) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    val tint = if (active) ReaderTheme.Accent else ReaderTheme.InkSoft
-                    when (item) {
-                        MainTab.HOME -> HomeGlyph(color = tint)
-                        MainTab.LIBRARY -> LibraryGlyph(color = tint)
-                        MainTab.STORE -> StoreGlyph(color = tint)
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
+        for (item in MainTab.entries) {
+            val active = item == selected
+            val label = stringResource(item.labelRes)
+            Row(
+                modifier = Modifier
+                    .height(44.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (active) colors.accent.copy(alpha = if (colors.dark) 0.20f else 0.11f)
+                        else ComposeColor.Transparent,
+                    )
+                    .selectable(selected = active, role = Role.Tab, onClick = { onSelect(item) })
+                    .semantics { contentDescription = label }
+                    .padding(horizontal = if (active) 12.dp else 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                val tint = if (active) colors.accent else colors.inkSoft
+                when (item) {
+                    MainTab.HOME -> HomeGlyph(color = tint)
+                    MainTab.LIBRARY -> LibraryGlyph(color = tint)
+                    MainTab.STORE -> StoreGlyph(color = tint)
+                }
+                if (active) {
                     Text(
-                        text = item.label,
+                        text = label,
                         fontFamily = FontFamily.Serif,
-                        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
                         color = tint,
                         maxLines = 1,
                     )
@@ -184,170 +224,13 @@ private fun MainTabBar(
     }
 }
 
-/**
- * Home: what to carry on with, then the shelf.
- *
- * There is no feed to build and nothing to fetch, so the useful answer to "what now?"
- * is the one book already under way and the rest of the shelf one tap away.
- */
-@Composable
-private fun HomeScreen(
-    books: List<BookItem>,
-    progress: Map<String, Float>,
-    loading: Boolean,
-    continuing: BookItem?,
-    onOpen: (BookItem) -> Unit,
-    onImport: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-    ) {
-        Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-        Text(
-            text = "Trang chủ",
-            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 14.dp),
-            fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.Bold,
-            fontSize = 27.sp,
-            color = ReaderTheme.Ink,
-        )
-
-        when {
-            loading -> CenteredNote("Đang tải thư viện…")
-            books.isEmpty() -> EmptyHome(onImport = onImport)
-            else -> {
-                if (continuing != null) {
-                    Text(
-                        text = "ĐANG ĐỌC",
-                        modifier = Modifier.padding(start = 22.dp, end = 22.dp, bottom = 10.dp),
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.sp,
-                        color = ReaderTheme.InkSoft,
-                    )
-                    ContinueCard(
-                        book = continuing,
-                        progress = progress[continuing.id],
-                        onOpen = { onOpen(continuing) },
-                    )
-                    Spacer(modifier = Modifier.height(26.dp))
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 22.dp, end = 22.dp, bottom = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Thư viện của bạn",
-                        modifier = Modifier.weight(1f),
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = ReaderTheme.Ink,
-                    )
-                    Text(
-                        text = "${books.size} cuốn",
-                        fontFamily = FontFamily.Serif,
-                        fontSize = 12.sp,
-                        color = ReaderTheme.InkSoft,
-                    )
-                }
-                LazyRow(
-                    contentPadding = PaddingValues(start = 22.dp, end = 22.dp),
-                    horizontalArrangement = Arrangement.spacedBy(18.dp),
-                ) {
-                    items(books.size) { index ->
-                        val book = books[index]
-                        Column(
-                            modifier = Modifier
-                                .width(112.dp)
-                                .clickable { onOpen(book) },
-                        ) {
-                            BookCover(book = book, modifier = Modifier.fillMaxWidth())
-                            val read = progress[book.id]
-                            if (read != null) {
-                                Spacer(modifier = Modifier.height(7.dp))
-                                ReadBar(fraction = read)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "${(read * 100f).roundToInt()}%",
-                                    fontFamily = FontFamily.Serif,
-                                    fontSize = 11.sp,
-                                    color = ReaderTheme.InkSoft,
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(28.dp))
-            }
-        }
-    }
-}
-
-/** The book under way: its cover, how far in it is, and one way back into it. */
-@Composable
-private fun ContinueCard(
-    book: BookItem,
-    progress: Float?,
-    onOpen: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 22.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BookCover(book = book, modifier = Modifier.width(96.dp))
-        Spacer(modifier = Modifier.width(18.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = book.title,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                lineHeight = 25.sp,
-                color = ReaderTheme.Ink,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(5.dp))
-            Text(
-                text = book.author,
-                fontFamily = FontFamily.Serif,
-                fontSize = 13.sp,
-                color = ReaderTheme.InkSoft,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            if (progress != null) {
-                ReadBar(fraction = progress)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Đã đọc ${(progress * 100f).roundToInt()}%",
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 12.sp,
-                    color = ReaderTheme.InkSoft,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-            PrimaryButton(label = "Đọc tiếp", onClick = onOpen)
-        }
-    }
-}
-
 @Composable
 private fun PrimaryButton(label: String, onClick: () -> Unit) {
+    val colors = shellColors()
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(ReaderTheme.Accent)
+            .background(colors.accent)
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     ) {
@@ -356,13 +239,14 @@ private fun PrimaryButton(label: String, onClick: () -> Unit) {
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp,
-            color = ComposeColor.White,
+            color = if (colors.dark) colors.paper else ComposeColor.White,
         )
     }
 }
 
 @Composable
 private fun EmptyHome(onImport: () -> Unit) {
+    val colors = shellColors()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -370,42 +254,55 @@ private fun EmptyHome(onImport: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Chưa có sách nào",
+            text = stringResource(R.string.home_empty_title),
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.Bold,
             fontSize = 19.sp,
-            color = ReaderTheme.Ink,
+            color = colors.ink,
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "Nhập một tệp EPUB để bắt đầu đọc.",
+            text = stringResource(R.string.home_empty_body),
             fontFamily = FontFamily.Serif,
             fontSize = 13.sp,
-            color = ReaderTheme.InkSoft,
+            color = colors.inkSoft,
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(18.dp))
-        PrimaryButton(label = "Nhập EPUB", onClick = onImport)
+        PrimaryButton(label = stringResource(R.string.import_epub), onClick = onImport)
     }
 }
 
 /**
- * Store, honestly: this build has no network permission, so there is no catalogue to
- * show. It says so, and offers the one thing a store would have given the reader — a
- * way to put a book on the shelf.
+ * Store, honestly and clearly labelled: this build has no network permission, so there
+ * is no catalogue to show. It says so, and offers the one thing a store would have given
+ * the reader — a way to put a book on the shelf.
  */
 @Composable
 private fun StoreScreen(onImport: () -> Unit) {
+    val colors = shellColors()
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-        Text(
-            text = "Cửa hàng",
-            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 14.dp),
-            fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.Bold,
-            fontSize = 27.sp,
-            color = ReaderTheme.Ink,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.store_demo_badge),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colors.accent.copy(alpha = 0.14f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 10.sp,
+                letterSpacing = 1.sp,
+                color = colors.accent,
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -417,38 +314,38 @@ private fun StoreScreen(onImport: () -> Unit) {
                 modifier = Modifier
                     .size(72.dp)
                     .clip(CircleShape)
-                    .background(ReaderTheme.Raised),
+                    .background(colors.raised),
                 contentAlignment = Alignment.Center,
             ) {
-                StoreGlyph(color = ReaderTheme.Accent)
+                StoreGlyph(color = colors.accent)
             }
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "Cửa hàng chưa kết nối",
+                text = stringResource(R.string.store_demo_title),
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
                 fontSize = 19.sp,
-                color = ReaderTheme.Ink,
+                color = colors.ink,
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Bản này không dùng mạng, nên chưa có sách để tải về. " +
-                    "Sách EPUB trong máy vẫn nhập được vào thư viện.",
+                text = stringResource(R.string.store_demo_body),
                 fontFamily = FontFamily.Serif,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
-                color = ReaderTheme.InkSoft,
+                color = colors.inkSoft,
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(20.dp))
-            PrimaryButton(label = "Nhập EPUB", onClick = onImport)
+            PrimaryButton(label = stringResource(R.string.import_epub), onClick = onImport)
         }
     }
 }
 
 @Composable
 private fun CenteredNote(message: String) {
+    val colors = shellColors()
     Text(
         text = message,
         modifier = Modifier
@@ -456,7 +353,7 @@ private fun CenteredNote(message: String) {
             .padding(40.dp),
         fontFamily = FontFamily.Serif,
         fontSize = 14.sp,
-        color = ReaderTheme.InkSoft,
+        color = colors.inkSoft,
         textAlign = TextAlign.Center,
     )
 }

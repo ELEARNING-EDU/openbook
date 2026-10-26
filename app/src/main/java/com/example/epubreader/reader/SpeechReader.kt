@@ -10,13 +10,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.example.epubreader.R
 import java.util.Locale
 
 /** What the voice is doing. Drives the disc, the play/pause button and the highlight. */
 enum class SpeechState { IDLE, PLAYING, PAUSED }
-
-/** One voice the device's engine offers, with the short label the picker shows. */
-data class VoiceOption(val name: String, val label: String)
 
 /**
  * Reads a paginated book aloud, one sentence at a time.
@@ -104,11 +102,11 @@ class SpeechReader(private val context: Context) {
     val canSpeedUp: Boolean get() = rateFactor < rateOptions.last()
 
     /**
-     * The voices the device offers for Vietnamese, and the one the reader picked.
+     * The voices the device offers for the book's language, and the one in use.
      *
-     * `null` means the engine's own default for the language, which is what the reader
-     * has been hearing until now — so a book opened before this feature is unaffected.
-     * The choice is persisted, because a reader who picked a voice wants it next time.
+     * The book tells the reader which language it is in ([useLanguage]); the picker only
+     * offers voices that speak it. The choice is persisted, and a saved voice in another
+     * language is ignored on the next book rather than read with the wrong accent.
      */
     var voices: List<VoiceOption> by mutableStateOf(emptyList())
         private set
@@ -116,9 +114,21 @@ class SpeechReader(private val context: Context) {
     var voiceName: String? by mutableStateOf(prefs.getString(KEY_VOICE, null))
         private set
 
+    /** The voice a preview is speaking with, or null. Drives the stop icon in the picker. */
+    var previewing: String? by mutableStateOf(null)
+        private set
+
+    /** The book's language; before the book is paginated the engine keeps Vietnamese. */
+    private var bookLocale: Locale = VI_LOCALE
+
     private val main = Handler(Looper.getMainLooper())
     private var watchdog: Runnable? = null
     private var fallbackWalk: Runnable? = null
+
+    /** A second engine, used only to try a voice without touching the reading place. */
+    private var previewer: TextToSpeech? = null
+    private var previewReady = false
+    private var previewPending: Pair<VoiceOption, String>? = null
 
     // --------------------------------------------------------------- lifecycle
 
@@ -126,37 +136,79 @@ class SpeechReader(private val context: Context) {
         if (disposed) return
         if (status != TextToSpeech.SUCCESS) {
             Log.w(TAG, "TextToSpeech init failed: $status")
-            onStatus("Không khởi tạo được TextToSpeech (mã $status)")
+            onStatus(context.getString(R.string.speech_init_failed, status))
             return
         }
         val engine = tts ?: return
-        val result = engine.setLanguage(Locale("vi", "VN"))
-        val voiceOk = result != TextToSpeech.LANG_MISSING_DATA &&
-            result != TextToSpeech.LANG_NOT_SUPPORTED
-        Log.i(
-            TAG,
-            "setLanguage(vi-VN) -> $result (voiceOk=$voiceOk); vi voices: ${viVoices(engine)}",
-        )
-        if (!voiceOk) {
-            onStatus("Thiếu dữ liệu giọng tiếng Việt (mã $result) — đọc bằng giọng mặc định")
-        }
-        loadVoices(engine)
-        // A voice picked in an earlier session is applied again: the engine forgets it.
-        voiceName?.let { saved ->
-            val savedVoice = engine.voices?.firstOrNull { it.name == saved }
-            if (savedVoice == null) {
-                Log.w(TAG, "saved voice $saved is gone; using the language default")
-                voiceName = null
-                prefs.edit().remove(KEY_VOICE).apply()
-            } else {
-                Log.i(TAG, "saved voice $saved -> ${engine.setVoice(savedVoice)}")
-            }
-        }
+        applyLanguage(engine)
         engine.setSpeechRate(rateFactor)
         engine.setOnUtteranceProgressListener(progress)
         ready = true
         // A tap can land before the engine is up; honour it now.
         pendingStart?.let { pendingStart = null; beginSpeaking(it) }
+    }
+
+    /** Tells the engine which language the open book is in. */
+    fun useLanguage(locale: Locale) {
+        if (VoiceCatalog.speaks(locale, bookLocale)) return
+        bookLocale = locale
+        Log.i(TAG, "book language -> ${locale.toLanguageTag()}")
+        if (ready) applyLanguage(tts)
+    }
+
+    /**
+     * Applies the book's language, then picks the voice: the saved one when it speaks
+     * this language, else the book's own, the phone's, Vietnamese, anything.
+     */
+    private fun applyLanguage(engine: TextToSpeech?) {
+        engine ?: return
+        val result = engine.setLanguage(bookLocale)
+        val languageOk = result != TextToSpeech.LANG_MISSING_DATA &&
+            result != TextToSpeech.LANG_NOT_SUPPORTED
+        Log.i(TAG, "setLanguage($bookLocale) -> $result (languageOk=$languageOk)")
+        if (!languageOk) {
+            onStatus(
+                context.getString(
+                    R.string.speech_no_voice_for_language,
+                    bookLocale.getDisplayName(),
+                    result,
+                ),
+            )
+        }
+        loadVoices(engine)
+        val chosen = VoiceCatalog.pickDefault(
+            voices = voices,
+            book = bookLocale,
+            device = Locale.getDefault(),
+            saved = voiceName,
+        )
+        if (chosen == null) {
+            Log.w(TAG, "no installed voices; leaving the engine default in place")
+            voiceName = null
+            prefs.edit().remove(KEY_VOICE).apply()
+            return
+        }
+        val installed = engine.voices?.firstOrNull { it.name == chosen.name }
+        val code = installed?.let { engine.setVoice(it) } ?: TextToSpeech.ERROR
+        if (code == TextToSpeech.SUCCESS) {
+            voiceName = chosen.name
+            prefs.edit().putString(KEY_VOICE, chosen.name).apply()
+        } else {
+            Log.w(TAG, "could not apply ${chosen.name} (code=$code); using the language default")
+            voiceName = null
+            prefs.edit().remove(KEY_VOICE).apply()
+        }
+        Log.i(
+            TAG,
+            "voice -> ${chosen.name} (${chosen.locale.toLanguageTag()}, code=$code); " +
+                "voices for ${bookLocale.toLanguageTag()}: ${voices.size}",
+        )
+    }
+
+    /** Re-reads the installed voices, e.g. after a trip to the system TTS settings. */
+    fun refreshVoices() {
+        if (!ready) return
+        loadVoices(tts)
     }
 
     /** Call from `onDispose` of the reader screen. */
@@ -168,6 +220,10 @@ class SpeechReader(private val context: Context) {
         tts?.stop()
         tts?.shutdown()
         tts = null
+        previewer?.stop()
+        previewer?.shutdown()
+        previewer = null
+        previewing = null
         ready = false
         stateInternal = SpeechState.IDLE
     }
@@ -182,7 +238,7 @@ class SpeechReader(private val context: Context) {
         if (fromSentence < 0 || fromSentence >= src.sentenceCount) return
         if (!ready || tts == null) {
             pendingStart = fromSentence
-            onStatus("Đang khởi tạo TextToSpeech…")
+            onStatus(context.getString(R.string.speech_initialising))
             return
         }
         beginSpeaking(fromSentence)
@@ -279,6 +335,7 @@ class SpeechReader(private val context: Context) {
         if (clamped == rateFactor) return
         rateFactor = clamped
         prefs.edit().putFloat(KEY_RATE, clamped).apply()
+        Log.i(TAG, "rate -> ${ReaderSettings.trimNumber(clamped)}x")
         restartFromCurrentPlace()
     }
 
@@ -287,27 +344,22 @@ class SpeechReader(private val context: Context) {
     fun faster() = setRate(stepRate(rateFactor, 1))
 
     /**
-     * Picks a voice, or the engine's default for Vietnamese when [name] is null.
-     *
-     * Both are engine-wide settings, so a sentence in flight restarts at the new voice
-     * — the only way it can be heard without waiting for the next page.
+     * Picks a voice. It is an engine-wide setting, so a sentence in flight restarts at
+     * the new voice — the only way it can be heard without waiting for the next page.
      */
-    fun setVoice(name: String?) {
+    fun setVoice(name: String) {
         val engine = tts ?: return
         if (name == voiceName) return
-        val voice = name?.let { wanted -> engine.voices?.firstOrNull { it.name == wanted } }
-        if (name != null && voice == null) return
-        val code = if (voice == null) engine.setLanguage(VI_LOCALE) else engine.setVoice(voice)
-        if (name != null && code != TextToSpeech.SUCCESS) {
+        val voice = engine.voices?.firstOrNull { it.name == name } ?: return
+        val code = engine.setVoice(voice)
+        if (code != TextToSpeech.SUCCESS) {
             Log.w(TAG, "setVoice($name) refused: $code")
-            onStatus("Không đặt được giọng đọc (mã $code)")
+            onStatus(context.getString(R.string.speech_voice_failed, code))
             return
         }
         voiceName = name
-        prefs.edit().apply {
-            if (name == null) remove(KEY_VOICE) else putString(KEY_VOICE, name)
-        }.apply()
-        Log.i(TAG, "voice -> ${name ?: "language default"} (code=$code)")
+        prefs.edit().putString(KEY_VOICE, name).apply()
+        Log.i(TAG, "voice -> $name (${voice.locale.toLanguageTag()}, code=$code)")
         restartFromCurrentPlace()
     }
 
@@ -324,24 +376,86 @@ class SpeechReader(private val context: Context) {
         if (wasPaused) pause()
     }
 
-    private fun loadVoices(engine: TextToSpeech) {
-        val all = runCatching { engine.voices }.getOrNull() ?: return
-        val found = all
-            .filter { it.locale.language == "vi" || it.locale.language == "vie" }
-            .map { VoiceOption(it.name, voiceLabel(it.name)) }
-            .distinctBy { it.name }
-            .sortedBy { it.label }
-        voices = found
-        Log.i(TAG, "voices: ${found.size} vi-VN (${found.joinToString { it.name }})")
+    /**
+     * Speaks [sample] with [voice] from a second engine, so the picker can be tried
+     * without moving the book's place. A reading voice is paused first: two voices at
+     * once is not a preview.
+     */
+    fun preview(voice: VoiceOption, sample: String) {
+        if (previewing == voice.name) {
+            stopPreview()
+            return
+        }
+        if (stateInternal == SpeechState.PLAYING) pause()
+        previewing = voice.name
+        if (previewer == null) {
+            previewPending = voice to sample
+            previewer = TextToSpeech(context, TextToSpeech.OnInitListener { status ->
+                previewReady = status == TextToSpeech.SUCCESS
+                if (!previewReady) {
+                    Log.w(TAG, "preview engine init failed: $status")
+                    previewing = null
+                    previewPending = null
+                } else {
+                    val pending = previewPending
+                    previewPending = null
+                    pending?.let { speakPreview(it.first, it.second) }
+                }
+            })
+            return
+        }
+        if (!previewReady) {
+            previewPending = voice to sample
+            return
+        }
+        speakPreview(voice, sample)
     }
 
-    /** `vi-vn-x-gft-network` reads as `x gft network` in the picker. */
-    private fun voiceLabel(name: String): String =
-        name.removePrefix("vi-vn-")
-            .removePrefix("vi-VN-")
-            .replace('-', ' ')
-            .trim()
-            .ifBlank { name }
+    fun stopPreview() {
+        previewing = null
+        previewPending = null
+        previewer?.stop()
+    }
+
+    private fun speakPreview(voice: VoiceOption, sample: String) {
+        val engine = previewer ?: return
+        engine.setOnUtteranceProgressListener(previewProgress)
+        val installed = engine.voices?.firstOrNull { it.name == voice.name }
+        if (installed != null) engine.setVoice(installed) else engine.setLanguage(voice.locale)
+        engine.setSpeechRate(1f)
+        Log.i(TAG, "preview -> ${voice.name} (${voice.locale.toLanguageTag()})")
+        if (engine.speak(sample, TextToSpeech.QUEUE_FLUSH, null, PREVIEW_ID) ==
+            TextToSpeech.ERROR
+        ) {
+            Log.w(TAG, "preview refused for ${voice.name}")
+            previewing = null
+        }
+    }
+
+    private val previewProgress = object : UtteranceProgressListener() {
+        override fun onStart(utteranceId: String?) = Unit
+
+        override fun onDone(utteranceId: String?) {
+            main.post { previewing = null }
+        }
+
+        @Deprecated("Kept for engines that still call the older signature.")
+        override fun onError(utteranceId: String?) {
+            main.post { previewing = null }
+        }
+
+        override fun onError(utteranceId: String?, errorCode: Int) {
+            main.post { previewing = null }
+        }
+    }
+
+    private fun loadVoices(engine: TextToSpeech?) {
+        val all = runCatching { engine?.voices }.getOrNull() ?: return
+        val options = all
+            .map { VoiceOption(it.name, VoiceCatalog.label(it.name), it.locale, it.quality) }
+            .distinctBy { it.name }
+        voices = VoiceCatalog.forBook(options, bookLocale)
+    }
 
     private fun stepRate(current: Float, delta: Int): Float {
         val index = rateOptions.indexOf(current).takeIf { it >= 0 } ?: 0
@@ -390,7 +504,7 @@ class SpeechReader(private val context: Context) {
             val code = engine.speak(text, mode, null, utteranceId(index))
             if (code == TextToSpeech.ERROR) {
                 Log.w(TAG, "speak() refused sentence $index")
-                onStatus("Engine từ chối câu $index")
+                onStatus(context.getString(R.string.speech_sentence_rejected, index))
                 continue
             }
             inFlight++
@@ -471,7 +585,7 @@ class SpeechReader(private val context: Context) {
             main.post {
                 if (at != epoch) return@post
                 if (!isPlayingNow() || fallbackMode) return@post
-                onStatus("Lỗi engine ở câu $index (mã $errorCode)")
+                onStatus(context.getString(R.string.speech_sentence_error, index, errorCode))
                 onSentenceSpoken()
             }
         }
@@ -490,7 +604,7 @@ class SpeechReader(private val context: Context) {
         val runnable = Runnable {
             if (disposed || stateInternal != SpeechState.PLAYING || hearingFromEngine) return@Runnable
             Log.w(TAG, "no onStart within ${WATCHDOG_MS}ms — falling back to timed highlight walk")
-            onStatus("Engine không phát tín hiệu — tô sáng mô phỏng (chưa kiểm chứng được âm thanh)")
+            onStatus(context.getString(R.string.speech_silent_fallback))
             fallbackMode = true
             startFallback()
         }
@@ -543,18 +657,9 @@ class SpeechReader(private val context: Context) {
     private fun epochOf(utteranceId: String?): Int? =
         utteranceId?.removePrefix(ID_PREFIX)?.substringBefore(':')?.toIntOrNull()
 
-    private fun viVoices(engine: TextToSpeech): String = try {
-        engine.voices
-            ?.filter { it.locale.language == "vi" || it.locale.language == "vie" }
-            ?.joinToString { "${it.locale}(${it.name})" }
-            ?.ifEmpty { "none" } ?: "null"
-    } catch (t: Throwable) {
-        "err:${t.message}"
-    }
-
     companion object {
 
-        /** The language the reader is read in, everywhere it is named. */
+        /** Vietnamese until the open book says which language it is read in. */
         private val VI_LOCALE: Locale = Locale("vi", "VN")
 
         /** The speeds the player steps through, matching the iOS reader. */
@@ -573,6 +678,8 @@ class SpeechReader(private val context: Context) {
         private const val FALLBACK_MS = 1400L
 
         private const val ID_PREFIX = "s"
+
+        private const val PREVIEW_ID = "voice-preview"
 
         private const val PREFS = "readerSettings"
         private const val KEY_RATE = "narrationRateFactor"

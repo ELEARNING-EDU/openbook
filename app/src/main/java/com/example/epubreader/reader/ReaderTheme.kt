@@ -63,7 +63,7 @@ class Palette(
 
     companion object {
         /** `ReaderTheme.highlight` on iOS: 0.98, 0.78, 0.33 at 42% alpha. */
-        const val HIGHLIGHT: Int = 0x6BFAC954.toInt()
+        const val HIGHLIGHT: Int = 0x6BFAC854.toInt()
 
         /** The tables below are written as RGB; a colour needs its alpha to be seen. */
         fun rgb(value: Int): Int = value or ALPHA

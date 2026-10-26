@@ -69,6 +69,12 @@ class BookmarkStore(context: Context) {
         persist()
     }
 
+    /** Drops a deleted book's marks; they cannot belong to any book on the shelf. */
+    fun erase(bookKey: String) {
+        prefs.edit().remove(storageKey(bookKey)).apply()
+        if (bookKey == currentKey) marks = emptyList()
+    }
+
     private fun read(bookKey: String): List<Bookmark> {
         val raw = prefs.getString(storageKey(bookKey), null) ?: return emptyList()
         return runCatching {

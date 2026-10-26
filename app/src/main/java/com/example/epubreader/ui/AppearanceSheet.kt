@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.epubreader.R
 import com.example.epubreader.reader.Palette
 import com.example.epubreader.reader.ReaderSettings
 import com.example.epubreader.reader.ReaderTheme
@@ -53,7 +55,7 @@ fun AppearanceSheet(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Giao diện & Cài đặt",
+            text = stringResource(R.string.appearance_title),
             modifier = Modifier.weight(1f),
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.Bold,
@@ -92,7 +94,7 @@ fun AppearanceSheet(
         GearGlyph()
         Spacer(modifier = Modifier.width(10.dp))
         Text(
-            text = "Tuỳ chỉnh",
+            text = stringResource(R.string.appearance_customize),
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.SemiBold,
             fontSize = 17.sp,

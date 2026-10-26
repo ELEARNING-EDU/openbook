@@ -1,15 +1,14 @@
 package com.example.epubreader.epub
 
 import com.example.epubreader.model.EpubException
+import com.example.epubreader.model.EpubProblem
 import com.example.epubreader.model.RawBook
 import com.example.epubreader.model.RawChapter
 import com.example.epubreader.model.TocEntry
-import java.io.BufferedInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileInputStream
 import java.net.URLDecoder
-import java.util.zip.ZipInputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 
 /**
  * Stage 1 of loading a book: pure ZIP + XML work, safe to run off the main thread.
@@ -22,22 +21,45 @@ object EpubArchive {
     data class Metadata(val title: String, val author: String)
 
     private const val CONTAINER = "META-INF/container.xml"
+    private const val ENCRYPTION = "META-INF/encryption.xml"
 
     // ---------------------------------------------------------------- metadata
 
-    /** Reads only `container.xml` and the OPF, so listing a library stays cheap. */
+    /**
+     * The whole import check, without decompressing the book: container, package,
+     * spine, a chapter that actually exists, and no text resource encrypted.
+     *
+     * Listing a library calls this per file, so it reads only `container.xml`, the OPF
+     * and `encryption.xml`, and asks the central directory whether a chapter is there.
+     */
     fun readMetadata(file: File): Metadata {
-        val container = findEntry(file) { it == CONTAINER }?.second
-            ?: throw EpubException("Thiếu META-INF/container.xml — tệp không phải EPUB hợp lệ.")
-        val opfPath = containerPath(container)
-            ?: throw EpubException("container.xml không chỉ tới tệp .opf nào.")
-        val opf = findEntry(file) { it == opfPath || it.equals(opfPath, ignoreCase = true) }?.second
-            ?: throw EpubException("Không tìm thấy tệp gói (.opf): $opfPath")
-        val pkg = parsePackage(opf, opfPath)
-        return Metadata(
-            title = pkg.title.ifBlank { file.nameWithoutExtension },
-            author = pkg.author.ifBlank { "Không rõ tác giả" },
-        )
+        val archive = open(file)
+        archive.use { zip ->
+            val container = zip.bytes(CONTAINER) ?: throw EpubException(EpubProblem.NO_CONTAINER)
+            val opfPath = containerPath(container) ?: throw EpubException(EpubProblem.NO_OPF)
+            val opf = zip.bytes(opfPath)
+                ?: throw EpubException(EpubProblem.NO_OPF, "package not found: $opfPath")
+            val pkg = parsePackage(opf, opfPath)
+
+            if (zip.bytes(ENCRYPTION)?.let { isDrmProtected(it) } == true) {
+                throw EpubException(EpubProblem.DRM)
+            }
+            if (pkg.spine.isEmpty() || pkg.manifest.isEmpty()) {
+                throw EpubException(EpubProblem.EMPTY_SPINE)
+            }
+            val readable = pkg.spine
+                .asSequence()
+                .mapNotNull { pkg.manifest[it] }
+                .filter { it.isHtml }
+                .map { resolve(it.href, pkg.opfDir) }
+                .any { zip.find(it) != null }
+            if (!readable) throw EpubException(EpubProblem.EMPTY_SPINE)
+
+            return Metadata(
+                title = pkg.title.ifBlank { file.nameWithoutExtension },
+                author = pkg.author.ifBlank { "" },
+            )
+        }
     }
 
     // ------------------------------------------------------------------- book
@@ -45,14 +67,17 @@ object EpubArchive {
     fun read(file: File): RawBook {
         val entries = ZipExtract.readAll(file)
 
-        val container = entries[CONTAINER]
-            ?: entries.entries.firstOrNull { it.key.equals(CONTAINER, ignoreCase = true) }?.value
-            ?: throw EpubException("Thiếu META-INF/container.xml — tệp không phải EPUB hợp lệ.")
-        val opfPath = containerPath(container)
-            ?: throw EpubException("container.xml không chỉ tới tệp .opf nào.")
-        val opfBytes = entries[ZipExtract.normalise(opfPath)]
-            ?: entries.entries.firstOrNull { it.key.equals(opfPath, ignoreCase = true) }?.value
-            ?: throw EpubException("Không tìm thấy tệp gói (.opf): $opfPath")
+        val container = ZipExtract.find(entries, CONTAINER)
+            ?: throw EpubException(EpubProblem.NO_CONTAINER)
+        val opfPath = containerPath(container) ?: throw EpubException(EpubProblem.NO_OPF)
+        val opfBytes = ZipExtract.find(entries, opfPath)
+            ?: throw EpubException(EpubProblem.NO_OPF, "package not found: $opfPath")
+
+        // A book whose chapters are ciphertext is refused here, before a chapter is
+        // read: the reader must never be handed the encrypted bytes as if they were text.
+        if (ZipExtract.find(entries, ENCRYPTION)?.let { isDrmProtected(it) } == true) {
+            throw EpubException(EpubProblem.DRM)
+        }
 
         val pkg = parsePackage(opfBytes, opfPath)
 
@@ -61,22 +86,27 @@ object EpubArchive {
         val navHref = pkg.navHref
         if (navHref != null) {
             val navPath = resolve(navHref, pkg.opfDir)
-            entries[navPath]?.let { labels = navLabels(it, navPath) }
+            ZipExtract.find(entries, navPath)?.let { labels = navLabels(it, navPath) }
         }
         if (labels.isEmpty()) {
             val ncxPath = pkg.ncxHref?.let { resolve(it, pkg.opfDir) }
-            if (ncxPath != null) entries[ncxPath]?.let { labels = ncxLabels(it, ncxPath) }
+            if (ncxPath != null) {
+                ZipExtract.find(entries, ncxPath)?.let { labels = ncxLabels(it, ncxPath) }
+            }
         }
 
         val chapters = ArrayList<RawChapter>()
         val paths = ArrayList<String>()
+        val missing = ArrayList<String>()
         for (idref in pkg.spine) {
             val item = pkg.manifest[idref] ?: continue
             if (!item.isHtml) continue
             val path = resolve(item.href, pkg.opfDir)
-            val bytes = entries[path]
-                ?: entries.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value
-                ?: continue
+            val bytes = ZipExtract.find(entries, path)
+            if (bytes == null) {
+                missing += path
+                continue
+            }
             val html = decodeText(bytes)
             chapters += RawChapter(
                 title = labels[path].orEmpty(),
@@ -86,7 +116,14 @@ object EpubArchive {
             )
             paths += path
         }
-        if (chapters.isEmpty()) throw EpubException("Sách không có chương nào trong spine.")
+        if (missing.isNotEmpty()) {
+            // Loud, but not fatal: one absent href must not take the other chapters down.
+            System.err.println(
+                "epub: ${file.name}: ${missing.size} chapter(s) missing from archive, " +
+                    "kept ${chapters.size}: ${missing.joinToString(", ")}",
+            )
+        }
+        if (chapters.isEmpty()) throw EpubException(EpubProblem.EMPTY_SPINE)
 
         // A chapter the nav did not cover still needs a header label.
         for (i in chapters.indices) {
@@ -113,10 +150,63 @@ object EpubArchive {
 
         return RawBook(
             title = pkg.title.ifBlank { file.nameWithoutExtension },
-            author = pkg.author.ifBlank { "Không rõ tác giả" },
+            author = pkg.author.ifBlank { "" },
             chapters = chapters,
             toc = toc,
+            language = pkg.language,
         )
+    }
+
+    // ----------------------------------------------------------------- archive
+
+    /** Central-directory view: names normalised to NFC, lookup ignoring case. */
+    private class Archive(val zip: ZipFile) : AutoCloseable {
+        private val names: Map<String, ZipEntry> = buildMap {
+            for (entry in zip.entries()) {
+                if (entry.isDirectory) continue
+                val name = ZipExtract.normalise(entry.name)
+                if (name.isNotEmpty()) putIfAbsent(name, entry)
+            }
+        }
+
+        fun find(path: String): ZipEntry? {
+            val wanted = ZipExtract.normalise(path)
+            names[wanted]?.let { return it }
+            return names.entries.firstOrNull { it.key.equals(wanted, ignoreCase = true) }?.value
+        }
+
+        fun bytes(path: String): ByteArray? =
+            find(path)?.let { entry -> zip.getInputStream(entry).use { it.readBytes() } }
+
+        override fun close() = zip.close()
+    }
+
+    private fun open(file: File): Archive = try {
+        Archive(ZipFile(file))
+    } catch (t: Throwable) {
+        throw EpubException(EpubProblem.NOT_ZIP)
+    }
+
+    /** True when `encryption.xml` names an HTML/XHTML resource, not just a font. */
+    private fun isDrmProtected(bytes: ByteArray): Boolean {
+        val uris = ArrayList<String>()
+        val document = Xml.parse(bytes)
+        if (document != null) {
+            for (reference in Xml.descendants(document, "CipherReference")) {
+                Xml.attr(reference, "URI")?.let { uris += it }
+            }
+        }
+        if (uris.isEmpty()) {
+            Regex("(?is)CipherReference[^>]*\\bURI\\s*=\\s*[\"']([^\"']+)[\"']")
+                .findAll(String(bytes, Charsets.UTF_8))
+                .forEach { uris += it.groupValues[1] }
+        }
+        return uris.any { uri ->
+            val path = runCatching { URLDecoder.decode(uri.substringBefore('#'), "UTF-8") }
+                .getOrDefault(uri.substringBefore('#'))
+                .lowercase()
+            path.endsWith(".xhtml") || path.endsWith(".html") || path.endsWith(".htm")
+        }
     }
 
     // --------------------------------------------------------------- package
@@ -139,6 +229,7 @@ object EpubArchive {
     private class Package {
         var title = ""
         var author = ""
+        var language = ""
         var opfDir = ""
         var navHref: String? = null
         var ncxHref: String? = null
@@ -157,6 +248,8 @@ object EpubArchive {
             pkg.title = Regex("(?is)<dc:title[^>]*>(.*?)</dc:title>").find(text)
                 ?.groupValues?.get(1)?.let { stripTags(it) }.orEmpty()
             pkg.author = Regex("(?is)<dc:creator[^>]*>(.*?)</dc:creator>").find(text)
+                ?.groupValues?.get(1)?.let { stripTags(it) }.orEmpty()
+            pkg.language = Regex("(?is)<dc:language[^>]*>(.*?)</dc:language>").find(text)
                 ?.groupValues?.get(1)?.let { stripTags(it) }.orEmpty()
             Regex("(?is)<item\\b([^>]*)>").findAll(text).forEach { match ->
                 val attrs = match.groupValues[1]
@@ -185,6 +278,10 @@ object EpubArchive {
             .firstOrNull { it.isNotBlank() }
             .orEmpty()
         pkg.author = Xml.descendants(document, "creator")
+            .map { stripTags(Xml.text(it)) }
+            .firstOrNull { it.isNotBlank() }
+            .orEmpty()
+        pkg.language = Xml.descendants(document, "language")
             .map { stripTags(Xml.text(it)) }
             .firstOrNull { it.isNotBlank() }
             .orEmpty()
@@ -254,9 +351,7 @@ object EpubArchive {
         for (reference in references) {
             if (reference.src.isBlank() || out.containsKey(reference.src)) continue
             val path = resolve(reference.src, directory)
-            val bytes = entries[path]
-                ?: entries.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value
-                ?: continue
+            val bytes = ZipExtract.find(entries, path) ?: continue
             out[reference.src] = bytes
         }
         return out
@@ -376,7 +471,16 @@ object EpubArchive {
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
+        .replace("&apos;", "'")
         .replace("&#39;", "'")
+        .replace(Regex("&#x([0-9a-fA-F]{1,6});")) { entity ->
+            runCatching { String(Character.toChars(entity.groupValues[1].toInt(16))) }
+                .getOrDefault(entity.value)
+        }
+        .replace(Regex("&#([0-9]{1,7});")) { entity ->
+            runCatching { String(Character.toChars(entity.groupValues[1].toInt())) }
+                .getOrDefault(entity.value)
+        }
         .replace(Regex("\\s+"), " ")
         .trim()
 
@@ -417,27 +521,4 @@ object EpubArchive {
         return String(bytes, charset)
     }
 
-    private fun findEntry(file: File, wanted: (String) -> Boolean): Pair<String, ByteArray>? {
-        FileInputStream(file).use { raw ->
-            BufferedInputStream(raw).use { buffered ->
-                ZipInputStream(buffered).use { zip ->
-                    while (true) {
-                        val entry = zip.nextEntry ?: break
-                        if (entry.isDirectory) continue
-                        val name = ZipExtract.normalise(entry.name)
-                        if (!wanted(name)) continue
-                        val out = ByteArrayOutputStream(8192)
-                        val buffer = ByteArray(16 * 1024)
-                        while (true) {
-                            val read = zip.read(buffer)
-                            if (read <= 0) break
-                            out.write(buffer, 0, read)
-                        }
-                        return name to out.toByteArray()
-                    }
-                }
-            }
-        }
-        return null
-    }
 }

@@ -1,29 +1,52 @@
 package com.example.epubreader.ui
 
-import android.net.Uri
+import android.app.Activity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import com.example.epubreader.library.LibraryStore
-import com.example.epubreader.model.BookItem
-import com.example.epubreader.reader.ReaderSettings
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.epubreader.R
+import com.example.epubreader.library.ReadingLogStore
 import com.example.epubreader.reader.ReaderTheme
-import com.example.epubreader.reader.ReadingPositions
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.example.epubreader.settings.AppLanguage
+import com.example.epubreader.ui.MainTab
 
 @Composable
 fun EpubReaderApp(
@@ -31,113 +54,256 @@ fun EpubReaderApp(
     demo: DemoOptions = DemoOptions.None,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val store = remember { LibraryStore(context) }
+    val app = viewModel<AppViewModel>()
+    val state by app.state.collectAsStateWithLifecycle()
+    val contextActivity = context as? Activity
 
-    // One appearance for the whole app: the reader's moon repaints the library too,
-    // because the palette every screen reads lives here.
-    val settings = remember { ReaderSettings(context) }
-
-    // One book of places for the whole app: the reader writes it, the shelf reads it.
-    val positions = remember { ReadingPositions(context) }
-
-    var books by remember { mutableStateOf<List<BookItem>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var opened by remember { mutableStateOf<BookItem?>(null) }
-    /** Home's "carry on" card: the last book opened in this process, if any. */
-    var lastOpenedId by remember { mutableStateOf<String?>(null) }
-    /** Which tab the shelf was left on; the reader covers it and comes back to it. */
-    var tab by remember { mutableStateOf(MainTab.HOME) }
-    var importError by remember { mutableStateOf<String?>(null) }
-    var progress by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
-
-    // The shelf's bars are re-read whenever the reader is closed, so the page the reader
-    // has just been on is on the shelf by the time they see it.
-    LaunchedEffect(opened) {
-        if (opened == null) progress = withContext(Dispatchers.IO) { positions.all() }
-    }
-
-    // The harness's staged states are spent once per launch. The reader screen is built
-    // afresh every time a book is opened, so a flag kept there would replay the whole
-    // staging — including starting the voice — on the reader's next visit.
-    var demoPending by remember { mutableStateOf(demo.isActive) }
-
-    LaunchedEffect(Unit) {
-        val loaded = withContext(Dispatchers.IO) {
-            store.ensureSeeded()
-            store.books()
-        }
-        books = loaded
-        loading = false
-    }
-
-    // Automation hook, mirroring the iOS demo build: open the first book at launch.
-    // Guarded, so importing a book later does not yank the shelf away.
+    // The harness opens the first book once; importing a book later must not yank the
+    // shelf away.
     var autoOpenApplied by remember { mutableStateOf(false) }
-    LaunchedEffect(books, autoOpenFirstBook) {
-        if (autoOpenFirstBook && !autoOpenApplied && books.isNotEmpty()) {
+    LaunchedEffect(state.books, autoOpenFirstBook) {
+        if (autoOpenFirstBook && !autoOpenApplied && state.books.isNotEmpty()) {
             autoOpenApplied = true
-            opened = books.first()
+            app.open(state.books.first())
         }
     }
 
-    val onPicked: (Uri?) -> Unit = { uri ->
-        if (uri != null) {
-            scope.launch {
-                val result = withContext(Dispatchers.IO) { runCatching { store.import(uri) } }
-                if (result.isSuccess) {
-                    books = withContext(Dispatchers.IO) { store.books() }
-                } else {
-                    importError = result.exceptionOrNull()?.message ?: "Không nhập được sách."
-                }
-            }
+    // The demo's staged states are one shot per launch.
+    val demoPending = demo.isActive && state.demoPending
+    LaunchedEffect(demo.isActive) {
+        if (demo.isActive && !state.demoPending) app.useDemo()
+    }
+
+    val systemDark = isSystemInDarkTheme()
+    val darkSurface = if (state.opened != null) ReaderTheme.isDark else systemDark
+    val view = LocalView.current
+    SideEffect {
+        val window = contextActivity?.window ?: return@SideEffect
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !darkSurface
+            isAppearanceLightNavigationBars = !darkSurface
         }
     }
+
+    var showAppSettings by remember { mutableStateOf(false) }
+    val colors = shellColors()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ReaderTheme.Paper),
+            .background(colors.paper),
     ) {
-        val book = opened
+        val book = state.opened
         if (book == null) {
             MainScreen(
-                books = books,
-                progress = progress,
-                loading = loading,
-                lastOpenedId = lastOpenedId,
-                tab = tab,
-                onTab = { tab = it },
-                onPick = onPicked,
-                onOpen = { picked ->
-                    lastOpenedId = picked.id
-                    opened = picked
-                },
+                books = state.books,
+                progress = state.progress,
+                reading = state.reading,
+                loading = state.loading,
+                tab = state.tab,
+                onTab = app::selectTab,
+                onPick = { uri -> uri?.let(app::import) },
+                onOpen = app::open,
+                onAppSettings = { showAppSettings = true },
+                onMarkFinished = app::markFinished,
+                summary = state.summary,
+                week = state.week,
+                onEditBook = app::updateMetadata,
+                onDeleteBooks = app::deleteBooks,
             )
         } else {
             ReaderScreen(
                 book = book,
-                settings = settings,
-                positions = positions,
-                onBack = { opened = null },
+                onBack = app::closeBook,
                 demo = demo,
                 demoPending = demoPending,
-                onDemoUsed = { demoPending = false },
+                onDemoUsed = app::useDemo,
             )
         }
     }
 
-    importError?.let { message ->
+    val failedImport = state.importError
+    if (failedImport != null) {
         AlertDialog(
-            onDismissRequest = { importError = null },
+            onDismissRequest = app::dismissImportError,
             confirmButton = {
-                TextButton(onClick = { importError = null }) { Text("OK") }
+                TextButton(onClick = app::dismissImportError) {
+                    Text(stringResource(R.string.action_ok))
+                }
             },
-            title = { Text("Không nhập được sách") },
-            text = { Text(message) },
-            containerColor = ReaderTheme.Paper,
-            titleContentColor = ReaderTheme.Ink,
-            textContentColor = ReaderTheme.InkSoft,
+            title = {
+                Text(
+                    text = stringResource(R.string.import_failed_title),
+                    fontFamily = FontFamily.Serif,
+                )
+            },
+            text = {
+                Text(
+                    text = (failedImport as? com.example.epubreader.model.EpubException)
+                        ?.let { epubProblemText(it.problem) }
+                        ?: stringResource(R.string.import_failed_body),
+                    fontFamily = FontFamily.Serif,
+                )
+            },
+            containerColor = colors.raised,
+            titleContentColor = colors.ink,
+            textContentColor = colors.inkSoft,
         )
     }
+
+    if (state.deleteFailure > 0) {
+        AlertDialog(
+            onDismissRequest = app::dismissDeleteFailure,
+            confirmButton = {
+                TextButton(onClick = app::dismissDeleteFailure) {
+                    Text(stringResource(R.string.action_ok))
+                }
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.delete_failed_title),
+                    fontFamily = FontFamily.Serif,
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.delete_failed_body, state.deleteFailure),
+                    fontFamily = FontFamily.Serif,
+                )
+            },
+            containerColor = colors.raised,
+            titleContentColor = colors.ink,
+            textContentColor = colors.inkSoft,
+        )
+    }
+
+    if (showAppSettings) {
+        AppSettingsDialog(
+            language = state.language,
+            goalMinutes = state.goalMinutes,
+            onDismiss = { showAppSettings = false },
+            onSelect = { next ->
+                app.setLanguage(next)
+                showAppSettings = false
+                // Resources are fixed at attach time; rebuild the activity, not the phone.
+                contextActivity?.recreate()
+            },
+            onGoal = app::setGoal,
+        )
+    }
+}
+
+/** App language and the daily reading goal: both belong to the reader, not the phone. */
+@Composable
+private fun AppSettingsDialog(
+    language: AppLanguage,
+    goalMinutes: Int,
+    onDismiss: () -> Unit,
+    onSelect: (AppLanguage) -> Unit,
+    onGoal: (Int) -> Unit,
+) {
+    val colors = shellColors()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.raised,
+        titleContentColor = colors.ink,
+        textContentColor = colors.inkSoft,
+        title = {
+            Text(
+                text = stringResource(R.string.app_settings),
+                fontFamily = FontFamily.Serif,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.app_language),
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    color = colors.inkSoft,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                for (option in AppLanguage.entries) {
+                    val selected = option == language
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(selected = selected, onClick = { onSelect(option) })
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = selected,
+                            onClick = null,
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = colors.accent,
+                                unselectedColor = colors.inkSoft,
+                            ),
+                        )
+                        Text(
+                            text = stringResource(
+                                when (option) {
+                                    AppLanguage.SYSTEM -> R.string.language_system
+                                    AppLanguage.VIETNAMESE -> R.string.language_vietnamese
+                                    AppLanguage.ENGLISH -> R.string.language_english
+                                },
+                            ),
+                            fontFamily = FontFamily.Serif,
+                            fontSize = 15.sp,
+                            color = colors.ink,
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = stringResource(R.string.settings_reading_goal),
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    color = colors.inkSoft,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    for (minutes in ReadingLogStore.GOAL_CHOICES) {
+                        val selected = minutes == goalMinutes
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    if (selected) colors.accent.copy(alpha = 0.16f)
+                                    else colors.raised,
+                                )
+                                .border(
+                                    1.dp,
+                                    if (selected) colors.accent else colors.hairline,
+                                    RoundedCornerShape(14.dp),
+                                )
+                                .clickable { onGoal(minutes) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.settings_reading_goal_minutes,
+                                    minutes,
+                                ),
+                                fontFamily = FontFamily.Serif,
+                                fontSize = 13.sp,
+                                color = if (selected) colors.accent else colors.ink,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close))
+            }
+        },
+    )
 }

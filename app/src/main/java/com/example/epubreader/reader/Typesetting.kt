@@ -82,7 +82,13 @@ object Typesetting {
                     android.text.Layout.JUSTIFICATION_MODE_NONE
                 },
             )
-            .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY)
+            .setBreakStrategy(
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY
+                } else {
+                    android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY
+                },
+            )
             .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NORMAL)
             .build()
 

@@ -39,6 +39,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.example.epubreader.R
 import com.example.epubreader.reader.ReaderEngine
 import com.example.epubreader.reader.ReaderTheme
 import kotlinx.coroutines.Dispatchers
@@ -96,7 +99,7 @@ fun SearchSheet(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Tìm trong sách",
+                text = stringResource(R.string.search_title),
                 modifier = Modifier.weight(1f),
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
@@ -104,7 +107,7 @@ fun SearchSheet(
                 color = ink,
             )
             Text(
-                text = "Xong",
+                text = stringResource(R.string.action_done),
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
                     .clickable(onClick = onClose)
@@ -131,7 +134,7 @@ fun SearchSheet(
             Box(modifier = Modifier.weight(1f).padding(vertical = 12.dp)) {
                 if (query.isEmpty()) {
                     Text(
-                        text = "Tìm trong sách",
+                        text = stringResource(R.string.search_placeholder),
                         fontFamily = FontFamily.Serif,
                         fontSize = 15.sp,
                         color = inkSoft.copy(alpha = 0.7f),
@@ -167,14 +170,14 @@ fun SearchSheet(
         }
 
         when {
-            query.trim().length < 2 -> Hint("Nhập ít nhất hai chữ để tìm trong sách.")
-            hits.isEmpty() -> Hint("Không tìm thấy “${query.trim()}”.")
+            query.trim().length < 2 -> Hint(stringResource(R.string.search_min_chars))
+            hits.isEmpty() -> Hint(stringResource(R.string.search_no_hits, query.trim()))
             else -> {
                 // Kept although iOS has no such line: a count is the one thing a sheet
                 // over the page can say that a result list cannot — how much of the book
                 // the phrase covers, before scrolling it.
                 Text(
-                    text = "${hits.size} chỗ",
+                    text = pluralStringResource(R.plurals.search_hits, hits.size, hits.size),
                     modifier = Modifier.padding(start = 22.dp, top = 4.dp, bottom = 6.dp),
                     fontFamily = FontFamily.Serif,
                     fontSize = 12.sp,
@@ -201,7 +204,7 @@ fun SearchSheet(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = "tr. ${hit.pageIndex + 1}",
+                                    text = stringResource(R.string.page_short, hit.pageIndex + 1),
                                     fontFamily = FontFamily.Serif,
                                     fontSize = 11.sp,
                                     color = inkSoft,

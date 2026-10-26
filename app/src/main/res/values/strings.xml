@@ -1,4 +1,220 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Sách</string>
+
+    <!-- Shell: tabs and the app-level screens -->
+    <string name="tab_home">Home</string>
+    <string name="tab_library">Library</string>
+    <string name="tab_store">Store</string>
+
+    <string name="home_title">Home</string>
+    <string name="library_title">Library</string>
+    <string name="home_stats_achievements">ACHIEVEMENTS</string>
+    <string name="home_stats_today">%1$d min today</string>
+    <string name="home_stats_goal_done">Goal %1$d min · reached</string>
+    <string name="home_stats_goal_left">%1$d min to go</string>
+    <string name="home_stats_span">Week %1$s · Month %2$s · Year %3$s</string>
+    <string name="home_stats_streak">Streak %1$d days</string>
+    <string name="home_stats_no_streak">No streak yet</string>
+    <string name="home_stats_a11y">Today %1$d minutes, goal %2$d minutes, %3$s. %4$s. %5$s</string>
+    <string name="home_stats_reached">reached</string>
+    <string name="home_stats_left">%1$d minutes to go</string>
+    <string name="home_new_title">NEWLY ADDED</string>
+    <string name="home_suggestions_title">SUGGESTED FOR YOU</string>
+    <string name="home_suggestions_reason">Same author</string>
+    <string name="home_finished_title">RECENTLY FINISHED</string>
+    <string name="home_added_month">Added %1$s</string>
+    <string name="home_finished_month">Finished %1$s</string>
+    <string-array name="home_weekdays">
+        <item>Mo</item>
+        <item>Tu</item>
+        <item>We</item>
+        <item>Th</item>
+        <item>Fr</item>
+        <item>Sa</item>
+        <item>Su</item>
+    </string-array>
+    <string name="home_weekly_title">THIS WEEK</string>
+    <string name="home_weekly_a11y">%1$s, %2$d minutes</string>
+    <string name="home_book_a11y">%1$s, %2$s</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="duration_hours">%1$d hr</string>
+    <string name="duration_hours_minutes">%1$d hr %2$d min</string>
+    <string name="library_mark_finished">Mark as finished</string>
+    <string name="library_unmark_finished">Remove finished mark</string>
+    <string name="library_finished">Finished</string>
+    <string name="settings_reading_goal">Daily reading goal</string>
+    <string name="settings_reading_goal_minutes">%1$d min</string>
+    <string name="home_reading_now">READING NOW</string>
+    <string name="home_nothing_in_progress_title">Nothing in progress</string>
+    <string name="home_nothing_in_progress_body">Open a book from your library and it will wait for you here.</string>
+    <string name="home_empty_title">No books yet</string>
+    <string name="home_empty_body">Import an EPUB to start reading.</string>
+    <string name="open_library">Open library</string>
+    <string name="browse_library">Browse the library</string>
+    <string name="loading_library">Loading library…</string>
+    <string name="import_epub">Import EPUB</string>
+    <string name="continue_reading">Read on</string>
+    <string name="read_percent">Read %1$d%%</string>
+    <string name="percent_read">%1$d%%</string>
+    <string name="page_of_pages">Page %1$d / %2$d</string>
+    <string name="unknown_author">Unknown author</string>
+
+    <string name="store_demo_badge">DEMO</string>
+    <string name="store_demo_title">Store not connected</string>
+    <string name="store_demo_body">This build has no network, so there is nothing to download yet. EPUB files already on your device can still be imported into the library.</string>
+
+    <string name="app_settings">App settings</string>
+    <string name="app_language">Language</string>
+    <string name="language_system">System</string>
+    <string name="language_vietnamese">Vietnamese</string>
+    <string name="language_english">English</string>
+
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_save">Save</string>
+    <string name="action_close">Close</string>
+    <string name="action_done">Done</string>
+    <string name="action_ok">OK</string>
+    <string name="action_more">More actions</string>
+    <string name="action_select">Select</string>
+
+    <string name="import_failed_title">Could not import book</string>
+    <string name="import_failed_body">The selected file could not be read as an EPUB.</string>
+    <string name="import_failed_open">Could not open the selected file.</string>
+    <string name="import_failed_invalid">The file is not a valid EPUB.</string>
+
+    <!-- Why a file will not open: one line per EpubProblem, never a shared fallback. -->
+    <string name="epub_error_not_zip">This file is not a valid EPUB, or it is damaged.</string>
+    <string name="epub_error_no_container">META-INF/container.xml is missing — this is not a valid EPUB.</string>
+    <string name="epub_error_no_opf">The book\'s package file (.opf) is missing.</string>
+    <string name="epub_error_empty_spine">This book has no readable chapters.</string>
+    <string name="epub_error_drm">This book is protected by DRM, so it cannot be read here. Remove the DRM or open it in the app that sold it.</string>
+
+    <!-- Library -->
+    <string name="library_view_grid">Grid</string>
+    <string name="library_view_list">List</string>
+    <string name="library_sort">Sort</string>
+    <string name="sort_recent">Recently imported</string>
+    <string name="sort_title">Title</string>
+    <string name="sort_author">Author</string>
+    <string name="library_empty_title">No books yet</string>
+    <string name="library_empty_body">Use the + button at the top to import an EPUB.</string>
+    <string name="library_menu">Book actions</string>
+    <string name="library_options">Shelf options</string>
+    <string name="edit_book_title">Edit book</string>
+    <string name="field_title">Title</string>
+    <string name="field_author">Author</string>
+    <string name="delete_book_title">Delete this book?</string>
+    <string name="delete_confirm_body">This removes the app\'s copy. The original file on your device is not touched.</string>
+    <string name="delete_failed_title">Some books were not deleted</string>
+    <string name="delete_failed_body">%1$d book(s) could not be removed. The rest of your library is unchanged.</string>
+    <string name="selection_cancel">Cancel</string>
+
+    <plurals name="selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+
+    <plurals name="delete_books_title">
+        <item quantity="one">Delete %d book?</item>
+        <item quantity="other">Delete %d books?</item>
+    </plurals>
+
+    <!-- Reader chrome and dialogs -->
+    <string name="reader_opening">Opening book…</string>
+    <string name="reader_open_failed_title">Could not open book</string>
+    <string name="reader_open_failed_body">This EPUB could not be read on this device.</string>
+    <string name="reader_back">Back</string>
+    <string name="reader_contents">Contents</string>
+    <string name="reader_search">Search in book</string>
+    <string name="reader_bookmark_add">Bookmark this page</string>
+    <string name="reader_bookmark_remove">Remove bookmark</string>
+    <string name="reader_settings">Reading settings</string>
+    <string name="reader_read_aloud">Read aloud from this page</string>
+    <string name="reader_player">Reading controls</string>
+    <string name="reader_previous_page">Previous page</string>
+    <string name="reader_next_page">Next page</string>
+    <string name="toc_tab">Contents</string>
+    <string name="marks_tab">Bookmarks (%1$d)</string>
+    <string name="toc_empty">This book has no table of contents.</string>
+    <string name="marks_empty">No bookmarks yet. The bookmark button in the top bar keeps the page you are on.</string>
+    <string name="page_short">p. %1$d</string>
+    <string name="speech_timer_done">Sleep timer finished — reading stopped</string>
+    <string name="speech_no_sentences">There is nothing to read on this page</string>
+    <string name="speech_no_sentence_at_tap">No sentence was found where you tapped</string>
+
+    <string name="appearance_title">Appearance &amp; settings</string>
+    <string name="appearance_customize">Customize</string>
+    <string name="customize_title">Customize appearance</string>
+    <string name="customize_text_section">Text</string>
+    <string name="customize_font">Font</string>
+    <string name="customize_bold">Bold</string>
+    <string name="customize_section">Customize</string>
+    <string name="customize_columns">Columns</string>
+    <string name="customize_justify">Justify</string>
+    <string name="customize_reset">Reset appearance</string>
+    <string name="customize_columns_auto">Auto</string>
+    <string name="customize_preview">Reading preview</string>
+    <string name="customize_font_list">Fonts</string>
+
+    <string name="search_title">Search in book</string>
+    <string name="search_placeholder">Search in book</string>
+    <string name="search_min_chars">Type at least two characters to search the book.</string>
+    <string name="search_no_hits">No results for “%1$s”.</string>
+
+    <plurals name="search_hits">
+        <item quantity="one">%d result</item>
+        <item quantity="other">%d results</item>
+    </plurals>
+
+    <string name="player_slower">Slower</string>
+    <string name="player_faster">Faster</string>
+    <string name="player_sleep">Sleep timer</string>
+    <string name="player_voice">Voice</string>
+    <string name="sleep_off">Off</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="faster">Faster</string>
+    <string name="slower">Slower</string>
+    <string name="stop_reading">Stop reading</string>
+
+    <plurals name="minutes">
+        <item quantity="one">%d min</item>
+        <item quantity="other">%d min</item>
+    </plurals>
+
+    <string name="player_open">Open player</string>
+    <string name="player_speed">Reading speed</string>
+    <string name="player_previous_chapter">Previous chapter</string>
+    <string name="player_next_chapter">Next chapter</string>
+    <string name="player_voice_line">Voice: %1$s</string>
+    <string name="voice_default_name">System default</string>
+    <string name="voice_search">Search voices</string>
+    <string name="voice_no_match">No voices match.</string>
+    <string name="voice_none">This device has no voices installed.</string>
+    <string name="voice_use">Use</string>
+    <string name="voice_more">Get more voices</string>
+    <string name="voice_more_hint">Opens the system text-to-speech settings.</string>
+    <string name="voice_preview_sample">Hello, this is how I read your book.</string>
+    <string name="voice_quality_very_low">Very low</string>
+    <string name="voice_quality_low">Low</string>
+    <string name="voice_quality_medium">Medium</string>
+    <string name="voice_quality_high">High</string>
+    <string name="voice_quality_very_high">Very high</string>
+
+    <plurals name="voice_count_for_book">
+        <item quantity="one">%d voice for this book</item>
+        <item quantity="other">%d voices for this book</item>
+    </plurals>
+
+    <!-- Speech engine status -->
+    <string name="speech_init_failed">TextToSpeech could not start (code %1$d)</string>
+    <string name="speech_no_voice_for_language">No voice data for %1$s (code %2$d) — using the default voice</string>
+    <string name="speech_initialising">Starting TextToSpeech…</string>
+    <string name="speech_voice_failed">Could not select that voice (code %1$d)</string>
+    <string name="speech_sentence_rejected">The engine rejected sentence %1$d</string>
+    <string name="speech_sentence_error">Engine error at sentence %1$d (code %2$d)</string>
+    <string name="speech_silent_fallback">The engine is silent — highlighting continues without audio</string>
 </resources>

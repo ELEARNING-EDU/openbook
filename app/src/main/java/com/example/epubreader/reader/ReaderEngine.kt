@@ -116,6 +116,16 @@ class ReaderEngine private constructor(
     val chapterCount: Int
         get() = book.chapters.size
 
+    /**
+     * The language the book is read in: `dc:language` when the OPF carries one, a guess
+     * from the first chapter otherwise. The voice picker offers voices for this language.
+     */
+    val bookLanguage: Locale = VoiceCatalog.resolveLanguage(
+        declared = book.language,
+        sample = chapterText.firstOrNull { it.isNotBlank() }?.take(4000)?.toString().orEmpty(),
+        fallback = Locale.getDefault(),
+    )
+
     /** The width of one column, which is the layout's own width in either mode. */
     private val columnWidth: Float = metrics.columnWidth(spec.columnCount)
 
@@ -174,6 +184,10 @@ class ReaderEngine private constructor(
 
     /** The chapter [sentence] is spoken from, for the player's headline. */
     fun chapterOfSentence(sentence: Int): Int = chapterOfPage(sentencePage(sentence))
+
+    /** The chapter's first spoken sentence, or -1 when the chapter has no text. */
+    fun firstSentenceOfChapter(chapter: Int): Int =
+        sentenceChapter.indexOfFirst { it == chapter }
 
     /**
      * Characters of the book's text that precede each chapter, with the book's total as

@@ -1,5 +1,6 @@
 package com.example.epubreader.ui
 
+import android.animation.ValueAnimator
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,6 +28,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -47,8 +49,13 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -127,6 +134,7 @@ fun CircleButton(
     active: Boolean = false,
     enabled: Boolean = true,
     size: Dp = 44.dp,
+    contentDescription: String? = null,
     content: @Composable () -> Unit,
 ) {
     Box(
@@ -141,6 +149,10 @@ fun CircleButton(
                 CircleShape,
             )
             .alpha(if (enabled) 1f else 0.4f)
+            .semantics {
+                if (contentDescription != null) this.contentDescription = contentDescription
+                role = Role.Button
+            }
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
         content = { content() },
@@ -177,11 +189,16 @@ fun ButtonPair(
 fun PairButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    contentDescription: String? = null,
     content: @Composable () -> Unit,
 ) {
     Box(
         modifier = modifier
             .size(44.dp)
+            .semantics {
+                if (contentDescription != null) this.contentDescription = contentDescription
+                role = Role.Button
+            }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
         content = { content() },
@@ -213,12 +230,18 @@ fun PanelButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     width: Dp = 44.dp,
+    height: Dp = 44.dp,
+    description: String? = null,
     content: @Composable () -> Unit,
 ) {
     Box(
         modifier = modifier
             .width(width)
-            .height(44.dp)
+            .height(height)
+            .then(
+                if (description == null) Modifier
+                else Modifier.semantics { contentDescription = description },
+            )
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -491,6 +514,131 @@ fun SeekForwardGlyph(
     Canvas(modifier.size(glyphSize)) { seekRing(color, 1.7.dp.toPx(), forward = true) }
 }
 
+/**
+ * Material 3's `skip_previous`: an upright bar with a triangle pointing back at it.
+ * The player uses it for chapters, so it cannot look like the speed ring beside it.
+ */
+@Composable
+fun SkipPreviousGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+    glyphSize: Dp = GLYPH,
+) {
+    Canvas(modifier.size(glyphSize)) {
+        val bar = size.width * 0.12f
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(size.width * 0.14f, size.height * 0.12f),
+            size = Size(bar, size.height * 0.76f),
+            cornerRadius = CornerRadius(bar / 2f, bar / 2f),
+        )
+        val triangle = Path().apply {
+            moveTo(size.width * 0.88f, size.height * 0.10f)
+            lineTo(size.width * 0.88f, size.height * 0.90f)
+            lineTo(size.width * 0.32f, size.height * 0.50f)
+            close()
+        }
+        drawPath(triangle, color)
+    }
+}
+
+/** Material 3's `skip_next`: the same bar and triangle, facing forward. */
+@Composable
+fun SkipNextGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+    glyphSize: Dp = GLYPH,
+) {
+    Canvas(modifier.size(glyphSize)) {
+        val bar = size.width * 0.12f
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(size.width * 0.74f, size.height * 0.12f),
+            size = Size(bar, size.height * 0.76f),
+            cornerRadius = CornerRadius(bar / 2f, bar / 2f),
+        )
+        val triangle = Path().apply {
+            moveTo(size.width * 0.12f, size.height * 0.10f)
+            lineTo(size.width * 0.12f, size.height * 0.90f)
+            lineTo(size.width * 0.68f, size.height * 0.50f)
+            close()
+        }
+        drawPath(triangle, color)
+    }
+}
+
+/** A pencil, for "Edit": a slanted outline with a solid tip. */
+@Composable
+fun EditGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier.size(CIRCLE_GLYPH)) {
+        val stroke = 1.5.dp.toPx()
+        rotate(degrees = -45f) {
+            val bodyWidth = size.width * 0.24f
+            val bodyHeight = size.height * 0.62f
+            drawRoundRect(
+                color = color,
+                topLeft = Offset((size.width - bodyWidth) / 2f, size.height * 0.08f),
+                size = Size(bodyWidth, bodyHeight),
+                cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx()),
+                style = Stroke(width = stroke),
+            )
+            val tip = Path().apply {
+                val left = (size.width - bodyWidth) / 2f
+                val right = left + bodyWidth
+                moveTo(left, size.height * 0.70f)
+                lineTo(size.width / 2f, size.height * 0.92f)
+                lineTo(right, size.height * 0.70f)
+                close()
+            }
+            drawPath(tip, color)
+        }
+    }
+}
+
+/** A waste bin, for "Delete": a lid, a tapered body and two ribs. */
+@Composable
+fun TrashGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier.size(CIRCLE_GLYPH)) {
+        val stroke = 1.5.dp.toPx()
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.18f, size.height * 0.26f),
+            end = Offset(size.width * 0.82f, size.height * 0.26f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.40f, size.height * 0.16f),
+            end = Offset(size.width * 0.60f, size.height * 0.16f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+        val body = Path().apply {
+            moveTo(size.width * 0.26f, size.height * 0.30f)
+            lineTo(size.width * 0.32f, size.height * 0.86f)
+            lineTo(size.width * 0.68f, size.height * 0.86f)
+            lineTo(size.width * 0.74f, size.height * 0.30f)
+        }
+        drawPath(body, color, style = Stroke(width = stroke, cap = StrokeCap.Round))
+        for (x in listOf(0.43f, 0.57f)) {
+            drawLine(
+                color = color,
+                start = Offset(size.width * x, size.height * 0.40f),
+                end = Offset(size.width * x, size.height * 0.74f),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+}
+
 /** The sun: switch the whole app to its light face. */
 @Composable
 fun SunGlyph(
@@ -563,6 +711,65 @@ fun CheckGlyph(
             moveTo(size.width * 0.14f, size.height * 0.54f)
             lineTo(size.width * 0.40f, size.height * 0.80f)
             lineTo(size.width * 0.88f, size.height * 0.22f)
+        }
+        drawPath(path = path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round))
+    }
+}
+
+/** A clock face: "recently imported" in the shelf menu. */
+@Composable
+fun ClockGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier.size(CIRCLE_GLYPH)) {
+        val stroke = 1.6f.dp.toPx()
+        drawCircle(
+            color = color,
+            radius = size.minDimension / 2f - stroke / 2f,
+            style = Stroke(width = stroke),
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width / 2f, size.height * 0.28f),
+            end = Offset(size.width / 2f, size.height / 2f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width / 2f, size.height / 2f),
+            end = Offset(size.width * 0.68f, size.height * 0.62f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+/** Head and shoulders: "author" in the shelf menu. */
+@Composable
+fun PersonGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier.size(CIRCLE_GLYPH)) {
+        val stroke = 1.6f.dp.toPx()
+        drawCircle(
+            color = color,
+            radius = size.width * 0.18f,
+            center = Offset(size.width / 2f, size.height * 0.30f),
+            style = Stroke(width = stroke),
+        )
+        val path = Path().apply {
+            moveTo(size.width * 0.16f, size.height * 0.92f)
+            cubicTo(
+                size.width * 0.18f,
+                size.height * 0.58f,
+                size.width * 0.82f,
+                size.height * 0.58f,
+                size.width * 0.84f,
+                size.height * 0.92f,
+            )
         }
         drawPath(path = path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round))
     }
@@ -857,11 +1064,18 @@ fun VinylDisc(
 ) {
     var angle by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(spinning) {
-        if (!spinning) return@LaunchedEffect
+    // 30 degrees a second, measured, so a slow or busy frame never changes the speed.
+    // Pausing simply stops updating: the disc holds the exact angle it reached.
+    val motion = motionEnabled()
+    LaunchedEffect(spinning, motion) {
+        if (!spinning || !motion) return@LaunchedEffect
+        var last = withFrameNanos { it }
         while (true) {
-            delay(TICK_MS)
-            angle = (angle + 1f) % 360f
+            withFrameNanos { now ->
+                val seconds = (now - last) / 1_000_000_000f
+                last = now
+                angle = (angle + DISC_DEGREES_PER_SECOND * seconds) % 360f
+            }
         }
     }
 
@@ -949,6 +1163,7 @@ fun MarqueeText(
     var containerWidth by remember { mutableIntStateOf(0) }
     var offsetPx by remember { mutableFloatStateOf(0f) }
 
+    val motionOn = motionEnabled()
     val gapPx = with(density) { MARQUEE_GAP.toPx() }
     val stepPx = with(density) { (MARQUEE_SPEED / TICKS_PER_SECOND).dp.toPx() }
     val travels = containerWidth > 0 && textWidthPx > containerWidth
@@ -957,7 +1172,7 @@ fun MarqueeText(
         // Held at the start whenever it is not scrolling, so a stopped player
         // still shows which book and chapter it is on.
         offsetPx = 0f
-        if (!travels || !scrolling) return@LaunchedEffect
+        if (!travels || !scrolling || !motionOn) return@LaunchedEffect
         val span = textWidthPx + gapPx
         while (true) {
             delay(TICK_MS)
@@ -993,9 +1208,9 @@ private fun MarqueeRun(text: String, style: TextStyle) {
 }
 
 /**
- * The generated cover, in the shelf and in the audio player: the same gradient, the
- * same spine and the same two lines of print, so the book is one object wherever it
- * appears. The covers are drawn rather than stored, so the demo ships no image assets.
+ * The generated cover, in the shelf and in the audio player: the same gradient and the
+ * same spine, so the book is one object wherever it appears. The title and author live
+ * outside the cover — printing them twice made the cover fight the label beside it.
  */
 @Composable
 fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
@@ -1016,31 +1231,6 @@ fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
                 .width(5.dp)
                 .background(ComposeColor.Black.copy(alpha = 0.22f)),
         )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(14.dp),
-        ) {
-            Text(
-                text = book.title,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                lineHeight = 20.sp,
-                color = ComposeColor.White,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = book.author,
-                fontFamily = FontFamily.Serif,
-                fontSize = 11.sp,
-                color = ComposeColor.White.copy(alpha = 0.82f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -1100,8 +1290,7 @@ fun LibraryGlyph(
 fun StoreGlyph(
     color: ComposeColor = ReaderTheme.Ink,
     modifier: Modifier = Modifier,
-) {
-    Canvas(modifier.size(22.dp)) {
+) {    Canvas(modifier.size(22.dp)) {
         val stroke = 1.7f.dp.toPx()
         drawRoundRect(
             color = color,
@@ -1123,11 +1312,60 @@ fun StoreGlyph(
 }
 
 
+/** Four tiles: the shelf's grid layout. */
+@Composable
+fun GridGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+    glyphSize: Dp = 18.dp,
+) {
+    Canvas(modifier.size(glyphSize)) {
+        val stroke = 1.6.dp.toPx()
+        val cell = size.width * 0.40f
+        for (x in listOf(size.width * 0.06f, size.width * 0.54f)) {
+            for (y in listOf(size.height * 0.06f, size.height * 0.54f)) {
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(x, y),
+                    size = Size(cell, cell),
+                    cornerRadius = CornerRadius(2.dp.toPx()),
+                    style = Stroke(width = stroke),
+                )
+            }
+        }
+    }
+}
+
+/** Three dots: the row's own actions. */
+@Composable
+fun MoreGlyph(
+    color: ComposeColor = ReaderTheme.Ink,
+    modifier: Modifier = Modifier,
+    glyphSize: Dp = 18.dp,
+) {
+    Canvas(modifier.size(glyphSize)) {
+        val radius = size.width * 0.075f
+        for (ratio in listOf(0.20f, 0.50f, 0.80f)) {
+            drawCircle(color = color, radius = radius, center = Offset(size.width * ratio, size.height / 2f))
+        }
+    }
+}
+
 /** Matches the record's tick, so the marquee and the disc look like one system. */
 private const val TICK_MS = 33L
 private const val TICKS_PER_SECOND = 30f
 
 /** Points travelled per second. */
+/** The disc's real speed, from the spec: one turn every twelve seconds. */
+private const val DISC_DEGREES_PER_SECOND = 30f
+
+/**
+ * Animator duration scale 0 (Developer options / "remove animations") turns the disc and
+ * the marquee into stills; Compose's own transitions already follow the same setting.
+ */
+@Composable
+private fun motionEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
+
 private const val MARQUEE_SPEED = 26f
 
 /** Blank run between the end of the string and its repeat. */
