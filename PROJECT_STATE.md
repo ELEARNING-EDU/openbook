@@ -17,7 +17,7 @@ state" first, then the Part sections for the reasoning and the measurements behi
 | State / DI | Compose state + `SharedPreferences` + `filesDir/Books`; **Hilt** graph (`ReaderApplication`, `@AndroidEntryPoint MainActivity`); shell state in `AppViewModel` (`StateFlow<AppUiState>`); reader page/failure/saved place in `ReaderViewModel` (`StateFlow<ReaderUiState>`); stores in `ReaderStoresViewModel`; chrome/speech state still local; no Nav, no Room |
 | Tests | **110 JVM unit tests** (JUnit 4.13.2) in `app/src/test/java` — `Sentences`, `ReadingPosition`, `EpubArchive`, `ZipExtract`, `EpubCorpusTest` (32 real corpus files: compatibility, DRM, refusal), `HomeSections` (rows, suggestions, finished window), `ReadingLog` (day split, streak, week, codec), `LibraryIteration` (sorting, metadata codec, selection, file safety, Home shelf, language), `VoiceCatalog` (book language, voice filtering and order, grouping, search); `./gradlew :app:testDebugUnitTest` |
 | Sample book | `app/src/main/assets/sample.epub`, 9,720 bytes, seeded into `filesDir/Books` |
-| APK | debug `13,304,156 bytes` · sha256 `8eeb88c166ab447194a4aea38f5a508272006f50a653409b29e0a96a5ee70d81`; installed on `emulator-5558` |
+| APK | debug `13,304,150 bytes` · sha256 `541d5b8125365aa6a2f2a62a4d91f8bdea983e552ce056d404df8d02c36660aa`; installed on emulator `E2` (session 5558/5554) |
 | Device | AVD `Pixel_9_Pro_XL` · Android 16 / API 36 · 1344x2992 · density 480. It is shared with other work (CleanStorage, WordQuest) and gets its foreground stolen, so this pass also used a second AVD `OpenBookReview` (same image/config, fresh userdata, `emulator-5558`) |
 | Git | branch `android`, **4 commits**, **no remote**. `694069c` is the checkpoint with all app work; the working tree now only carries environment-removed skill files (`.agents/`, `.ai-toolkit/`, `.claude/`, `CLAUDE.md`) and the untracked 16 MB `docs/qa/` evidence folder, both deliberately left out of this commit |
 | Tasks | 104 IDs; T-095/T-096/T-097 (UI polish), T-098 (full-player parity), T-099 (mini/full player layout), T-100 (robustness/benchmark/player motion) T-101 (Home parity) T-102 (Hilt/DI) and T-103 (ViewModel/StateFlow + quality gates) and T-104 (reader ViewModel slice) verified; see `TASKS.md`; handoff in `SESSION_HANDOFF.md` |
@@ -1216,6 +1216,14 @@ Triggered by the skill audit (`android-development-toolkit`: catalog ✅, DI ❌
   (Kover shows 0% on `AppViewModel`); independent QA/review/test subagent runs: every configured
   free model returned **Free usage limit reached**, so the checks above are the primary agent's
   own and no paid fallback was used.
+
+### Tenth pass — 2026-10-27 (48dp player targets)
+
+- The owner chose a shorter headline over narrow buttons: `PLAYER_BUTTON_WIDTH` 32dp -> 48dp
+  (height was already 48dp), so every player control meets the 48dp touch target and the title
+  takes what is left (the marquee scrolls when it does not fit). Closes T-085.
+- Verified: 111/111 tests, `lintDebug` PASS, `assembleDebug` PASS. A device capture of the pill
+  was not possible on this AVD because its TTS finishes instantly and the pill closes first.
 
 ### Ninth pass — 2026-10-26 (reader ViewModel slice, P2b-a)
 

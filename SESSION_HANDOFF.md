@@ -418,6 +418,13 @@ below supersedes the older Part 12 details further down.
 8. **Cover side — settled** — the owner chose cover **left**, text **right** on 2026-10-25; built
    and verified on `emulator-5558`.
 
+## 48dp player targets (2026-10-27)
+
+- Owner decision: shorten the title. `PLAYER_BUTTON_WIDTH` = 48dp (height 48dp already), so the
+  mini-player controls meet the 48dp target; headline gives up the room and marquees when long.
+  T-085 closed. 111/111 tests, lint PASS, assemble PASS. Pill screenshot blocked by this AVD's
+  instant TTS (the pill closes before a capture).
+
 ## P2b-a (2026-10-26)
 
 - `ReaderViewModel` + `StateFlow<ReaderUiState>` now own `pageIndex`, `failure` and

@@ -1796,8 +1796,8 @@ private const val CHROME_FADE_MS = 250
 /** The pill's unfurl: 320 ms with enough damping to settle without overshooting. */
 private val PLAYER_SPRING = spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
 
-/** The player's frame: narrower than a toolbar button so the headline gets the room. */
-private val PLAYER_BUTTON_WIDTH = 32.dp
+/** The player's frame: the 48dp touch target the accessibility rules ask for. */
+private val PLAYER_BUTTON_WIDTH = 48.dp
 
 private val PLAYER_ROW_HEIGHT = 48.dp
 

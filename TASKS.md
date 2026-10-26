@@ -33,7 +33,7 @@ the verification that closed it in the same row. Status changes happen here.
 | T-077 | Re-verified after Part 11: dark-mode fold shading, three or more queued taps, harness search/marks/customizer/`lateCursor` paths, a committing harness fold, the fling arm | Pending | — | baseline `screenshots-part11/` |
 | T-078 | Decide whether a size change made inside the customizer marks the theme card with `*` (today only customizer edits do — T-052) | Blocked (owner) | — | open question since Part 10 |
 | T-079 | Confirm Part 9's "ẩn luôn cái nút back": the dimmed back at the voice's level (built) or no back button in the reader at all (not built) | Blocked (owner) | — | open since §71 |
-| T-085 | At 360dp wide, the reading bar's headline collapses to about 50dp ("Hải Đ" before the ellipsis) because the rate label and five 48dp controls take the row; give the title a workable share, or drop the rate label when narrow | Pending | — | Found while checking T-084 (`screenshots-player-sheet/15`). T-099 removed the `maxWidth >= 400.dp` gate, so the rate (and therefore this crowding) now applies at every width |
+| T-085 | The player's buttons were 32dp wide, under the 48dp touch target, and the headline at 360dp had too little room | Verified complete | — | The owner chose a shorter title: `PLAYER_BUTTON_WIDTH = 48.dp` (height already 48dp) gives every player button a 48dp target; the headline keeps what is left and the marquee scrolls it. Verified 2026-10-27: 111/111 tests, lint PASS, assemble PASS. Device capture of the pill was not possible on this AVD (its TTS finishes instantly, so the pill closes before a screenshot) |
 
 ## Closed (verified)
 
