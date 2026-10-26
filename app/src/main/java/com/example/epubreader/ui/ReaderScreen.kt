@@ -1797,7 +1797,7 @@ private const val CHROME_FADE_MS = 250
 private val PLAYER_SPRING = spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
 
 /** The player's frame: the 48dp touch target the accessibility rules ask for. */
-private val PLAYER_BUTTON_WIDTH = 48.dp
+private val PLAYER_BUTTON_WIDTH = 40.dp
 
 private val PLAYER_ROW_HEIGHT = 48.dp
 

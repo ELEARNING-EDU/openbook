@@ -233,11 +233,11 @@ fun LibraryScreen(
             books.isEmpty() -> EmptyLibrary(onImport = onImport)
             else -> when (view) {
                 LibraryView.GRID -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 118.dp),
+                    columns = GridCells.Adaptive(minSize = 86.dp),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 6.dp, bottom = 28.dp),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
                     items(ordered.size, key = { ordered[it].id }) { index ->
                         val book = ordered[index]
