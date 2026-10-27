@@ -111,7 +111,6 @@ class PlaybackService : Service() {
                 action(ACTION_TOGGLE),
             )
             .addAction(android.R.drawable.ic_media_next, getString(R.string.player_next_chapter), action(ACTION_NEXT))
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.stop_reading), action(ACTION_STOP))
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(session.sessionToken)

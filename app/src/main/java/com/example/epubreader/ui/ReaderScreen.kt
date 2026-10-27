@@ -327,22 +327,20 @@ fun ReaderScreen(
         }
     }
 
-    val speech = remember {
-        SpeechReader(context).apply {
-            onHighlight = { currentSentence = it }
-            onStateChanged = { state ->
-                Log.i(TAG, "speech state: $state")
-            }
-            onStatus = { note ->
-                speechNote = note
-                Log.i(TAG, "speech: $note")
-            }
-        }
-    }
+    // The engine is process-wide: leaving the reader (Back) must not silence the book.
+    val speech = remember { com.example.epubreader.reader.SpeechHolder.get(context) }
     DisposableEffect(speech) {
+        speech.onHighlight = { currentSentence = it }
+        speech.onStateChanged = { state -> Log.i(TAG, "speech state: $state") }
+        speech.onStatus = { note ->
+            speechNote = note
+            Log.i(TAG, "speech: $note")
+        }
         onDispose {
-            speech.stop()
-            speech.shutdown()
+            // Detach this composition without touching the voice that is still reading.
+            speech.onHighlight = {}
+            speech.onStateChanged = {}
+            speech.onStatus = {}
         }
     }
     // A new book must not keep reading the old one.
@@ -609,7 +607,6 @@ fun ReaderScreen(
             com.example.epubreader.playback.PlaybackBridge.onStop = null
             com.example.epubreader.playback.PlaybackBridge.onNext = null
             com.example.epubreader.playback.PlaybackBridge.onPrevious = null
-            com.example.epubreader.playback.PlaybackService.stop(context)
         }
     }
     LaunchedEffect(speechState, voiceChapter, book.title) {
