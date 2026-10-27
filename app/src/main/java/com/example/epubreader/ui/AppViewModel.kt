@@ -166,6 +166,8 @@ class AppViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     books = books,
+                    // An empty shelf always lands on Library, where importing lives.
+                    tab = if (books.isEmpty()) MainTab.LIBRARY else it.tab,
                     deleteFailure = if (report.failed.isNotEmpty()) report.failed.size
                     else it.deleteFailure,
                 )

@@ -90,7 +90,7 @@ import kotlinx.coroutines.delay
 private val GLYPH = 16.dp
 
 /** Icon size inside the small circular buttons, matching the iOS `buttonIconSize`. */
-private val CIRCLE_GLYPH = 15.dp
+private val CIRCLE_GLYPH = 16.dp
 
 /**
  * A soft drop shadow, drawn by hand.
@@ -185,7 +185,6 @@ fun ButtonPair(
     Row(
         modifier = modifier
             .height(44.dp)
-            .drawBehind { softRoundShadow(cornerRadius = 22.dp.toPx()) }
             .clip(RoundedCornerShape(22.dp))
             .background(ReaderTheme.Paper.copy(alpha = 0.55f))
             .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.10f), RoundedCornerShape(22.dp)),
