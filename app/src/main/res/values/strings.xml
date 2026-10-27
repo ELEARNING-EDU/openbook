@@ -222,7 +222,7 @@
     </plurals>
 
     <!-- Speech engine status -->
-    <string name="speech_init_failed">TextToSpeech could not start (code %1$d)</string>
+    <string name="speech_init_failed">TextToSpeech could not start (code %1$d). Install or enable a text-to-speech engine in the phone settings.</string>
     <string name="speech_no_voice_for_language">No voice data for %1$s (code %2$d) — using the default voice</string>
     <string name="speech_initialising">Starting TextToSpeech…</string>
     <string name="speech_voice_failed">Could not select that voice (code %1$d)</string>

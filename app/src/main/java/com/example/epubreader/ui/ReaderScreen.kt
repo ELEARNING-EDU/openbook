@@ -304,7 +304,6 @@ fun ReaderScreen(
     val sleepDoneNote = stringResource(R.string.speech_timer_done)
     val noSentencesNote = stringResource(R.string.speech_no_sentences)
     val noSentenceAtTapNote = stringResource(R.string.speech_no_sentence_at_tap)
-    val highlightSavedNote = stringResource(R.string.highlight_saved)
     val highlightModeNote = stringResource(R.string.highlight_mode)
 
     // The active theme's own typography, and the palette it paints with. Both are
@@ -1439,7 +1438,6 @@ fun ReaderScreen(
                                         text,
                                         color,
                                     )
-                                    speechNote = highlightSavedNote
                                     selection = null
                                     colourOpen = false
                                 },
@@ -1509,7 +1507,7 @@ fun ReaderScreen(
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        color = ReaderTheme.Accent,
+                        color = ComposeColor(0xFFC62828),
                     )
                 }
             } else {
@@ -2074,7 +2072,7 @@ private fun TocContent(
                                     fontFamily = FontFamily.Serif,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 13.sp,
-                                    color = ReaderTheme.Accent,
+                                    color = ComposeColor(0xFFC62828),
                                 )
                             }
                         },
@@ -2143,7 +2141,7 @@ private fun TocContent(
                                     fontFamily = FontFamily.Serif,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 13.sp,
-                                    color = ReaderTheme.Accent,
+                                    color = ComposeColor(0xFFC62828),
                                 )
                             }
                         },

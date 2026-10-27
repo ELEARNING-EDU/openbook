@@ -213,7 +213,7 @@
         <item quantity="other">%d giọng cho sách này</item>
     </plurals>
 
-    <string name="speech_init_failed">Không khởi tạo được TextToSpeech (mã %1$d)</string>
+    <string name="speech_init_failed">Không khởi động được TextToSpeech (mã %1$d). Hãy cài hoặc bật một engine chuyển văn bản thành giọng nói trong Cài đặt của máy.</string>
     <string name="speech_no_voice_for_language">Thiếu dữ liệu giọng cho %1$s (mã %2$d) — đọc bằng giọng mặc định</string>
     <string name="speech_initialising">Đang khởi tạo TextToSpeech…</string>
     <string name="speech_voice_failed">Không đặt được giọng đọc (mã %1$d)</string>
