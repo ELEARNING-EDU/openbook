@@ -129,6 +129,7 @@
     <string name="reader_open_failed_body">This EPUB could not be read on this device.</string>
     <string name="reader_back">Back</string>
     <string name="reader_contents">Contents</string>
+    <string name="highlight_pick_color">Pick a highlight colour</string>
     <string name="reader_highlight">Highlight a passage</string>
     <string name="highlight_mode">Tap a sentence to highlight it</string>
     <string name="highlight_saved">Highlight saved</string>

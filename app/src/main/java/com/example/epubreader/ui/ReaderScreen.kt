@@ -34,11 +34,15 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -261,6 +265,8 @@ fun ReaderScreen(
     var showPlayerSheet by remember { mutableStateOf(false) }
     /** While on, a tap on a sentence saves a highlight instead of moving the voice. */
     var highlightMode by remember { mutableStateOf(false) }
+    /** The sentence a long-press selected, waiting for a colour. */
+    var pendingHighlight by remember { mutableStateOf<Int?>(null) }
     /** Minutes the sleep timer was set for; 0 when it is off. */
     var sleepMinutes by remember { mutableIntStateOf(0) }
     var sleepLeft by remember { mutableIntStateOf(0) }
@@ -710,8 +716,15 @@ fun ReaderScreen(
     LaunchedEffect(highlightStore.highlights, pageIndex, ready) {
         val source = ready ?: return@LaunchedEffect
         holder.view?.highlightSentences = highlightStore.highlights
-            .mapNotNull { highlight -> source.sentenceAtAnchor(highlight.chapterIndex, highlight.offset) }
-            .filter { sentence -> source.sentencePage(sentence) == pageIndex }
+            .mapNotNull { highlight ->
+                val sentence = source.sentenceAtAnchor(highlight.chapterIndex, highlight.offset)
+                if (sentence >= 0 && source.sentencePage(sentence) == pageIndex) {
+                    sentence to highlight.color
+                } else {
+                    null
+                }
+            }
+            .toMap()
         holder.view?.invalidate()
     }
 
@@ -1012,6 +1025,10 @@ fun ReaderScreen(
                 if (source != null) {
                     view.pageSource = source
                     view.onPageTap = { x, y -> pageTapped(x, y) }
+                    view.onLongPress = { x, y ->
+                        val sentence = ready?.sentenceAt(currentPage(), x, y)
+                        if (sentence != null && sentence >= 0) pendingHighlight = sentence
+                    }
                     // Re-assigned here rather than only in `factory`, so the callback
                     // reads this composition's state (the book, the cursor, the voice)
                     // instead of the one that happened to build the view.
@@ -1233,6 +1250,58 @@ fun ReaderScreen(
                         Spacer(modifier = Modifier.width(44.dp))
                     }
                 }
+            }
+        }
+    }
+
+    val choosing = pendingHighlight
+    if (choosing != null && ready != null) {
+        ModalBottomSheet(
+            onDismissRequest = { pendingHighlight = null },
+            containerColor = ReaderTheme.Paper,
+            contentColor = ReaderTheme.Ink,
+        ) {
+            Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 28.dp)) {
+                Text(
+                    text = stringResource(R.string.highlight_pick_color),
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = ReaderTheme.Ink,
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    for (color in com.example.epubreader.reader.Highlight.COLORS) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(ComposeColor(color))
+                                .clickable {
+                                    val anchor = ready.anchorOfSentence(choosing)
+                                    if (anchor != null) {
+                                        highlightStore.add(
+                                            anchor.first,
+                                            anchor.second,
+                                            ready.sentenceText(choosing),
+                                            color,
+                                        )
+                                        speechNote = highlightSavedNote
+                                    }
+                                    pendingHighlight = null
+                                },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = ready.sentenceText(choosing),
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 13.sp,
+                    color = ReaderTheme.InkSoft,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

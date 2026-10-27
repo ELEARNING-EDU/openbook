@@ -12,7 +12,19 @@ data class Highlight(
     val chapterIndex: Int,
     val offset: Int,
     val text: String,
+    /** ARGB band colour. Old records decode to the default amber. */
+    val color: Int = DEFAULT_COLOR,
 ) {
+    companion object {
+        const val DEFAULT_COLOR = 0x66FAC854.toInt()
+        val COLORS = listOf(
+            0x66FAC854.toInt(),
+            0x664CAF50.toInt(),
+            0x6642A5F5.toInt(),
+            0x66EC407A.toInt(),
+        )
+    }
+
     val id: String get() = "$chapterIndex-$offset"
 }
 
@@ -32,11 +44,11 @@ class HighlightStore(context: Context) {
         highlights = read(bookKey)
     }
 
-    fun add(chapter: Int, offset: Int, text: String) {
+    fun add(chapter: Int, offset: Int, text: String, color: Int = Highlight.DEFAULT_COLOR) {
         val clean = text.trim()
         if (chapter < 0 || offset < 0 || clean.isEmpty()) return
         if (highlights.any { it.chapterIndex == chapter && it.offset == offset }) return
-        highlights = (highlights + Highlight(chapter, offset, clean))
+        highlights = (highlights + Highlight(chapter, offset, clean, color))
             .sortedWith(compareBy({ it.chapterIndex }, { it.offset }))
         persist()
     }
@@ -61,6 +73,7 @@ class HighlightStore(context: Context) {
                     chapterIndex = item.optInt("chapter", -1),
                     offset = item.optInt("offset", -1),
                     text = item.optString("text").orEmpty(),
+                    color = item.optInt("color", Highlight.DEFAULT_COLOR),
                 ).takeIf { it.chapterIndex >= 0 && it.offset >= 0 && it.text.isNotBlank() }
             }.sortedWith(compareBy({ it.chapterIndex }, { it.offset }))
         }.getOrDefault(emptyList())
@@ -74,7 +87,8 @@ class HighlightStore(context: Context) {
                 JSONObject()
                     .put("chapter", highlight.chapterIndex)
                     .put("offset", highlight.offset)
-                    .put("text", highlight.text),
+                    .put("text", highlight.text)
+                    .put("color", highlight.color),
             )
         }
         prefs.edit().putString(storageKey(currentKey), array.toString()).apply()

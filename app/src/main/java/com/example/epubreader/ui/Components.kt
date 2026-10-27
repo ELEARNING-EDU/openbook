@@ -67,6 +67,13 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowLeft
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import com.example.epubreader.model.BookItem
 import com.example.epubreader.reader.ReaderTheme
@@ -501,7 +508,12 @@ fun SeekBackGlyph(
     modifier: Modifier = Modifier,
     glyphSize: Dp = GLYPH,
 ) {
-    Canvas(modifier.size(glyphSize)) { seekRing(color, 1.7.dp.toPx(), forward = false) }
+    Icon(
+        imageVector = Icons.Filled.KeyboardDoubleArrowLeft,
+        contentDescription = null,
+        tint = color,
+        modifier = modifier.size(glyphSize),
+    )
 }
 
 /** Read it a step at a time: the player's fast-forward. */
@@ -511,7 +523,12 @@ fun SeekForwardGlyph(
     modifier: Modifier = Modifier,
     glyphSize: Dp = GLYPH,
 ) {
-    Canvas(modifier.size(glyphSize)) { seekRing(color, 1.7.dp.toPx(), forward = true) }
+    Icon(
+        imageVector = Icons.Filled.KeyboardDoubleArrowRight,
+        contentDescription = null,
+        tint = color,
+        modifier = modifier.size(glyphSize),
+    )
 }
 
 /**
@@ -1026,6 +1043,19 @@ fun PlayGlyph(
 fun CloseGlyph(
     color: ComposeColor = ReaderTheme.Ink,
     modifier: Modifier = Modifier,
+) {
+    Icon(
+        imageVector = Icons.Filled.Close,
+        contentDescription = null,
+        tint = color,
+        modifier = modifier.size(CIRCLE_GLYPH),
+    )
+}
+
+@Composable
+private fun LegacyCloseGlyph(
+    color: ComposeColor,
+    modifier: Modifier,
 ) {
     Canvas(modifier.size(CIRCLE_GLYPH)) {
         val stroke = 1.9.dp.toPx()

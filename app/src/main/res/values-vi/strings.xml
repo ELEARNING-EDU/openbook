@@ -124,6 +124,7 @@
     <string name="reader_open_failed_body">Không đọc được tệp EPUB này trên máy.</string>
     <string name="reader_back">Quay lại</string>
     <string name="reader_contents">Mục lục</string>
+    <string name="highlight_pick_color">Chọn màu đánh dấu</string>
     <string name="reader_highlight">Đánh dấu đoạn</string>
     <string name="highlight_mode">Chạm vào một câu để đánh dấu</string>
     <string name="highlight_saved">Đã đánh dấu đoạn</string>

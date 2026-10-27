@@ -101,8 +101,11 @@ class CurlView @JvmOverloads constructor(
     /** Global sentence index to highlight, or -1. Only drawn while the page is idle. */
     var highlightSentence: Int = -1
 
-    /** Saved highlights that fall on the page being drawn. */
-    var highlightSentences: List<Int> = emptyList()
+    /** A held finger on the page, in view coordinates. */
+    var onLongPress: ((Float, Float) -> Unit)? = null
+
+    /** Saved highlights that fall on the page being drawn, with their own band colour. */
+    var highlightSentences: Map<Int, Int> = emptyMap()
         set(value) {
             if (field == value) return
             field = value
@@ -452,7 +455,8 @@ class CurlView @JvmOverloads constructor(
 
     /** Draws the amber band for the sentence being read, over the idle page. */
     private fun drawHighlight(canvas: Canvas, source: PageSource) {
-        for (sentence in highlightSentences) {
+        for ((sentence, color) in highlightSentences) {
+            savedHighlightPaint.color = color
             val rects = source.highlightRects(baseIndex, sentence)
             for (index in rects.indices) {
                 canvas.drawRoundRect(rects[index], highlightRadius, highlightRadius, savedHighlightPaint)
@@ -467,6 +471,14 @@ class CurlView @JvmOverloads constructor(
 
     // ---------------------------------------------------------------- touches
 
+    private val longPress = Runnable {
+        val press = pendingPress ?: return@Runnable
+        pressedLong = true
+        onLongPress?.invoke(press.first, press.second)
+    }
+    private var pendingPress: Pair<Float, Float>? = null
+    private var pressedLong = false
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val source = pageSource ?: return false
         if (source.pageCount == 0) return false
@@ -476,17 +488,30 @@ class CurlView @JvmOverloads constructor(
                 beginDrag()
                 downX = event.x
                 downY = event.y
+                pendingPress = event.x to event.y
+                pressedLong = false
+                postDelayed(longPress, 450)
                 velocity = VelocityTracker.obtain().also { it.addMovement(event) }
                 return true
             }
 
             MotionEvent.ACTION_MOVE -> {
+                if (!pressedLong && (kotlin.math.abs(event.x - downX) > 12f ||
+                        kotlin.math.abs(event.y - downY) > 12f)
+                ) {
+                    removeCallbacks(longPress)
+                    pendingPress = null
+                }
                 velocity?.addMovement(event)
                 moveDrag(event.x - downX, event.y - downY)
                 return true
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(longPress)
+                val wasLong = pressedLong
+                pendingPress = null
+                if (wasLong) return true
                 velocity?.addMovement(event)
                 velocity?.computeCurrentVelocity(1000)
                 val vx = velocity?.xVelocity ?: 0f
