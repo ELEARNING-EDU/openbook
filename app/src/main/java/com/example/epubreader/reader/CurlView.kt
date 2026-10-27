@@ -111,6 +111,8 @@ class CurlView @JvmOverloads constructor(
     var selectionRects: List<RectF> = emptyList()
     var selecting: Boolean = false
     var onSelectionExtend: ((Float, Float) -> Unit)? = null
+    /** handle 0 = start bar, 1 = end bar. */
+    var onSelectionHandleDrag: ((Int, Float, Float) -> Unit)? = null
     var onSelectionCancel: (() -> Unit)? = null
         set(value) {
             if (field == value) return
@@ -509,6 +511,23 @@ class CurlView @JvmOverloads constructor(
     }
     private var pendingPress: Pair<Float, Float>? = null
     private var selectionDragged = false
+    private var draggingHandle = 0
+
+    /** 1 for the start bar, 2 for the end bar, 0 when the touch is not on one. */
+    private fun handleAt(x: Float, y: Float): Int {
+        val reach = 22f * density
+        selectionRects.firstOrNull()?.let { first ->
+            if (kotlin.math.abs(x - first.left) <= reach &&
+                y >= first.top - reach && y <= first.bottom + reach
+            ) return 1
+        }
+        selectionRects.lastOrNull()?.let { last ->
+            if (kotlin.math.abs(x - last.right) <= reach &&
+                y >= last.top - reach && y <= last.bottom + reach
+            ) return 2
+        }
+        return 0
+    }
     private var pressedLong = false
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -521,6 +540,8 @@ class CurlView @JvmOverloads constructor(
                     downX = event.x
                     downY = event.y
                     selectionDragged = false
+                    pressedLong = false
+                    draggingHandle = handleAt(event.x, event.y)
                     return true
                 }
                 beginDrag()
@@ -535,6 +556,10 @@ class CurlView @JvmOverloads constructor(
 
             MotionEvent.ACTION_MOVE -> {
                 if (selecting) {
+                    if (draggingHandle != 0) {
+                        onSelectionHandleDrag?.invoke(draggingHandle - 1, event.x, event.y)
+                        return true
+                    }
                     if (kotlin.math.abs(event.x - downX) > 8f ||
                         kotlin.math.abs(event.y - downY) > 8f
                     ) {
@@ -556,6 +581,14 @@ class CurlView @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (selecting) {
+                    if (pressedLong) {
+                        pressedLong = false
+                        return true
+                    }
+                    if (draggingHandle != 0) {
+                        draggingHandle = 0
+                        return true
+                    }
                     if (!selectionDragged || event.actionMasked == MotionEvent.ACTION_CANCEL) {
                         onSelectionCancel?.invoke()
                     }

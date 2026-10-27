@@ -63,6 +63,11 @@ class HighlightStore(context: Context) {
         persist()
     }
 
+    fun recolour(highlight: Highlight, color: Int) {
+        highlights = highlights.map { if (it.id == highlight.id) it.copy(color = color) else it }
+        persist()
+    }
+
     fun remove(highlight: Highlight) {
         highlights = highlights - highlight
         persist()

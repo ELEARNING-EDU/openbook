@@ -270,6 +270,8 @@ fun ReaderScreen(
     var selection by remember { mutableStateOf<TextSelection?>(null) }
     /** The selection popover's colour row is open. */
     var colourOpen by remember { mutableStateOf(false) }
+    /** A saved highlight opened for edit/delete by a long-press. */
+    var editing by remember { mutableStateOf<com.example.epubreader.reader.Highlight?>(null) }
     /** Minutes the sleep timer was set for; 0 when it is off. */
     var sleepMinutes by remember { mutableIntStateOf(0) }
     var sleepLeft by remember { mutableIntStateOf(0) }
@@ -1019,6 +1021,22 @@ fun ReaderScreen(
                     view.onLongPress = long@{ x, y ->
                         val source = ready ?: return@long
                         val page = currentPage()
+                        // A long-press on an existing highlight edits it instead of starting
+                        // a new selection; this avoids fighting the tap-to-seek gesture.
+                        highlightStore.highlights.firstOrNull { highlight ->
+                            highlight.chapterIndex >= 0 &&
+                                source.rangeRects(
+                                    page,
+                                    highlight.chapterIndex,
+                                    highlight.startOffset,
+                                    highlight.endOffset,
+                                ).any { it.left <= x && x <= it.right && it.top <= y && y <= it.bottom }
+                        }?.let { found ->
+                            selection = null
+                            colourOpen = false
+                            editing = found
+                            return@long
+                        }
                         val hit = source.offsetAt(page, x, y) ?: return@long
                         val words = source.wordBounds(hit.first, hit.second) ?: return@long
                         if (speech.state == SpeechState.PLAYING) speech.pause()
@@ -1040,6 +1058,21 @@ fun ReaderScreen(
                         if (hit.first != current.chapter) return@extend
                         val start = minOf(current.start, words.first)
                         val end = maxOf(current.end, words.last + 1)
+                        selection = current.copy(
+                            start = start,
+                            end = end,
+                            rects = source.rangeRects(current.page, current.chapter, start, end),
+                        )
+                    }
+                    view.onSelectionHandleDrag = handle@{ handle, x, y ->
+                        val current = selection ?: return@handle
+                        val source = ready ?: return@handle
+                        val hit = source.offsetAt(current.page, x, y) ?: return@handle
+                        val words = source.wordBounds(hit.first, hit.second)
+                            ?: return@handle
+                        if (hit.first != current.chapter) return@handle
+                        val start = if (handle == 0) minOf(words.first, current.end - 1) else current.start
+                        val end = if (handle == 1) maxOf(words.last + 1, current.start + 1) else current.end
                         selection = current.copy(
                             start = start,
                             end = end,
@@ -1266,10 +1299,15 @@ fun ReaderScreen(
     if (live != null && ready != null) {
         val anchor = live.rects.firstOrNull()
         val density = LocalDensity.current
+        val screenWidth = with(density) {
+            androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp.toPx()
+        }
         Box(
             modifier = Modifier
                 .offset {
-                    val x = ((anchor?.left ?: 24f)).toInt()
+                    val x = minOf(anchor?.left ?: 24f, screenWidth - with(density) { 330.dp.toPx() })
+                        .toInt()
+                        .coerceAtLeast(0)
                     val y = ((anchor?.top ?: 200f) - with(density) { 64.dp.toPx() }).toInt()
                         .coerceAtLeast(0)
                     androidx.compose.ui.unit.IntOffset(x, y)
@@ -1280,7 +1318,7 @@ fun ReaderScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             if (!colourOpen) {
-                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = stringResource(R.string.reader_highlight),
                         modifier = Modifier
@@ -1331,6 +1369,61 @@ fun ReaderScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    val edit = editing
+    if (edit != null && ready != null) {
+        val density = LocalDensity.current
+        val rects = ready.rangeRects(
+            pageIndex,
+            edit.chapterIndex,
+            edit.startOffset,
+            edit.endOffset,
+        )
+        val anchor = rects.firstOrNull()
+        Box(
+            modifier = Modifier
+                .offset {
+                    androidx.compose.ui.unit.IntOffset(
+                        ((anchor?.left ?: 24f)).toInt(),
+                        ((anchor?.top ?: 200f) - with(density) { 112.dp.toPx() }).toInt()
+                            .coerceAtLeast(0),
+                    )
+                }
+                .clip(RoundedCornerShape(12.dp))
+                .background(ReaderTheme.Paper)
+                .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Column {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    for (color in com.example.epubreader.reader.Highlight.COLORS) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(ComposeColor(color))
+                                .clickable {
+                                    highlightStore.recolour(edit, color)
+                                    editing = null
+                                },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.action_delete),
+                    modifier = Modifier.clickable {
+                        highlightStore.remove(edit)
+                        editing = null
+                    },
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    color = ReaderTheme.Accent,
+                )
             }
         }
     }
