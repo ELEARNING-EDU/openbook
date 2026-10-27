@@ -489,23 +489,19 @@ private fun ShelfBook(book: BookItem, subtitle: String, onOpen: () -> Unit) {
             .semantics(mergeDescendants = true) { contentDescription = description },
     ) {
         BookCover(book = book, modifier = Modifier.width(96.dp))
-        Spacer(modifier = Modifier.height(8.dp))
-        MarqueeText(
-            text = book.title,
-            modifier = Modifier.fillMaxWidth(),
-            fontSize = 17.sp,
-            color = colors.ink,
-            scrolling = true,
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = book.author,
-            fontFamily = FontFamily.Serif,
-            fontSize = 12.sp,
-            color = colors.inkSoft,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        // A book that carries its own cover already shows its name there; a second,
+        // scrolling title under it only made the shelf noisy.
+        if (book.coverPath == null && book.author.isNotBlank()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = book.author,
+                fontFamily = FontFamily.Serif,
+                fontSize = 11.sp,
+                color = colors.inkSoft,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = subtitle,
