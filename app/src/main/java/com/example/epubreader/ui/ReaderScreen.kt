@@ -48,6 +48,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BorderColor
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Search
@@ -1369,19 +1370,18 @@ fun ReaderScreen(
                             fontSize = 13.sp,
                             color = ReaderTheme.InkSoft.copy(alpha = 0.45f),
                         )
-                        Text(
-                            text = "›",
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = stringResource(R.string.menu_more),
+                            tint = ReaderTheme.Accent,
                             modifier = Modifier
                                 .clickable { menuExpanded = true }
-                                .padding(horizontal = 4.dp),
-                            fontFamily = FontFamily.SansSerif,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = ReaderTheme.Accent,
+                                .padding(horizontal = 2.dp)
+                                .size(20.dp),
                         )
                     }
                 } else {
-                    Column {
+                    Column(modifier = Modifier.width(172.dp)) {
                         val actions = listOf(
                             Triple(R.string.reader_highlight, Icons.Filled.BorderColor) { colourOpen = true; menuExpanded = false },
                             Triple(R.string.menu_translate, Icons.Filled.Translate) {},
@@ -1395,23 +1395,23 @@ fun ReaderScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable(enabled = enabled, onClick = action)
-                                    .padding(vertical = 6.dp, horizontal = 2.dp),
+                                    .padding(vertical = 4.dp, horizontal = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,
                                     tint = if (enabled) ReaderTheme.Accent
                                     else ReaderTheme.InkSoft.copy(alpha = 0.45f),
-                                    modifier = Modifier.size(18.dp),
+                                    modifier = Modifier.size(16.dp),
                                 )
                                 Text(
                                     text = stringResource(label),
                                     fontFamily = FontFamily.Serif,
                                     fontWeight = if (enabled) FontWeight.SemiBold
                                     else FontWeight.Normal,
-                                    fontSize = 14.sp,
+                                    fontSize = 13.sp,
                                     color = if (enabled) ReaderTheme.Accent
                                     else ReaderTheme.InkSoft.copy(alpha = 0.45f),
                                 )
