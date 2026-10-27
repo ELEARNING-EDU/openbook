@@ -49,7 +49,8 @@ class PlaybackService : Service() {
             ACTION_OPEN -> {
                 startActivity(
                     Intent(this, MainActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        .putExtra(MainActivity.EXTRA_OPEN_BOOK, PlaybackBridge.state.bookId),
                 )
             }
             else -> Unit
@@ -93,7 +94,9 @@ class PlaybackService : Service() {
         val open = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(MainActivity.EXTRA_OPEN_BOOK, state.bookId),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return NotificationCompat.Builder(this, CHANNEL)
@@ -144,8 +147,14 @@ class PlaybackService : Service() {
         const val ACTION_OPEN = "com.example.epubreader.OPEN"
 
         /** Called by the reader whenever the voice starts, pauses or stops. */
-        fun update(context: Context, playing: Boolean, title: String, chapter: String) {
-            PlaybackBridge.state = PlaybackBridge.State(playing, title, chapter)
+        fun update(
+            context: Context,
+            playing: Boolean,
+            bookId: String,
+            title: String,
+            chapter: String,
+        ) {
+            PlaybackBridge.state = PlaybackBridge.State(playing, bookId, title, chapter)
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, PlaybackService::class.java),
@@ -160,10 +169,15 @@ class PlaybackService : Service() {
 
 /** The one place the notification's buttons reach the reader. */
 object PlaybackBridge {
-    data class State(val playing: Boolean, val title: String, val chapter: String)
+    data class State(
+        val playing: Boolean,
+        val bookId: String,
+        val title: String,
+        val chapter: String,
+    )
 
     @Volatile
-    var state: State = State(false, "", "")
+    var state: State = State(false, "", "", "")
 
     @Volatile var onToggle: (() -> Unit)? = null
     @Volatile var onStop: (() -> Unit)? = null

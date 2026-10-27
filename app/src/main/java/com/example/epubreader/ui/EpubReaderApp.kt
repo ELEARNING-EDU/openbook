@@ -68,6 +68,19 @@ fun EpubReaderApp(
         }
     }
 
+    // A notification tap asks for its book, at the place the voice has reached.
+    val pendingBookId = com.example.epubreader.playback.PendingOpen.bookId
+    LaunchedEffect(pendingBookId, state.books) {
+        val pending = pendingBookId
+        if (pending != null) {
+            val target = state.books.firstOrNull { it.id == pending }
+            if (target != null) {
+                app.open(target)
+                com.example.epubreader.playback.PendingOpen.bookId = null
+            }
+        }
+    }
+
     // The demo's staged states are one shot per launch.
     val demoPending = demo.isActive && state.demoPending
 
@@ -122,6 +135,29 @@ fun EpubReaderApp(
                 onDemoUsed = app::useDemo,
             )
         }
+
+        val now = com.example.epubreader.playback.NowPlaying.book
+        if (now != null && state.opened == null && state.tab == MainTab.HOME) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 104.dp),
+            ) {
+                CircleButton(
+                    onClick = { app.open(now) },
+                    size = 56.dp,
+                    contentDescription = stringResource(R.string.player_open),
+                ) {
+                    VinylDisc(
+                        title = now.title,
+                        spinning = com.example.epubreader.playback.NowPlaying.playing,
+                        discSize = 48.dp,
+                        coverPath = now.coverPath,
+                    )
+                }
+            }
+        }
+
     }
 
     val failedImport = state.importError

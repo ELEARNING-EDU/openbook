@@ -609,6 +609,12 @@ fun ReaderScreen(
             com.example.epubreader.playback.PlaybackBridge.onPrevious = null
         }
     }
+    LaunchedEffect(speechState, book) {
+        com.example.epubreader.playback.NowPlaying.book =
+            if (speechState == SpeechState.IDLE) null else book
+        com.example.epubreader.playback.NowPlaying.playing =
+            speechState == SpeechState.PLAYING
+    }
     LaunchedEffect(speechState, voiceChapter, book.title) {
         if (speechState == SpeechState.IDLE) {
             com.example.epubreader.playback.PlaybackService.stop(context)
@@ -616,6 +622,7 @@ fun ReaderScreen(
             com.example.epubreader.playback.PlaybackService.update(
                 context,
                 speechState == SpeechState.PLAYING,
+                book.id,
                 book.title,
                 voiceChapter,
             )
@@ -1288,7 +1295,8 @@ fun ReaderScreen(
                                 VinylDisc(
                                     title = book.title,
                                     spinning = speechState == SpeechState.PLAYING,
-                                    size = 36.dp,
+                                    discSize = 36.dp,
+                                    coverPath = book.coverPath,
                                 )
                             }
                         }

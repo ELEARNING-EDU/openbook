@@ -2,6 +2,7 @@ package com.example.epubreader
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -41,6 +42,10 @@ class MainActivity : ComponentActivity() {
         // setting across the shell, the reader's paper inside a book.
         enableEdgeToEdge()
 
+        intent?.getStringExtra(EXTRA_OPEN_BOOK)?.let { bookId ->
+            android.util.Log.i("OpenBook", "intent asks for book $bookId")
+            com.example.epubreader.playback.PendingOpen.bookId = bookId
+        }
         val autoOpenFirstBook = intent?.getBooleanExtra(EXTRA_DEMO_OPEN_BOOK, false) ?: false
         val demo = DemoOptions(
             page = intent?.getIntExtra(EXTRA_DEMO_PAGE, -1) ?: -1,
@@ -75,7 +80,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private companion object {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(EXTRA_OPEN_BOOK)?.let { bookId ->
+            com.example.epubreader.playback.PendingOpen.bookId = bookId
+        }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_BOOK = "openBookId"
         /**
          * Screenshot harness hooks, mirroring the iOS demo build. All inert unless the
          * launching intent carries them:

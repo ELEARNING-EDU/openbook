@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1077,7 +1078,8 @@ fun VinylDisc(
     title: String,
     spinning: Boolean,
     modifier: Modifier = Modifier,
-    size: Dp = 36.dp,
+    discSize: Dp = 36.dp,
+    coverPath: String? = null,
 ) {
     var angle by remember { mutableFloatStateOf(0f) }
 
@@ -1098,16 +1100,35 @@ fun VinylDisc(
 
     val palette = ReaderTheme.coverPalette(title)
     val holeColor = ComposeColor(0xB8000000)
+    val cover = remember(coverPath) {
+        coverPath
+            ?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it) }.getOrNull() }
+            ?.asImageBitmap()
+    }
 
-    Canvas(modifier.size(size)) {
+    Canvas(modifier.size(discSize)) {
         rotate(degrees = angle, pivot = Offset(this.size.width / 2f, this.size.height / 2f)) {
-            drawCircle(
-                brush = Brush.linearGradient(
-                    colors = listOf(palette.first, palette.second),
-                    start = Offset.Zero,
-                    end = Offset(this.size.width, this.size.height),
-                ),
-            )
+            val face = cover
+            if (face != null) {
+                clipPath(Path().apply { addOval(Rect(Offset.Zero, size)) }) {
+                    drawImage(
+                        image = face,
+                        dstOffset = androidx.compose.ui.unit.IntOffset.Zero,
+                        dstSize = androidx.compose.ui.unit.IntSize(
+                            size.width.toInt(),
+                            size.height.toInt(),
+                        ),
+                    )
+                }
+            } else {
+                drawCircle(
+                    brush = Brush.linearGradient(
+                        colors = listOf(palette.first, palette.second),
+                        start = Offset.Zero,
+                        end = Offset(size.width, size.height),
+                    ),
+                )
+            }
             for (ratio in listOf(0.74f, 0.56f, 0.40f)) {
                 drawCircle(
                     color = ComposeColor.Black.copy(alpha = 0.20f),
