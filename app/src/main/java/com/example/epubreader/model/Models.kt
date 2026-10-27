@@ -10,6 +10,8 @@ data class BookItem(
     val importedAt: Long = 0L,
     /** When the reader marked the book finished, or `null` while it is not. */
     val finishedAt: Long? = null,
+    /** Cached cover image on disk, when the EPUB ships one. */
+    val coverPath: String? = null,
 )
 
 /** A chapter as read straight out of the ZIP, before HTML conversion. */

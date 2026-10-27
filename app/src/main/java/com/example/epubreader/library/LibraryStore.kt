@@ -62,6 +62,7 @@ class LibraryStore(context: Context) {
         return BookItem(
             id = file.name,
             path = file.absolutePath,
+            coverPath = info?.cover?.let { cacheCover(file.name, it) },
             title = stored?.title?.takeIf { it.isNotBlank() }
                 ?: info?.title?.takeIf { it.isNotBlank() }
                 ?: file.nameWithoutExtension,
@@ -160,6 +161,16 @@ class LibraryStore(context: Context) {
             throw t
         }
     }
+
+    /** Writes the EPUB's cover once, then reuses it on every later listing. */
+    private fun cacheCover(id: String, bytes: ByteArray): String? = runCatching {
+        val dir = File(appContext.filesDir, "covers").also { if (!it.exists()) it.mkdirs() }
+        val target = File(dir, id)
+        if (!target.exists() || target.length() != bytes.size.toLong()) {
+            target.writeBytes(bytes)
+        }
+        target.absolutePath
+    }.getOrNull()
 
     private fun persist(id: String, value: BookMetadata) {
         metadata.edit().putString(metaKey(id), BookMetadataCodec.encode(value)).apply()

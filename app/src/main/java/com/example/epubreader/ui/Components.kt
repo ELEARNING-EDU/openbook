@@ -2,6 +2,7 @@ package com.example.epubreader.ui
 
 import android.animation.ValueAnimator
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -47,10 +49,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -1227,6 +1231,11 @@ private fun MarqueeRun(text: String, style: TextStyle) {
 fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
     val (top, bottom) = ReaderTheme.coverPalette(book.title)
     val shape = RoundedCornerShape(10.dp)
+    val bitmap = remember(book.coverPath) {
+        book.coverPath
+            ?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it) }.getOrNull() }
+            ?.asImageBitmap()
+    }
 
     Box(
         modifier = modifier
@@ -1235,6 +1244,14 @@ fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
             .clip(shape)
             .background(Brush.linearGradient(listOf(top, bottom))),
     ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)

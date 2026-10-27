@@ -18,7 +18,7 @@ import java.util.zip.ZipFile
  */
 object EpubArchive {
 
-    data class Metadata(val title: String, val author: String)
+    data class Metadata(val title: String, val author: String, val cover: ByteArray? = null)
 
     private const val CONTAINER = "META-INF/container.xml"
     private const val ENCRYPTION = "META-INF/encryption.xml"
@@ -58,6 +58,7 @@ object EpubArchive {
             return Metadata(
                 title = pkg.title.ifBlank { file.nameWithoutExtension },
                 author = pkg.author.ifBlank { "" },
+                cover = coverBytes(pkg, zip),
             )
         }
     }
@@ -233,6 +234,7 @@ object EpubArchive {
         var opfDir = ""
         var navHref: String? = null
         var ncxHref: String? = null
+        var coverId: String? = null
         val manifest = LinkedHashMap<String, ManifestItem>()
         val spine = ArrayList<String>()
     }
@@ -306,6 +308,12 @@ object EpubArchive {
             }
         }
 
+        for (meta in Xml.descendants(document, "meta")) {
+            if (Xml.attr(meta, "name")?.equals("cover", ignoreCase = true) == true) {
+                pkg.coverId = Xml.attr(meta, "content")
+            }
+        }
+
         val spine = Xml.descendants(document, "spine").firstOrNull()
         if (spine != null) {
             for (itemref in Xml.children(spine, "itemref")) {
@@ -327,6 +335,15 @@ object EpubArchive {
         return Regex("(?is)full-path\\s*=\\s*[\"']([^\"']+)[\"']").find(text)
             ?.groupValues?.get(1)
             ?.let { ZipExtract.normalise(it) }
+    }
+
+    /** The OPF's cover image: `properties="cover-image"` first, then `<meta name="cover">`. */
+    private fun coverBytes(pkg: Package, zip: Archive): ByteArray? {
+        val item = pkg.manifest.values.firstOrNull {
+            it.properties.split(' ').any { token -> token.equals("cover-image", true) }
+        } ?: pkg.coverId?.let { pkg.manifest[it] } ?: return null
+        val bytes = zip.bytes(resolve(item.href, pkg.opfDir)) ?: return null
+        return bytes.takeIf { it.isNotEmpty() }
     }
 
     // ------------------------------------------------------------ inline images
