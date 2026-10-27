@@ -9,7 +9,7 @@
     <string name="home_title">Trang chủ</string>
     <string name="library_title">Thư viện</string>
     <string name="home_stats_achievements">THÀNH TÍCH</string>
-    <string name="home_stats_today">%1$d phút hôm nay</string>
+    <string name="home_stats_today">%1$s hôm nay</string>
     <string name="home_stats_goal_done">Mục tiêu %1$d phút · đã đạt</string>
     <string name="home_stats_goal_left">Còn %1$d phút nữa</string>
     <string name="home_stats_span">Tuần %1$s · Tháng %2$s · Năm %3$s</string>

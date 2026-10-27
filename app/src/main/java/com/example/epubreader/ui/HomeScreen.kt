@@ -262,7 +262,10 @@ private fun AchievementsCard(summary: ReadingSummary) {
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.home_stats_today, summary.todayMinutes),
+                text = stringResource(
+                    R.string.home_stats_today,
+                    durationText(summary.todaySeconds),
+                ),
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 17.sp,

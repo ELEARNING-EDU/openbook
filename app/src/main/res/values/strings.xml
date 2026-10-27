@@ -10,7 +10,7 @@
     <string name="home_title">Home</string>
     <string name="library_title">Library</string>
     <string name="home_stats_achievements">ACHIEVEMENTS</string>
-    <string name="home_stats_today">%1$d min today</string>
+    <string name="home_stats_today">%1$s today</string>
     <string name="home_stats_goal_done">Goal %1$d min · reached</string>
     <string name="home_stats_goal_left">%1$d min to go</string>
     <string name="home_stats_span">Week %1$s · Month %2$s · Year %3$s</string>

@@ -196,6 +196,7 @@ fun EpubReaderApp(
 }
 
 /** App language and the daily reading goal: both belong to the reader, not the phone. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun AppSettingsDialog(
     language: AppLanguage,
@@ -205,107 +206,104 @@ private fun AppSettingsDialog(
     onGoal: (Int) -> Unit,
 ) {
     val colors = shellColors()
-    AlertDialog(
+    androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colors.raised,
-        titleContentColor = colors.ink,
-        textContentColor = colors.inkSoft,
-        title = {
+        contentColor = colors.ink,
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = colors.inkSoft) },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
+        ) {
             Text(
                 text = stringResource(R.string.app_settings),
                 fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp,
+                color = colors.ink,
             )
-        },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.app_language),
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    color = colors.inkSoft,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                for (option in AppLanguage.entries) {
-                    val selected = option == language
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(selected = selected, onClick = { onSelect(option) })
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = selected,
-                            onClick = null,
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = colors.accent,
-                                unselectedColor = colors.inkSoft,
-                            ),
-                        )
-                        Text(
-                            text = stringResource(
-                                when (option) {
-                                    AppLanguage.SYSTEM -> R.string.language_system
-                                    AppLanguage.VIETNAMESE -> R.string.language_vietnamese
-                                    AppLanguage.ENGLISH -> R.string.language_english
-                                },
-                            ),
-                            fontFamily = FontFamily.Serif,
-                            fontSize = 15.sp,
-                            color = colors.ink,
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(
-                    text = stringResource(R.string.settings_reading_goal),
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    color = colors.inkSoft,
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.app_language),
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = colors.inkSoft,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            for (option in AppLanguage.entries) {
+                val selected = option == language
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(selected = selected, onClick = { onSelect(option) })
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    for (minutes in ReadingLogStore.GOAL_CHOICES) {
-                        val selected = minutes == goalMinutes
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(
-                                    if (selected) colors.accent.copy(alpha = 0.16f)
-                                    else colors.raised,
-                                )
-                                .border(
-                                    1.dp,
-                                    if (selected) colors.accent else colors.hairline,
-                                    RoundedCornerShape(14.dp),
-                                )
-                                .clickable { onGoal(minutes) }
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                        ) {
-                            Text(
-                                text = stringResource(
-                                    R.string.settings_reading_goal_minutes,
-                                    minutes,
-                                ),
-                                fontFamily = FontFamily.Serif,
-                                fontSize = 13.sp,
-                                color = if (selected) colors.accent else colors.ink,
+                    RadioButton(
+                        selected = selected,
+                        onClick = null,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = colors.accent,
+                            unselectedColor = colors.inkSoft,
+                        ),
+                    )
+                    Text(
+                        text = stringResource(
+                            when (option) {
+                                AppLanguage.SYSTEM -> R.string.language_system
+                                AppLanguage.VIETNAMESE -> R.string.language_vietnamese
+                                AppLanguage.ENGLISH -> R.string.language_english
+                            },
+                        ),
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 15.sp,
+                        color = colors.ink,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = stringResource(R.string.settings_reading_goal),
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = colors.inkSoft,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                for (minutes in ReadingLogStore.GOAL_CHOICES) {
+                    val selected = minutes == goalMinutes
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (selected) colors.accent.copy(alpha = 0.16f)
+                                else colors.raised,
                             )
-                        }
+                            .border(
+                                1.dp,
+                                if (selected) colors.accent else colors.hairline,
+                                RoundedCornerShape(14.dp),
+                            )
+                            .clickable { onGoal(minutes) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_reading_goal_minutes, minutes),
+                            fontFamily = FontFamily.Serif,
+                            fontSize = 13.sp,
+                            color = if (selected) colors.accent else colors.ink,
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close))
-            }
-        },
-    )
+        }
+    }
 }
