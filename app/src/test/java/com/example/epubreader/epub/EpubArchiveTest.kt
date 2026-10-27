@@ -26,10 +26,9 @@ class EpubArchiveTest {
     fun readsEverySpineChapterAndTheNavigationDocument() {
         val book = EpubArchive.read(sample)
 
-        assertEquals(7, book.chapters.size)
+        assertEquals(6, book.chapters.size)
         assertEquals(
             listOf(
-                "Bìa",
                 "1. Ngọn đèn trên mũi đá",
                 "2. Người giữ đèn",
                 "3. Con tàu không tên",
@@ -39,7 +38,7 @@ class EpubArchiveTest {
             ),
             book.toc.map { it.title },
         )
-        assertEquals((0..6).toList(), book.toc.map { it.chapterIndex })
+        assertEquals((0..5).toList(), book.toc.map { it.chapterIndex })
         assertTrue(book.chapters.all { it.html.isNotBlank() })
         assertEquals("vi", book.language)
     }

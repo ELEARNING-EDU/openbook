@@ -126,6 +126,28 @@ object EpubArchive {
         }
         if (chapters.isEmpty()) throw EpubException(EpubProblem.EMPTY_SPINE)
 
+        // Front matter (cover, title page, contents, index) is not a chapter: keep it out
+        // of the chapter list when the book has real chapters behind it.
+        val keep = chapters.indices.filterNot { i -> isFrontMatter(chapters[i].href) }
+        if (keep.isNotEmpty() && keep.size < chapters.size) {
+            val remap = HashMap<Int, Int>()
+            val keptChapters = ArrayList<RawChapter>(keep.size)
+            val keptPaths = ArrayList<String>(keep.size)
+            for ((newIndex, oldIndex) in keep.withIndex()) {
+                remap[oldIndex] = newIndex
+                keptChapters += chapters[oldIndex]
+                keptPaths += paths[oldIndex]
+            }
+            chapters.clear()
+            chapters.addAll(keptChapters)
+            paths.clear()
+            paths.addAll(keptPaths)
+            val kept = keptPaths.toHashSet()
+            val relabelled = LinkedHashMap<String, String>()
+            for ((path, label) in labels) if (path in kept) relabelled[path] = label
+            labels = relabelled
+        }
+
         // A chapter the nav did not cover still needs a header label.
         for (i in chapters.indices) {
             if (chapters[i].title.isBlank()) {
@@ -505,6 +527,13 @@ object EpubArchive {
         Regex("(?i)\\b$name\\s*=\\s*[\"']([^\"']*)[\"']").find(attributes)?.groupValues?.get(1)
 
     /** The chapter's own `<title>`, else its first heading. */
+    private fun isFrontMatter(href: String): Boolean {
+        val name = href.substringAfterLast('/').substringBefore('.').lowercase()
+        return name == "cover" || name == "titlepage" || name == "title" ||
+            name == "toc" || name == "contents" || name == "index" ||
+            name == "copyright" || name == "nav"
+    }
+
     private fun documentTitle(html: String): String {
         Regex("(?is)<title[^>]*>(.*?)</title>").find(html)?.let {
             val value = stripTags(it.groupValues[1])

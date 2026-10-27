@@ -63,12 +63,16 @@ class LibraryStore(context: Context) {
             id = file.name,
             path = file.absolutePath,
             coverPath = info?.cover?.let { cacheCover(file.name, it) },
-            title = stored?.title?.takeIf { it.isNotBlank() }
-                ?: info?.title?.takeIf { it.isNotBlank() }
-                ?: file.nameWithoutExtension,
-            author = stored?.author?.takeIf { it.isNotBlank() }
-                ?: info?.author?.takeIf { it.isNotBlank() }
-                ?: appContext.getString(R.string.unknown_author),
+            title = tidyTitle(
+                stored?.title?.takeIf { it.isNotBlank() }
+                    ?: info?.title?.takeIf { it.isNotBlank() }
+                    ?: file.nameWithoutExtension,
+            ),
+            author = tidyAuthor(
+                info?.author?.takeIf { it.isNotBlank() }
+                    ?: stored?.author?.takeIf { it.isNotBlank() }
+                    ?: "",
+            ),
             importedAt = importedAt,
             finishedAt = stored?.finishedAt?.takeIf { it > 0L },
         )
@@ -161,6 +165,32 @@ class LibraryStore(context: Context) {
             throw t
         }
     }
+
+    /** Some shop EPUBs carry their own download slug as `dc:title`; unwrap those. */
+    private fun tidyTitle(raw: String): String {
+        val looksLikeSlug = raw.contains("thuviensach", ignoreCase = true) ||
+            raw.matches(Regex("^\\d+[-_].*"))
+        val cleaned = if (looksLikeSlug) cleanFileTitle(raw) else raw.trim()
+        return cleaned.ifBlank { "Untitled" }
+    }
+
+    /** Engine metadata often says only "Unknown"; show nothing rather than a lie. */
+    private fun tidyAuthor(raw: String): String {
+        val trimmed = raw.trim()
+        return if (trimmed.equals("unknown", ignoreCase = true) ||
+            trimmed.equals("unknown author", ignoreCase = true)
+        ) "" else trimmed
+    }
+
+    /** A download slug such as `965-tinh-hoa-giao-duc-thuviensach.vn` as a title. */
+    private fun cleanFileTitle(stem: String): String = stem
+        .substringBefore("thuviensach", stem)
+        .replace(Regex("^\\d+[-_]"), "")
+        .replace('-', ' ')
+        .replace(Regex("\\s+"), " ")
+        .trim()
+        .replaceFirstChar { it.uppercase() }
+        .ifBlank { stem }
 
     /** Writes the EPUB's cover once, then reuses it on every later listing. */
     private fun cacheCover(id: String, bytes: ByteArray): String? = runCatching {

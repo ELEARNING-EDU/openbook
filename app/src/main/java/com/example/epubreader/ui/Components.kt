@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,6 +66,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -1222,6 +1224,30 @@ private fun MarqueeRun(text: String, style: TextStyle) {
     Text(text = text, style = style, maxLines = 1, softWrap = false)
 }
 
+/** True when an image is little more than white paper with dark text. */
+private fun isPlainCover(bitmap: android.graphics.Bitmap): Boolean {
+    val sample = android.graphics.Bitmap.createScaledBitmap(bitmap, 24, 24, true)
+    var saturation = 0f
+    var luminance = 0f
+    var count = 0
+    for (y in 0 until sample.height) {
+        for (x in 0 until sample.width) {
+            val pixel = sample.getPixel(x, y)
+            val r = (pixel shr 16) and 0xFF
+            val g = (pixel shr 8) and 0xFF
+            val b = pixel and 0xFF
+            val max = maxOf(r, g, b)
+            val min = minOf(r, g, b)
+            saturation += (max - min).toFloat() / 255f
+            luminance += (0.299f * r + 0.587f * g + 0.114f * b) / 255f
+            count++
+        }
+    }
+    sample.recycle()
+    if (count == 0) return true
+    return saturation / count < 0.06f && luminance / count > 0.82f
+}
+
 /**
  * The generated cover, in the shelf and in the audio player: the same gradient and the
  * same spine, so the book is one object wherever it appears. The title and author live
@@ -1231,10 +1257,15 @@ private fun MarqueeRun(text: String, style: TextStyle) {
 fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
     val (top, bottom) = ReaderTheme.coverPalette(book.title)
     val shape = RoundedCornerShape(10.dp)
-    val bitmap = remember(book.coverPath) {
+    val rawBitmap = remember(book.coverPath) {
         book.coverPath
             ?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it) }.getOrNull() }
-            ?.asImageBitmap()
+    }
+    // Some EPUBs use a plain text title page as their "cover"; that reads as a blank
+    // white card, so such images fall back to the drawn cover with the title on it.
+    val plainCover = remember(rawBitmap) { rawBitmap?.let { isPlainCover(it) } ?: true }
+    val bitmap = remember(rawBitmap, plainCover) {
+        rawBitmap?.takeUnless { plainCover }?.asImageBitmap()
     }
 
     Box(
@@ -1251,6 +1282,38 @@ fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = book.title,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    lineHeight = 15.sp,
+                    color = ReaderTheme.Ink,
+                    textAlign = TextAlign.Center,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (book.author.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = book.author,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 9.sp,
+                        color = ReaderTheme.InkSoft,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
         Box(
             modifier = Modifier
