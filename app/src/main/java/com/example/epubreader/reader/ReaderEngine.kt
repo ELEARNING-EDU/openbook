@@ -425,10 +425,12 @@ class ReaderEngine private constructor(
         val run = slot.columns.getOrNull(column) ?: return null
         val layout = layouts[run.chapterIndex]
         if (layout.text.isEmpty() || layout.lineCount == 0) return null
+        if (viewY < metrics.textTop || viewY > metrics.textBottom) return null
         val layoutX = viewX - metrics.columnLeft(column, spec.columnCount)
         val layoutY = viewY - metrics.textTop + layout.getLineTop(run.startLine)
         val clampedY = layoutY.coerceIn(0f, (layout.height - 1).toFloat())
-        val line = layout.getLineForVertical(clampedY.toInt()).coerceIn(0, layout.lineCount - 1)
+        val line = layout.getLineForVertical(clampedY.toInt())
+            .coerceIn(run.startLine, run.endLine)
         val offset = layout.getOffsetForHorizontal(line, layoutX)
         return run.chapterIndex to offset
     }
@@ -478,11 +480,13 @@ class ReaderEngine private constructor(
                 } else {
                     layout.getLineLeft(line).coerceAtLeast(0f)
                 }
+                val after = minOf(to + 1, layout.text.length)
                 val endX = if (line == lastLine && !continuesLater) {
-                    layout.getPrimaryHorizontal(to + 1)
+                    layout.getPrimaryHorizontal(after)
                 } else {
                     layout.getLineRight(line)
                 }
+                if (endX <= startX) continue
                 val top = layout.getLineTop(line) + topShift
                 out += RectF(left + startX, top, left + endX, layout.getLineBottom(line) + topShift)
             }

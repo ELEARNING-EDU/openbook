@@ -109,16 +109,15 @@ class CurlView @JvmOverloads constructor(
 
     /** The live text selection (word range) being dragged out. */
     var selectionRects: List<RectF> = emptyList()
+        set(value) {
+            field = value
+            invalidate()
+        }
     var selecting: Boolean = false
     var onSelectionExtend: ((Float, Float) -> Unit)? = null
     /** handle 0 = start bar, 1 = end bar. */
     var onSelectionHandleDrag: ((Int, Float, Float) -> Unit)? = null
     var onSelectionCancel: (() -> Unit)? = null
-        set(value) {
-            if (field == value) return
-            field = value
-            invalidate()
-        }
 
     private val density = resources.displayMetrics.density
     private val shadowWidth = 42f * density
@@ -555,6 +554,7 @@ class CurlView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                if (pressedLong) return true
                 if (selecting) {
                     if (draggingHandle != 0) {
                         onSelectionHandleDrag?.invoke(draggingHandle - 1, event.x, event.y)
@@ -581,6 +581,7 @@ class CurlView @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (selecting) {
+                    if (direction != 0) animateTo(0f, commit = false)
                     if (pressedLong) {
                         pressedLong = false
                         return true
@@ -597,7 +598,10 @@ class CurlView @JvmOverloads constructor(
                 removeCallbacks(longPress)
                 val wasLong = pressedLong
                 pendingPress = null
-                if (wasLong) return true
+                if (wasLong) {
+                    if (direction != 0) animateTo(0f, commit = false)
+                    return true
+                }
                 velocity?.addMovement(event)
                 velocity?.computeCurrentVelocity(1000)
                 val vx = velocity?.xVelocity ?: 0f

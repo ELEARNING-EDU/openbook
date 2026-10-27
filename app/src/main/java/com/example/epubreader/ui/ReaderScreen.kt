@@ -742,9 +742,10 @@ fun ReaderScreen(
         }
         holder.view?.invalidate()
     }
-    LaunchedEffect(pageIndex) {
+    LaunchedEffect(ready, pageIndex) {
         selection = null
         colourOpen = false
+        menuExpanded = false
         editing = null
         editColourOpen = false
     }
@@ -1105,6 +1106,7 @@ fun ReaderScreen(
                     view.onSelectionCancel = {
                         selection = null
                         colourOpen = false
+                        menuExpanded = false
                     }
                     // Re-assigned here rather than only in `factory`, so the callback
                     // reads this composition's state (the book, the cursor, the voice)
@@ -1470,7 +1472,8 @@ fun ReaderScreen(
             modifier = Modifier
                 .offset {
                     androidx.compose.ui.unit.IntOffset(
-                        ((anchor?.left ?: 24f)).toInt(),
+                        minOf(anchor?.left ?: 24f, size.width - with(density) { 200.dp.toPx() })
+                            .coerceAtLeast(0f).toInt(),
                         ((anchor?.top ?: 200f) - with(density) { 112.dp.toPx() }).toInt()
                             .coerceAtLeast(0),
                     )
