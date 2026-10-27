@@ -74,6 +74,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -689,35 +690,15 @@ fun SunGlyph(
 fun MoonGlyph(
     color: ComposeColor = ReaderTheme.Ink,
     modifier: Modifier = Modifier,
-    glyphSize: Dp = GLYPH,
 ) {
-    Canvas(modifier.size(glyphSize)) {
-        val centre = Offset(size.width * 0.58f, size.height * 0.5f)
-        val radius = size.minDimension * 0.40f
-        val dx = radius * 0.5f
-        val rho = kotlin.math.sqrt(radius * radius + dx * dx)
-        val join = Math.toDegrees(kotlin.math.atan2(radius.toDouble(), (-dx).toDouble())).toFloat()
-        val path = Path().apply {
-            moveTo(centre.x, centre.y - radius)
-            arcTo(
-                Rect(centre.x - radius, centre.y - radius, centre.x + radius, centre.y + radius),
-                -90f,
-                -180f,
-                false,
-            )
-            arcTo(
-                Rect(centre.x + dx - rho, centre.y - rho, centre.x + dx + rho, centre.y + rho),
-                join,
-                2f * (180f - join),
-                false,
-            )
-            close()
-        }
-        drawPath(path = path, color = color)
-    }
+    Icon(
+        imageVector = Icons.Filled.DarkMode,
+        contentDescription = null,
+        tint = color,
+        modifier = modifier.size(CIRCLE_GLYPH),
+    )
 }
 
-/** The tick that keeps an edit. */
 @Composable
 fun CheckGlyph(
     color: ComposeColor = ReaderTheme.Ink,

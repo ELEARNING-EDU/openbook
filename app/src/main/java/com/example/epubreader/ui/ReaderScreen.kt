@@ -47,6 +47,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BorderColor
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -270,8 +277,10 @@ fun ReaderScreen(
     var selection by remember { mutableStateOf<TextSelection?>(null) }
     /** The selection popover's colour row is open. */
     var colourOpen by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
     /** A saved highlight opened for edit/delete by a long-press. */
     var editing by remember { mutableStateOf<com.example.epubreader.reader.Highlight?>(null) }
+    var editColourOpen by remember { mutableStateOf(false) }
     /** Minutes the sleep timer was set for; 0 when it is off. */
     var sleepMinutes by remember { mutableIntStateOf(0) }
     var sleepLeft by remember { mutableIntStateOf(0) }
@@ -717,14 +726,27 @@ fun ReaderScreen(
         )
     }
 
-    // Saved highlight bands on the page being drawn, then the live selection on top.
-    LaunchedEffect(highlightStore.highlights, pageIndex, ready) {
+    // Saved highlight bands are resolved per page inside the view, so a curl never draws
+    // the previous page's bands.
+    LaunchedEffect(ready, highlightStore.highlights) {
         val source = ready ?: return@LaunchedEffect
-        holder.view?.savedRects = highlightStore.highlights.flatMap { highlight ->
-            source.rangeRects(pageIndex, highlight.chapterIndex, highlight.startOffset, highlight.endOffset)
-                .map { it to highlight.color }
+        holder.view?.savedRectsForPage = { page ->
+            highlightStore.highlights.flatMap { highlight ->
+                source.rangeRects(
+                    page,
+                    highlight.chapterIndex,
+                    highlight.startOffset,
+                    highlight.endOffset,
+                ).map { it to highlight.color }
+            }
         }
         holder.view?.invalidate()
+    }
+    LaunchedEffect(pageIndex) {
+        selection = null
+        colourOpen = false
+        editing = null
+        editColourOpen = false
     }
     LaunchedEffect(selection) {
         holder.view?.selectionRects = selection?.rects.orEmpty()
@@ -1034,6 +1056,7 @@ fun ReaderScreen(
                         }?.let { found ->
                             selection = null
                             colourOpen = false
+                            editColourOpen = false
                             editing = found
                             return@long
                         }
@@ -1318,31 +1341,80 @@ fun ReaderScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             if (!colourOpen) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = stringResource(R.string.reader_highlight),
-                        modifier = Modifier
-                            .clickable { colourOpen = true }
-                            .padding(vertical = 4.dp),
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = ReaderTheme.Accent,
-                    )
-                    // The rest of the system menu, present but not wired yet.
-                    for (label in listOf(
-                        stringResource(R.string.menu_translate),
-                        stringResource(R.string.menu_search),
-                        stringResource(R.string.menu_copy),
-                        stringResource(R.string.menu_share),
-                    )) {
+                if (!menuExpanded) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = label,
+                            text = stringResource(R.string.reader_highlight),
+                            modifier = Modifier
+                                .clickable { colourOpen = true }
+                                .padding(vertical = 4.dp),
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = ReaderTheme.Accent,
+                        )
+                        Text(
+                            text = stringResource(R.string.menu_translate),
                             modifier = Modifier.padding(vertical = 4.dp),
                             fontFamily = FontFamily.Serif,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             color = ReaderTheme.InkSoft.copy(alpha = 0.45f),
                         )
+                        Text(
+                            text = stringResource(R.string.menu_search),
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            fontFamily = FontFamily.Serif,
+                            fontSize = 13.sp,
+                            color = ReaderTheme.InkSoft.copy(alpha = 0.45f),
+                        )
+                        Text(
+                            text = "›",
+                            modifier = Modifier
+                                .clickable { menuExpanded = true }
+                                .padding(horizontal = 4.dp),
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = ReaderTheme.Accent,
+                        )
+                    }
+                } else {
+                    Column {
+                        val actions = listOf(
+                            Triple(R.string.reader_highlight, Icons.Filled.BorderColor) { colourOpen = true; menuExpanded = false },
+                            Triple(R.string.menu_translate, Icons.Filled.Translate) {},
+                            Triple(R.string.menu_search, Icons.Filled.Search) {},
+                            Triple(R.string.menu_copy, Icons.Filled.ContentCopy) {},
+                            Triple(R.string.menu_share, Icons.Filled.Share) {},
+                        )
+                        for ((label, icon, action) in actions) {
+                            val enabled = label == R.string.reader_highlight
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = enabled, onClick = action)
+                                    .padding(vertical = 6.dp, horizontal = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = if (enabled) ReaderTheme.Accent
+                                    else ReaderTheme.InkSoft.copy(alpha = 0.45f),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    text = stringResource(label),
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = if (enabled) FontWeight.SemiBold
+                                    else FontWeight.Normal,
+                                    fontSize = 14.sp,
+                                    color = if (enabled) ReaderTheme.Accent
+                                    else ReaderTheme.InkSoft.copy(alpha = 0.45f),
+                                )
+                            }
+                        }
                     }
                 }
             } else {
@@ -1374,6 +1446,17 @@ fun ReaderScreen(
     }
 
     val edit = editing
+    if (edit != null) {
+        // A tap anywhere else closes the edit popover and its colour row.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable {
+                    editing = null
+                    editColourOpen = false
+                },
+        )
+    }
     if (edit != null && ready != null) {
         val density = LocalDensity.current
         val rects = ready.rangeRects(
@@ -1397,7 +1480,33 @@ fun ReaderScreen(
                 .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Column {
+            if (!editColourOpen) {
+                Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Text(
+                        text = stringResource(R.string.reader_highlight),
+                        modifier = Modifier
+                            .clickable { editColourOpen = true }
+                            .padding(vertical = 4.dp),
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = ReaderTheme.Accent,
+                    )
+                    Text(
+                        text = stringResource(R.string.action_delete),
+                        modifier = Modifier
+                            .clickable {
+                                highlightStore.remove(edit)
+                                editing = null
+                            }
+                            .padding(vertical = 4.dp),
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = ReaderTheme.Accent,
+                    )
+                }
+            } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     for (color in com.example.epubreader.reader.Highlight.COLORS) {
                         Box(
@@ -1408,22 +1517,11 @@ fun ReaderScreen(
                                 .clickable {
                                     highlightStore.recolour(edit, color)
                                     editing = null
+                                    editColourOpen = false
                                 },
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = stringResource(R.string.action_delete),
-                    modifier = Modifier.clickable {
-                        highlightStore.remove(edit)
-                        editing = null
-                    },
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    color = ReaderTheme.Accent,
-                )
             }
         }
     }

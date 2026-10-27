@@ -104,8 +104,8 @@ class CurlView @JvmOverloads constructor(
     /** A held finger on the page, in view coordinates. */
     var onLongPress: ((Float, Float) -> Unit)? = null
 
-    /** Saved highlight bands on this page, each with its own colour. */
-    var savedRects: List<Pair<RectF, Int>> = emptyList()
+    /** Resolves the saved highlight bands for whatever page is being drawn. */
+    var savedRectsForPage: ((Int) -> List<Pair<RectF, Int>>)? = null
 
     /** The live text selection (word range) being dragged out. */
     var selectionRects: List<RectF> = emptyList()
@@ -465,7 +465,7 @@ class CurlView @JvmOverloads constructor(
 
     /** Draws the amber band for the sentence being read, over the idle page. */
     private fun drawHighlight(canvas: Canvas, source: PageSource) {
-        for ((rect, color) in savedRects) {
+        for ((rect, color) in savedRectsForPage?.invoke(baseIndex).orEmpty()) {
             savedHighlightPaint.color = color
             canvas.drawRoundRect(rect, highlightRadius, highlightRadius, savedHighlightPaint)
         }

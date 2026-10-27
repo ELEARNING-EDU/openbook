@@ -130,11 +130,12 @@
     <string name="reader_back">Back</string>
     <string name="reader_contents">Contents</string>
     <string name="highlight_pick_color">Pick a highlight colour</string>
+    <string name="menu_more">More</string>
     <string name="menu_translate">Translate</string>
     <string name="menu_search">Search</string>
     <string name="menu_copy">Copy</string>
     <string name="menu_share">Share</string>
-    <string name="reader_highlight">Highlight a passage</string>
+    <string name="reader_highlight">Highlight</string>
     <string name="highlight_mode">Tap a sentence to highlight it</string>
     <string name="highlight_saved">Highlight saved</string>
     <string name="toc_highlights">Highlights %1$d</string>
