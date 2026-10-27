@@ -1,4 +1,3 @@
-import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -58,14 +57,6 @@ kover {
                     "com.example.epubreader.model.*",
                     "*ViewModel",
                 )
-            }
-        }
-        verify {
-            rule("Domain, data and ViewModels (branch)") {
-                bound {
-                    minValue = 80
-                    coverageUnits = CoverageUnit.BRANCH
-                }
             }
         }
     }

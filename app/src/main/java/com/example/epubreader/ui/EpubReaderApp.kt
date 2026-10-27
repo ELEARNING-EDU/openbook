@@ -70,8 +70,10 @@ fun EpubReaderApp(
 
     // The demo's staged states are one shot per launch.
     val demoPending = demo.isActive && state.demoPending
-    LaunchedEffect(demo.isActive) {
-        if (demo.isActive && !state.demoPending) app.useDemo()
+
+    // The reader saves the ledger on dispose; refresh Home after that save, not before.
+    LaunchedEffect(state.opened) {
+        if (state.opened == null) app.refreshAfterReader()
     }
 
     val systemDark = isSystemInDarkTheme()

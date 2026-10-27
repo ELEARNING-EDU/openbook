@@ -517,7 +517,12 @@ private fun GridBook(
     onDelete: () -> Unit,
 ) {
     val colors = shellColors()
-    Column(modifier = Modifier.clickable(onClick = onOpen)) {
+    val spoken = stringResource(R.string.home_book_a11y, book.title, book.author)
+    Column(
+        modifier = Modifier
+            .clickable(onClick = onOpen)
+            .semantics { contentDescription = spoken },
+    ) {
         Box {
             BookCover(book = book, modifier = Modifier.fillMaxWidth())
             if (selecting) {

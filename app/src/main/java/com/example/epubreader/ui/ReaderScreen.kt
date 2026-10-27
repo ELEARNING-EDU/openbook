@@ -348,7 +348,7 @@ fun ReaderScreen(
             Log.w(TAG, "could not read ${book.path}", t)
             reader.fail(
                 (t as? com.example.epubreader.model.EpubException)?.problem
-                    ?: com.example.epubreader.model.EpubProblem.NOT_ZIP,
+                    ?: com.example.epubreader.model.EpubProblem.GENERIC,
             )
         }
     }
@@ -435,7 +435,7 @@ fun ReaderScreen(
                 Log.w(TAG, "could not typeset ${book.path}", t)
                 reader.fail(
                     (t as? com.example.epubreader.model.EpubException)?.problem
-                        ?: com.example.epubreader.model.EpubProblem.NOT_ZIP,
+                        ?: com.example.epubreader.model.EpubProblem.GENERIC,
                 )
             }
         }
@@ -486,6 +486,7 @@ fun ReaderScreen(
             delay(1000)
             val now = SystemClock.elapsedRealtime()
             if (!foreground) continue
+            if (reader.state.value.failure != null) continue
             val listening = speech.state == SpeechState.PLAYING
             // Five quiet minutes with neither a page turn nor the voice stop the count.
             if (!listening && now - lastPageTurnAt > IDLE_CUTOFF_MS) continue
@@ -544,10 +545,16 @@ fun ReaderScreen(
      */
     fun skipChapter(step: Int) {
         val source = ready ?: return
-        val target = voiceChapterIndex + step
-        if (target !in 0 until source.chapterCount) return
-        val from = source.firstSentenceOfChapter(target)
-        if (from < 0) return
+        var target = voiceChapterIndex + step
+        var from = -1
+        // Image-only chapters (a cover, a plate) have no sentence: walk past them rather
+        // than leaving the button enabled and doing nothing.
+        while (target in 0 until source.chapterCount) {
+            from = source.firstSentenceOfChapter(target)
+            if (from >= 0) break
+            target += step
+        }
+        if (target !in 0 until source.chapterCount || from < 0) return
         if (speech.state == SpeechState.PAUSED) {
             val page = source.sentencePage(from)
             if (page >= 0 && page != (holder.view?.pageIndex ?: pageIndex)) {

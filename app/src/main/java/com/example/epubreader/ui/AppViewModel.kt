@@ -1,6 +1,5 @@
 package com.example.epubreader.ui
 
-import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,7 +14,6 @@ import com.example.epubreader.reader.WeekPoint
 import com.example.epubreader.settings.AppLanguage
 import com.example.epubreader.settings.AppLanguageStore
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +48,8 @@ data class AppUiState(
     val language: AppLanguage = AppLanguage.SYSTEM,
     val importError: Throwable? = null,
     val deleteFailure: Int = 0,
-    val demoPending: Boolean = false,
+    /** True until the harness's staged states have been played once. */
+    val demoPending: Boolean = true,
 ) {
     val progress: Map<String, Float> get() = reading.mapValues { it.value.fraction }
 }
@@ -61,7 +60,6 @@ data class AppUiState(
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val library: LibraryStore,
     private val positions: ReadingPositions,
     private val bookmarks: BookmarkStore,
@@ -121,6 +119,9 @@ class AppViewModel @Inject constructor(
     }
 
     fun useDemo() = _state.update { it.copy(demoPending = false) }
+
+    /** Re-read the ledger after the reader leaves composition (its last save lands on dispose). */
+    fun refreshAfterReader() = refreshStats()
 
     fun import(uri: Uri) {
         viewModelScope.launch {

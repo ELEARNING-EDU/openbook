@@ -42,7 +42,7 @@ data class TocEntry(
 )
 
 /** What is wrong with a file that will not open; the UI turns this into a local string. */
-enum class EpubProblem { NOT_ZIP, NO_CONTAINER, NO_OPF, EMPTY_SPINE, DRM }
+enum class EpubProblem { NOT_ZIP, NO_CONTAINER, NO_OPF, EMPTY_SPINE, DRM, GENERIC }
 
 class EpubException(
     val problem: EpubProblem,

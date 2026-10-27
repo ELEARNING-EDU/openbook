@@ -525,7 +525,8 @@ private fun WeekChart(week: List<WeekPoint>, summary: ReadingSummary) {
     val locale = LocalConfiguration.current.locales[0]
     val dayLabels = androidx.compose.ui.res.stringArrayResource(R.array.home_weekdays)
     val top = maxOf(summary.goalMinutes, week.maxOf { it.minutes }, 1)
-    val total = durationText(summary.weekSeconds)
+    // Sum the bars the reader can see, so the header and the chart never disagree by a minute.
+    val total = durationText(week.sumOf { it.minutes } * 60)
 
     Column(modifier = Modifier.padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

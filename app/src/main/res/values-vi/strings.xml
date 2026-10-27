@@ -89,6 +89,7 @@
     <string name="epub_error_no_container">Thiếu META-INF/container.xml — tệp không phải EPUB hợp lệ.</string>
     <string name="epub_error_no_opf">Không tìm thấy tệp gói (.opf) của sách.</string>
     <string name="epub_error_empty_spine">Sách không có chương nào đọc được.</string>
+    <string name="epub_error_generic">Không mở được sách này.</string>
     <string name="epub_error_drm">Sách có bảo vệ bản quyền (DRM) nên không đọc được ở đây. Hãy gỡ DRM hoặc mở bằng ứng dụng đã bán sách.</string>
 
     <string name="library_view_grid">Lưới</string>
