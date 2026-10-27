@@ -15,10 +15,19 @@ class VoiceCatalogTest {
         VoiceOption(name = name, label = VoiceCatalog.label(name), locale = locale, quality = quality)
 
     @Test
-    fun declaredLanguageWinsOverTheSample() {
+    fun aVietnameseSampleBeatsAnEnglishTag() {
+        // Shop EPUBs often stamp dc:language=en on Vietnamese text.
+        assertEquals(
+            "vi",
+            VoiceCatalog.resolveLanguage("en-GB", "Xin chào, đây là tiếng Việt.", vi).language,
+        )
+    }
+
+    @Test
+    fun anAmbiguousSampleKeepsTheDeclaredTag() {
         assertEquals(
             "en",
-            VoiceCatalog.resolveLanguage("en-GB", "Xin chào, đây là tiếng Việt.", vi).language,
+            VoiceCatalog.resolveLanguage("en-GB", "Chapter One", vi).language,
         )
     }
 

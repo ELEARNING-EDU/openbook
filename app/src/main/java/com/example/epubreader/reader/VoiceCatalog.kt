@@ -28,22 +28,36 @@ object VoiceCatalog {
     /** Diacritics that only Vietnamese uses; a sample carrying one is Vietnamese. */
     private val VIETNAMESE = "ăâđêôơưàảãáạằẳẵắặầẩẫấậèẻẽéẹềểễếệìỉĩíịòỏõóọồổỗốộờởỡớợùủũúụừửữứựỳỷỹýỵ".toSet()
 
-    /** `dc:language` first; a script guess when the book does not say; the phone last. */
+    /**
+     * The book's language. `dc:language` normally wins, but shop-produced EPUBs often
+     * stamp "en" on Vietnamese text; when the sample carries a script/diacritic that can
+     * only be another language, the content wins. Ambiguous samples keep the declared tag.
+     */
     fun resolveLanguage(declared: String, sample: String, fallback: Locale): Locale {
         val tag = declared.trim().substringBefore(',').substringBefore(';').trim()
-        if (tag.isNotEmpty()) {
-            val parsed = runCatching { Locale.forLanguageTag(tag.replace('_', '-')) }.getOrNull()
-            if (parsed != null && parsed.language.isNotEmpty()) return parsed
+        val parsed = if (tag.isNotEmpty()) {
+            runCatching { Locale.forLanguageTag(tag.replace('_', '-')) }.getOrNull()
+                ?.takeIf { it.language.isNotEmpty() }
+        } else {
+            null
         }
-        return guessLanguage(sample, fallback)
+        val strong = strongLanguage(sample)
+        if (parsed != null) {
+            return if (strong != null && strong.language != parsed.language) strong else parsed
+        }
+        return strong ?: fallback
     }
 
-    fun guessLanguage(sample: String, fallback: Locale): Locale {
+    /** A language the text can only be, because of its own script or diacritics. */
+    private fun strongLanguage(sample: String): Locale? {
         if (sample.any { it.lowercaseChar() in VIETNAMESE }) return Locale("vi", "VN")
         if (sample.any { it in '\u3040'..'\u30FF' }) return Locale.JAPANESE
         if (sample.any { it in '\u4E00'..'\u9FFF' }) return Locale.CHINESE
-        return fallback
+        return null
     }
+
+    fun guessLanguage(sample: String, fallback: Locale): Locale =
+        strongLanguage(sample) ?: fallback
 
     /** `vi` and `vi-VN` are the same language; a region only refines it. */
     fun speaks(voice: Locale, book: Locale): Boolean {
