@@ -343,8 +343,13 @@ fun ReaderScreen(
             speech.onStatus = {}
         }
     }
-    // A new book must not keep reading the old one.
-    LaunchedEffect(book.path) { speech.stop() }
+    // A new book must not keep reading the old one, but reopening the book that is
+    // already being narrated must let it carry on from where it is.
+    LaunchedEffect(book.path) {
+        val playingBook = com.example.epubreader.playback.NowPlaying.book
+        val sameBook = playingBook?.id == book.id && speech.state != SpeechState.IDLE
+        if (!sameBook) speech.stop()
+    }
 
     BackHandler(onBack = onBack)
 
