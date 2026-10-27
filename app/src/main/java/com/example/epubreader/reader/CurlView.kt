@@ -559,6 +559,7 @@ class CurlView @JvmOverloads constructor(
                     downY = event.y
                     selectionDragged = false
                     pressedLong = false
+                    pendingPress = null
                     draggingHandle = handleAt(event.x, event.y)
                     return true
                 }
@@ -633,6 +634,9 @@ class CurlView @JvmOverloads constructor(
                 val wasLong = pressedLong
                 pendingPress = null
                 if (wasLong) {
+                    // Clear it even when the press was declined (blank paper), otherwise
+                    // every later voice-driven page turn stays blocked.
+                    pressedLong = false
                     if (direction != 0) {
                         queuedTarget = -1
                         animateTo(0f, commit = false)
