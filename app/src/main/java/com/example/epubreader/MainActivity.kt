@@ -1,7 +1,11 @@
 package com.example.epubreader
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,8 +25,17 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(AppLanguageStore.read(newBase).wrap(newBase))
     }
 
+    private val notifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         // Transparent bars; their icon colour is set from what is on screen — the phone's
         // setting across the shell, the reader's paper inside a book.

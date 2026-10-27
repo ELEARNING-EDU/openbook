@@ -597,6 +597,34 @@ fun ReaderScreen(
         )
     }
 
+    // Background narration: a foreground service keeps the voice alive when the app is
+    // not on screen and shows a media notification; its buttons come back here.
+    DisposableEffect(Unit) {
+        com.example.epubreader.playback.PlaybackBridge.onToggle = { speech.togglePlayPause() }
+        com.example.epubreader.playback.PlaybackBridge.onStop = { speech.stop() }
+        com.example.epubreader.playback.PlaybackBridge.onNext = { skipChapter(1) }
+        com.example.epubreader.playback.PlaybackBridge.onPrevious = { skipChapter(-1) }
+        onDispose {
+            com.example.epubreader.playback.PlaybackBridge.onToggle = null
+            com.example.epubreader.playback.PlaybackBridge.onStop = null
+            com.example.epubreader.playback.PlaybackBridge.onNext = null
+            com.example.epubreader.playback.PlaybackBridge.onPrevious = null
+            com.example.epubreader.playback.PlaybackService.stop(context)
+        }
+    }
+    LaunchedEffect(speechState, voiceChapter, book.title) {
+        if (speechState == SpeechState.IDLE) {
+            com.example.epubreader.playback.PlaybackService.stop(context)
+        } else {
+            com.example.epubreader.playback.PlaybackService.update(
+                context,
+                speechState == SpeechState.PLAYING,
+                book.title,
+                voiceChapter,
+            )
+        }
+    }
+
     // The sleep timer runs from the moment it is chosen, whether or not the sheet is
     // open, and its only job is to stop the voice: a reader who falls asleep does not
     // need the book to carry on without them.
