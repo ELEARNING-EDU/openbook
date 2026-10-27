@@ -1280,16 +1280,33 @@ fun ReaderScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             if (!colourOpen) {
-                Text(
-                    text = stringResource(R.string.reader_highlight),
-                    modifier = Modifier
-                        .clickable { colourOpen = true }
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    color = ReaderTheme.Accent,
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        text = stringResource(R.string.reader_highlight),
+                        modifier = Modifier
+                            .clickable { colourOpen = true }
+                            .padding(vertical = 4.dp),
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = ReaderTheme.Accent,
+                    )
+                    // The rest of the system menu, present but not wired yet.
+                    for (label in listOf(
+                        stringResource(R.string.menu_translate),
+                        stringResource(R.string.menu_search),
+                        stringResource(R.string.menu_copy),
+                        stringResource(R.string.menu_share),
+                    )) {
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            fontFamily = FontFamily.Serif,
+                            fontSize = 14.sp,
+                            color = ReaderTheme.InkSoft.copy(alpha = 0.45f),
+                        )
+                    }
+                }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     for (color in com.example.epubreader.reader.Highlight.COLORS) {

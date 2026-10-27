@@ -73,7 +73,8 @@ import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import com.example.epubreader.model.BookItem
@@ -509,45 +510,26 @@ fun SeekBackGlyph(
     modifier: Modifier = Modifier,
     glyphSize: Dp = GLYPH,
 ) {
-    SpeedStepGlyph(plus = false, color = color, modifier = modifier, glyphSize = glyphSize)
+    Icon(
+        imageVector = Icons.Filled.Remove,
+        contentDescription = null,
+        tint = color,
+        modifier = modifier.size(glyphSize),
+    )
 }
 
-/** A speedometer with a small step mark, so the pair reads as slower/faster. */
-@Composable
-private fun SpeedStepGlyph(
-    plus: Boolean,
-    color: ComposeColor,
-    modifier: Modifier,
-    glyphSize: Dp,
-) {
-    Box(modifier = modifier.size(glyphSize), contentAlignment = Alignment.Center) {
-        Icon(
-            imageVector = Icons.Filled.Speed,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(glyphSize * 0.82f),
-        )
-        Text(
-            text = if (plus) "+" else "−",
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = 2.dp, y = 2.dp),
-            fontFamily = FontFamily.SansSerif,
-            fontWeight = FontWeight.Bold,
-            fontSize = (glyphSize.value * 0.52f).sp,
-            color = color,
-        )
-    }
-}
-
-/** Read it a step at a time: the player's fast-forward. */
 @Composable
 fun SeekForwardGlyph(
     color: ComposeColor = ReaderTheme.Ink,
     modifier: Modifier = Modifier,
     glyphSize: Dp = GLYPH,
 ) {
-    SpeedStepGlyph(plus = true, color = color, modifier = modifier, glyphSize = glyphSize)
+    Icon(
+        imageVector = Icons.Filled.Add,
+        contentDescription = null,
+        tint = color,
+        modifier = modifier.size(glyphSize),
+    )
 }
 
 /**

@@ -129,6 +129,7 @@ class CurlView @JvmOverloads constructor(
     private val highlightPaint = Paint().apply { color = 0x59FFFFFF }
     private val savedHighlightPaint = Paint().apply { color = 0x66FAC854.toInt() }
     private val selectionPaint = Paint().apply { color = 0x553F7AD9 }
+    private val handlePaint = Paint().apply { color = 0xCC2F5FA8.toInt() }
     private val flapEdgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1.2f * density
@@ -468,6 +469,29 @@ class CurlView @JvmOverloads constructor(
         }
         for (rect in selectionRects) {
             canvas.drawRoundRect(rect, highlightRadius, highlightRadius, selectionPaint)
+        }
+        // Two upright bars mark the ends of the selection, the way the system does it.
+        selectionRects.firstOrNull()?.let { first ->
+            canvas.drawRoundRect(
+                first.left - 2f * density,
+                first.top - 4f * density,
+                first.left + 2f * density,
+                first.bottom + 4f * density,
+                2f * density,
+                2f * density,
+                handlePaint,
+            )
+        }
+        selectionRects.lastOrNull()?.let { last ->
+            canvas.drawRoundRect(
+                last.right - 2f * density,
+                last.top - 4f * density,
+                last.right + 2f * density,
+                last.bottom + 4f * density,
+                2f * density,
+                2f * density,
+                handlePaint,
+            )
         }
         if (highlightSentence < 0) return
         val rects = source.highlightRects(baseIndex, highlightSentence)
