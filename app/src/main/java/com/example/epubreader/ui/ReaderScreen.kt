@@ -49,6 +49,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -1743,29 +1745,39 @@ private fun TocContent(
 ) {
     var tab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    TabRow(
+        selectedTabIndex = tab,
+        containerColor = ReaderTheme.Paper,
+        contentColor = ReaderTheme.Accent,
+        modifier = Modifier.padding(bottom = 8.dp),
     ) {
-        TabPill(
-            label = stringResource(R.string.toc_tab),
-            selected = tab == 0,
-            onClick = { tab = 0 },
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        TabPill(
-            label = stringResource(R.string.marks_tab, marks.size),
-            selected = tab == 1,
-            onClick = { tab = 1 },
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        TabPill(
-            label = stringResource(R.string.toc_highlights, highlights.size),
-            selected = tab == 2,
-            onClick = { tab = 2 },
-        )
+        Tab(selected = tab == 0, onClick = { tab = 0 }) {
+            Text(
+                text = stringResource(R.string.toc_tab),
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
+        }
+        Tab(selected = tab == 1, onClick = { tab = 1 }) {
+            Text(
+                text = stringResource(R.string.marks_tab, marks.size),
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
+        }
+        Tab(selected = tab == 2, onClick = { tab = 2 }) {
+            Text(
+                text = stringResource(R.string.toc_highlights, highlights.size),
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
+        }
     }
 
     if (tab == 0) {

@@ -73,6 +73,7 @@ import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import com.example.epubreader.model.BookItem
@@ -509,7 +510,7 @@ fun SeekBackGlyph(
     glyphSize: Dp = GLYPH,
 ) {
     Icon(
-        imageVector = Icons.Filled.KeyboardDoubleArrowLeft,
+        imageVector = Icons.Filled.Speed,
         contentDescription = null,
         tint = color,
         modifier = modifier.size(glyphSize),
@@ -524,7 +525,7 @@ fun SeekForwardGlyph(
     glyphSize: Dp = GLYPH,
 ) {
     Icon(
-        imageVector = Icons.Filled.KeyboardDoubleArrowRight,
+        imageVector = Icons.Filled.Speed,
         contentDescription = null,
         tint = color,
         modifier = modifier.size(glyphSize),
