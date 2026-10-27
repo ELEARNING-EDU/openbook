@@ -100,6 +100,11 @@ class CurlView @JvmOverloads constructor(
 
     /** Global sentence index to highlight, or -1. Only drawn while the page is idle. */
     var highlightSentence: Int = -1
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
 
     /** A held finger on the page, in view coordinates. */
     var onLongPress: ((Float, Float) -> Unit)? = null
@@ -231,6 +236,8 @@ class CurlView @JvmOverloads constructor(
      * just noise.
      */
     fun animateToPage(index: Int) {
+        // A finger owns the page (pressed, dragging or selecting): never turn it under them.
+        if (pendingPress != null || dragging || pressedLong || selecting) return
         val source = pageSource ?: return
         val max = (source.pageCount - 1).coerceAtLeast(0)
         val target = index.coerceIn(0, max)
@@ -245,6 +252,17 @@ class CurlView @JvmOverloads constructor(
         }
         queuedTarget = target
         stepQueue(source)
+    }
+
+    /** Stops a voice-driven curl that is in flight, so a selection is not wiped by it. */
+    fun cancelTurn() {
+        queuedTarget = -1
+        animator?.cancel()
+        animator = null
+        animToken++
+        pendingCommit = false
+        resetTurn()
+        invalidate()
     }
 
     /** Plays the next queued single-page curl, if one is still owed. */
@@ -515,15 +533,16 @@ class CurlView @JvmOverloads constructor(
     /** 1 for the start bar, 2 for the end bar, 0 when the touch is not on one. */
     private fun handleAt(x: Float, y: Float): Int {
         val reach = 22f * density
-        selectionRects.firstOrNull()?.let { first ->
-            if (kotlin.math.abs(x - first.left) <= reach &&
-                y >= first.top - reach && y <= first.bottom + reach
-            ) return 1
-        }
+        // End bar first: a narrow selection can put both bars inside one reach.
         selectionRects.lastOrNull()?.let { last ->
             if (kotlin.math.abs(x - last.right) <= reach &&
                 y >= last.top - reach && y <= last.bottom + reach
             ) return 2
+        }
+        selectionRects.firstOrNull()?.let { first ->
+            if (kotlin.math.abs(x - first.left) <= reach &&
+                y >= first.top - reach && y <= first.bottom + reach
+            ) return 1
         }
         return 0
     }

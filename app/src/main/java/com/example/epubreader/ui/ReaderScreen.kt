@@ -1065,6 +1065,9 @@ fun ReaderScreen(
                         val hit = source.offsetAt(page, x, y) ?: return@long
                         val words = source.wordBounds(hit.first, hit.second) ?: return@long
                         if (speech.state == SpeechState.PLAYING) speech.pause()
+                        // Close the frame gap before Compose applies `selecting`.
+                        holder.view?.selecting = true
+                        holder.view?.cancelTurn()
                         selection = TextSelection(
                             page = page,
                             chapter = hit.first,
