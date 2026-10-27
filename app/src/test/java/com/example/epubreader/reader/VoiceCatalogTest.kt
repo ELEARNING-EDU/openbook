@@ -102,8 +102,8 @@ class VoiceCatalogTest {
 
     @Test
     fun labelsDropTheLocalePrefixButKeepTheName() {
-        assertEquals("x gft network", VoiceCatalog.label("vi-vn-x-gft-network"))
-        assertEquals("x iom local", VoiceCatalog.label("en-US-x-iom-local"))
+        assertEquals("Gft · Network", VoiceCatalog.label("vi-vn-x-gft-network"))
+        assertEquals("Iom · Local", VoiceCatalog.label("en-US-x-iom-local"))
         assertFalse(VoiceCatalog.label("vi-vn-x-gft-network").contains("vi-vn"))
         assertEquals("vi-vn", VoiceCatalog.label("vi-vn"))
     }

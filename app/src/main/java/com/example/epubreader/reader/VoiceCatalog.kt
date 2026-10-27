@@ -124,12 +124,32 @@ object VoiceCatalog {
             )
     }
 
-    /** `vi-vn-x-gft-network` reads as `x gft network`; other locales lose their prefix too. */
-    fun label(name: String): String =
-        name.replaceFirst(LOCALE_PREFIX, "")
-            .replace('-', ' ')
-            .trim()
-            .ifBlank { name }
+    /**
+     * A readable name for a voice id. Android exposes only ids such as
+     * `vi-vn-x-gft-network`, so the locale prefix and the `x` marker are dropped and the
+     * remaining tokens are title-cased: `Gft · Network`, `Vic · Local`, `Ling`.
+     */
+    fun label(name: String): String {
+        val stripped = name.replaceFirst(LOCALE_PREFIX, "")
+        val tokens = stripped.split('-', '_', ' ')
+            .filter { it.isNotBlank() && !it.equals("x", ignoreCase = true) }
+        if (tokens.isEmpty()) return name
+        val pretty = tokens.map { token ->
+            val lower = token.lowercase()
+            when (lower) {
+                "local" -> "Local"
+                "network" -> "Network"
+                "language" -> "Default"
+                else -> token.replaceFirstChar { it.uppercase() }
+            }
+        }
+        val quality = pretty.lastOrNull()
+        return if (quality == "Local" || quality == "Network" || quality == "Default") {
+            (pretty.dropLast(1).joinToString(" ") + " · " + quality).trim()
+        } else {
+            pretty.joinToString(" ")
+        }
+    }
 
     private val LOCALE_PREFIX = Regex("^[a-z]{2,3}[-_][a-z]{2,4}(?:[-_]|$)", RegexOption.IGNORE_CASE)
 }
