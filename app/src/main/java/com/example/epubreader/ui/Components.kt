@@ -509,12 +509,35 @@ fun SeekBackGlyph(
     modifier: Modifier = Modifier,
     glyphSize: Dp = GLYPH,
 ) {
-    Icon(
-        imageVector = Icons.Filled.Speed,
-        contentDescription = null,
-        tint = color,
-        modifier = modifier.size(glyphSize),
-    )
+    SpeedStepGlyph(plus = false, color = color, modifier = modifier, glyphSize = glyphSize)
+}
+
+/** A speedometer with a small step mark, so the pair reads as slower/faster. */
+@Composable
+private fun SpeedStepGlyph(
+    plus: Boolean,
+    color: ComposeColor,
+    modifier: Modifier,
+    glyphSize: Dp,
+) {
+    Box(modifier = modifier.size(glyphSize), contentAlignment = Alignment.Center) {
+        Icon(
+            imageVector = Icons.Filled.Speed,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(glyphSize * 0.82f),
+        )
+        Text(
+            text = if (plus) "+" else "−",
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 2.dp, y = 2.dp),
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.Bold,
+            fontSize = (glyphSize.value * 0.52f).sp,
+            color = color,
+        )
+    }
 }
 
 /** Read it a step at a time: the player's fast-forward. */
@@ -524,12 +547,7 @@ fun SeekForwardGlyph(
     modifier: Modifier = Modifier,
     glyphSize: Dp = GLYPH,
 ) {
-    Icon(
-        imageVector = Icons.Filled.Speed,
-        contentDescription = null,
-        tint = color,
-        modifier = modifier.size(glyphSize),
-    )
+    SpeedStepGlyph(plus = true, color = color, modifier = modifier, glyphSize = glyphSize)
 }
 
 /**
