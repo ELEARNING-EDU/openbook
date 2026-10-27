@@ -124,6 +124,11 @@
     <string name="reader_open_failed_body">Không đọc được tệp EPUB này trên máy.</string>
     <string name="reader_back">Quay lại</string>
     <string name="reader_contents">Mục lục</string>
+    <string name="reader_highlight">Đánh dấu đoạn</string>
+    <string name="highlight_mode">Chạm vào một câu để đánh dấu</string>
+    <string name="highlight_saved">Đã đánh dấu đoạn</string>
+    <string name="toc_highlights">Đoạn đánh dấu %1$d</string>
+    <string name="highlights_empty">Chưa có đoạn nào được đánh dấu.</string>
     <string name="reader_search">Tìm trong sách</string>
     <string name="reader_bookmark_add">Đánh dấu trang này</string>
     <string name="reader_bookmark_remove">Bỏ đánh dấu</string>

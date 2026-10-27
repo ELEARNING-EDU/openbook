@@ -100,6 +100,9 @@ class CurlView @JvmOverloads constructor(
 
     /** Global sentence index to highlight, or -1. Only drawn while the page is idle. */
     var highlightSentence: Int = -1
+
+    /** Saved highlights that fall on the page being drawn. */
+    var highlightSentences: List<Int> = emptyList()
         set(value) {
             if (field == value) return
             field = value
@@ -115,6 +118,7 @@ class CurlView @JvmOverloads constructor(
     private val shadowPaint = Paint()
     private val cylinderPaint = Paint()
     private val highlightPaint = Paint().apply { color = 0x59FFFFFF }
+    private val savedHighlightPaint = Paint().apply { color = 0x66FAC854.toInt() }
     private val flapEdgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1.2f * density
@@ -448,6 +452,12 @@ class CurlView @JvmOverloads constructor(
 
     /** Draws the amber band for the sentence being read, over the idle page. */
     private fun drawHighlight(canvas: Canvas, source: PageSource) {
+        for (sentence in highlightSentences) {
+            val rects = source.highlightRects(baseIndex, sentence)
+            for (index in rects.indices) {
+                canvas.drawRoundRect(rects[index], highlightRadius, highlightRadius, savedHighlightPaint)
+            }
+        }
         if (highlightSentence < 0) return
         val rects = source.highlightRects(baseIndex, highlightSentence)
         for (index in rects.indices) {

@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.epubreader.library.LibraryStore
 import com.example.epubreader.library.ReadingLogStore
 import com.example.epubreader.reader.BookmarkStore
+import com.example.epubreader.reader.HighlightStore
 import com.example.epubreader.reader.ReaderSettings
 import com.example.epubreader.reader.ReadingPositions
 import com.example.epubreader.reader.SavedPlaces
@@ -42,6 +43,10 @@ object AppModule {
     @Provides
     @Singleton
     fun savedPlaces(positions: ReadingPositions): SavedPlaces = positions
+
+    @Provides
+    @Singleton
+    fun highlights(@ApplicationContext context: Context): HighlightStore = HighlightStore(context)
 
     @Provides
     @Singleton

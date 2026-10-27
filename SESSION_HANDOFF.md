@@ -418,6 +418,15 @@ below supersedes the older Part 12 details further down.
 8. **Cover side — settled** — the owner chose cover **left**, text **right** on 2026-10-25; built
    and verified on `emulator-5558`.
 
+## Highlights, 3-column grid, tighter player (2026-10-27)
+
+- `HighlightStore` (per book, chapter+offset+text), toolbar pencil toggle, tap a sentence to
+  save, amber bands for saved highlights, third Contents tab with swipe-to-delete (bookmarks
+  already had swipe). Library grid fixed at 3 columns; player buttons 36x48dp. Build/tests/lint
+  green (111/111). Device smoke of the highlight flow was **not** completed (tap coordinates /
+  shared-AVD focus); the code compiles and the store is wired through Hilt, but treat the flow
+  as unverified until a clean device pass.
+
 ## 48dp player targets (2026-10-27)
 
 - Owner decision: shorten the title. `PLAYER_BUTTON_WIDTH` = 48dp (height 48dp already), so the

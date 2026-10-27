@@ -489,6 +489,17 @@ class ReaderEngine private constructor(
         return out
     }
 
+    /** The sentence a saved highlight anchored at (chapter, offset) starts. */
+    fun sentenceAtAnchor(chapter: Int, offset: Int): Int = sentenceAtOffset(chapter, offset)
+
+    /** (chapter, offset) for a sentence, the anchor a highlight is stored under. */
+    fun anchorOfSentence(sentence: Int): Pair<Int, Int>? {
+        if (sentence !in sentenceChapter.indices) return null
+        val chapter = sentenceChapter[sentence]
+        val start = sentenceStart[sentence] - chapterCharStart.getOrElse(chapter) { 0 }
+        return chapter to start.coerceAtLeast(0)
+    }
+
     /** Binary search for the sentence containing [offset] within [chapter]. */
     private fun sentenceAtOffset(chapter: Int, offset: Int): Int {
         if (sentenceChapter.isEmpty()) return -1

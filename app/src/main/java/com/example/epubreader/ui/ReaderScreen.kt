@@ -230,6 +230,7 @@ fun ReaderScreen(
     val positions = stores.positions
     val bookmarks = stores.bookmarks
     val readingLogStore = stores.readingLog
+    val highlightStore = stores.highlights
 
     val staged = if (demoPending) demo else DemoOptions.None
     val density = LocalDensity.current
@@ -258,6 +259,8 @@ fun ReaderScreen(
     var showPlayer by remember { mutableStateOf(false) }
     /** The full player, opened by tapping the title in the reading bar. */
     var showPlayerSheet by remember { mutableStateOf(false) }
+    /** While on, a tap on a sentence saves a highlight instead of moving the voice. */
+    var highlightMode by remember { mutableStateOf(false) }
     /** Minutes the sleep timer was set for; 0 when it is off. */
     var sleepMinutes by remember { mutableIntStateOf(0) }
     var sleepLeft by remember { mutableIntStateOf(0) }
@@ -269,6 +272,7 @@ fun ReaderScreen(
     LaunchedEffect(book.id) {
         reader.begin(book.id)
         bookmarks.open(book.id)
+        highlightStore.open(book.id)
     }
 
     // Where this book was left, read once per visit: the reader is put back there after
@@ -279,6 +283,8 @@ fun ReaderScreen(
     val sleepDoneNote = stringResource(R.string.speech_timer_done)
     val noSentencesNote = stringResource(R.string.speech_no_sentences)
     val noSentenceAtTapNote = stringResource(R.string.speech_no_sentence_at_tap)
+    val highlightSavedNote = stringResource(R.string.highlight_saved)
+    val highlightModeNote = stringResource(R.string.highlight_mode)
 
     // The active theme's own typography, and the palette it paints with. Both are
     // Compose state, so any edit in the appearance screens re-typesets from here.
@@ -700,6 +706,15 @@ fun ReaderScreen(
         )
     }
 
+    // Saved highlights on the page being drawn: the view is imperative, so push them.
+    LaunchedEffect(highlightStore.highlights, pageIndex, ready) {
+        val source = ready ?: return@LaunchedEffect
+        holder.view?.highlightSentences = highlightStore.highlights
+            .mapNotNull { highlight -> source.sentenceAtAnchor(highlight.chapterIndex, highlight.offset) }
+            .filter { sentence -> source.sentencePage(sentence) == pageIndex }
+        holder.view?.invalidate()
+    }
+
     /** The toolbar, all of it. */
     fun revealChrome() {
         chrome = ChromeMode.FULL
@@ -813,6 +828,17 @@ fun ReaderScreen(
      */
     fun pageTapped(x: Float, y: Float) {
         val source = ready
+        if (highlightMode) {
+            val sentence = source?.sentenceAt(currentPage(), x, y)
+            val anchor = sentence?.let { source?.anchorOfSentence(it) }
+            if (sentence != null && anchor != null) {
+                highlightStore.add(anchor.first, anchor.second, source.sentenceText(sentence))
+                highlightMode = false
+                speechNote = highlightSavedNote
+                scheduleAutoHide()
+            }
+            return
+        }
         val reading = speechState != SpeechState.IDLE
         if (!reading) {
             val width = holder.view?.width?.toFloat() ?: 0f
@@ -1096,6 +1122,19 @@ fun ReaderScreen(
                             ) { SearchGlyph() }
                             PairDivider()
                             PairButton(
+                                onClick = {
+                                    highlightMode = !highlightMode
+                                    speechNote = if (highlightMode) highlightModeNote else null
+                                    scheduleAutoHide()
+                                },
+                                contentDescription = stringResource(R.string.reader_highlight),
+                            ) {
+                                EditGlyph(
+                                    color = if (highlightMode) ReaderTheme.Accent else ReaderTheme.Ink,
+                                )
+                            }
+                            PairDivider()
+                            PairButton(
                                 onClick = { toggleBookmark() },
                                 contentDescription = stringResource(
                                     if (pageMarked()) R.string.reader_bookmark_remove
@@ -1215,6 +1254,11 @@ fun ReaderScreen(
                         MarkRow(mark, row.chapterTitle, row.pageIndex)
                     }
                 },
+                highlights = highlightStore.highlights.mapNotNull { highlight ->
+                    ready.markRow(highlight.chapterIndex, highlight.offset)?.let { row ->
+                        HighlightRow(highlight, row.chapterTitle, row.pageIndex)
+                    }
+                },
                 initialTab = if (demo.marks) 1 else 0,
                 onJump = { page ->
                     showToc = false
@@ -1222,6 +1266,7 @@ fun ReaderScreen(
                     jumpToPage(page)
                 },
                 onRemoveMark = { bookmarks.remove(it) },
+                onRemoveHighlight = { highlightStore.remove(it) },
             )
         }
     }
@@ -1621,11 +1666,13 @@ private data class MarkRow(
 private fun TocContent(
     titles: List<Pair<String, Int>>,
     marks: List<MarkRow>,
+    highlights: List<HighlightRow>,
     initialTab: Int,
     onJump: (Int) -> Unit,
     onRemoveMark: (Bookmark) -> Unit,
+    onRemoveHighlight: (com.example.epubreader.reader.Highlight) -> Unit,
 ) {
-    var tab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 1)) }
+    var tab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
 
     Row(
         modifier = Modifier
@@ -1643,6 +1690,12 @@ private fun TocContent(
             label = stringResource(R.string.marks_tab, marks.size),
             selected = tab == 1,
             onClick = { tab = 1 },
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        TabPill(
+            label = stringResource(R.string.toc_highlights, highlights.size),
+            selected = tab == 2,
+            onClick = { tab = 2 },
         )
     }
 
@@ -1680,7 +1733,7 @@ private fun TocContent(
                 }
             }
         }
-    } else {
+    } else if (tab == 1) {
         if (marks.isEmpty()) {
             SheetNote(stringResource(R.string.marks_empty))
         } else {
@@ -1752,9 +1805,94 @@ private fun TocContent(
                 }
             }
         }
+    } else {
+        if (highlights.isEmpty()) {
+            SheetNote(stringResource(R.string.highlights_empty))
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
+                items(
+                    count = highlights.size,
+                    key = { index -> highlights[index].highlight.id },
+                ) { index ->
+                    val row = highlights[index]
+                    val dismissState = rememberSwipeToDismissBoxState()
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        enableDismissFromStartToEnd = false,
+                        enableDismissFromEndToStart = true,
+                        onDismiss = { direction ->
+                            if (direction == SwipeToDismissBoxValue.EndToStart) {
+                                onRemoveHighlight(row.highlight)
+                            }
+                        },
+                        backgroundContent = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(ReaderTheme.Paper)
+                                    .padding(horizontal = 24.dp),
+                                contentAlignment = Alignment.CenterEnd,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.action_delete),
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    color = ReaderTheme.Accent,
+                                )
+                            }
+                        },
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ReaderTheme.Paper)
+                                .clickable { onJump(row.page) }
+                                .padding(start = 24.dp, end = 24.dp, top = 13.dp, bottom = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = row.title,
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp,
+                                    color = ReaderTheme.Accent,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = row.highlight.text,
+                                    fontFamily = FontFamily.Serif,
+                                    fontSize = 13.sp,
+                                    color = ReaderTheme.Ink,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = stringResource(R.string.page_short, row.page + 1),
+                                    fontFamily = FontFamily.Serif,
+                                    fontSize = 11.sp,
+                                    color = ReaderTheme.InkSoft,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     Spacer(modifier = Modifier.height(24.dp))
 }
+
+/** One saved highlight, resolved for the sheet. */
+private data class HighlightRow(
+    val highlight: com.example.epubreader.reader.Highlight,
+    val title: String,
+    val page: Int,
+)
 
 /** One tab of the contents sheet. */
 @Composable
@@ -1804,7 +1942,7 @@ private const val CHROME_FADE_MS = 250
 private val PLAYER_SPRING = spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
 
 /** The player's frame: the 48dp touch target the accessibility rules ask for. */
-private val PLAYER_BUTTON_WIDTH = 40.dp
+private val PLAYER_BUTTON_WIDTH = 36.dp
 
 private val PLAYER_ROW_HEIGHT = 48.dp
 

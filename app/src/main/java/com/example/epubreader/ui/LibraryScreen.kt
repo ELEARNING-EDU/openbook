@@ -233,7 +233,7 @@ fun LibraryScreen(
             books.isEmpty() -> EmptyLibrary(onImport = onImport)
             else -> when (view) {
                 LibraryView.GRID -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 86.dp),
+                    columns = GridCells.Fixed(3),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 6.dp, bottom = 28.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
