@@ -418,6 +418,78 @@ class ReaderEngine private constructor(
         return sentenceAtOffset(run.chapterIndex, offset).takeIf { it >= 0 }
     }
 
+    /** Chapter + character offset under a touch, for text selection. */
+    fun offsetAt(page: Int, viewX: Float, viewY: Float): Pair<Int, Int>? {
+        val slot = slots.getOrNull(page) ?: return null
+        val column = columnIndexAt(viewX, slot)
+        val run = slot.columns.getOrNull(column) ?: return null
+        val layout = layouts[run.chapterIndex]
+        if (layout.text.isEmpty() || layout.lineCount == 0) return null
+        val layoutX = viewX - metrics.columnLeft(column, spec.columnCount)
+        val layoutY = viewY - metrics.textTop + layout.getLineTop(run.startLine)
+        val clampedY = layoutY.coerceIn(0f, (layout.height - 1).toFloat())
+        val line = layout.getLineForVertical(clampedY.toInt()).coerceIn(0, layout.lineCount - 1)
+        val offset = layout.getOffsetForHorizontal(line, layoutX)
+        return run.chapterIndex to offset
+    }
+
+    /** The chapter text inside [start, end), for a saved highlight's label. */
+    fun chapterSlice(chapter: Int, start: Int, end: Int): String {
+        val text = chapterText.getOrNull(chapter) ?: return ""
+        if (start !in 0..text.length || end !in 0..text.length || end <= start) return ""
+        return text.subSequence(start, end).toString()
+    }
+
+    /** Whole words around an offset; null when the offset is on whitespace only. */
+    fun wordBounds(chapter: Int, offset: Int): IntRange? {
+        val text = chapterText.getOrNull(chapter) ?: return null
+        if (offset !in 0..text.length) return null
+        var start = offset.coerceAtMost(text.length - 1).coerceAtLeast(0)
+        var end = start
+        while (start > 0 && !text[start - 1].isWhitespace()) start--
+        while (end < text.length && !text[end].isWhitespace()) end++
+        if (start >= end) return null
+        return start until end
+    }
+
+    /** Bands for an arbitrary character range of one chapter, in view space. */
+    @Suppress("DEPRECATION")
+    fun rangeRects(page: Int, chapter: Int, start: Int, end: Int): List<RectF> {
+        val slot = slots.getOrNull(page) ?: return emptyList()
+        val layout = layouts.getOrNull(chapter) ?: return emptyList()
+        if (layout.text.isEmpty() || start < 0 || end <= start) return emptyList()
+        val from = start.coerceIn(0, layout.text.length)
+        val to = (end - 1).coerceIn(0, layout.text.length - 1)
+        val startLine = layout.getLineForOffset(from)
+        val endLine = layout.getLineForOffset(to)
+        val out = ArrayList<RectF>(4)
+        for ((column, run) in slot.columns.withIndex()) {
+            if (run.chapterIndex != chapter) continue
+            val firstLine = startLine.coerceAtLeast(run.startLine)
+            val lastLine = endLine.coerceAtMost(run.endLine)
+            if (lastLine < firstLine) continue
+            val startsEarlier = startLine < run.startLine
+            val continuesLater = endLine > run.endLine
+            val topShift = metrics.textTop - layout.getLineTop(run.startLine)
+            val left = metrics.columnLeft(column, spec.columnCount)
+            for (line in firstLine..lastLine) {
+                val startX = if (line == firstLine && !startsEarlier) {
+                    layout.getPrimaryHorizontal(from)
+                } else {
+                    layout.getLineLeft(line).coerceAtLeast(0f)
+                }
+                val endX = if (line == lastLine && !continuesLater) {
+                    layout.getPrimaryHorizontal(to + 1)
+                } else {
+                    layout.getLineRight(line)
+                }
+                val top = layout.getLineTop(line) + topShift
+                out += RectF(left + startX, top, left + endX, layout.getLineBottom(line) + topShift)
+            }
+        }
+        return out
+    }
+
     /** Which of the page's columns a touch is on; a touch in the gutter takes the nearer. */
     private fun columnIndexAt(x: Float, slot: PageSlot): Int {
         if (slot.columns.size == 1) return 0

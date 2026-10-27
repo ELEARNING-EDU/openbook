@@ -10,7 +10,8 @@ import org.json.JSONObject
 /** One saved highlight: where it starts, and the words it covers. */
 data class Highlight(
     val chapterIndex: Int,
-    val offset: Int,
+    val startOffset: Int,
+    val endOffset: Int,
     val text: String,
     /** ARGB band colour. Old records decode to the default amber. */
     val color: Int = DEFAULT_COLOR,
@@ -25,7 +26,7 @@ data class Highlight(
         )
     }
 
-    val id: String get() = "$chapterIndex-$offset"
+    val id: String get() = "$chapterIndex-$startOffset-$endOffset"
 }
 
 /** Highlights per book, kept in `SharedPreferences` and anchored on text, not pages. */
@@ -44,12 +45,21 @@ class HighlightStore(context: Context) {
         highlights = read(bookKey)
     }
 
-    fun add(chapter: Int, offset: Int, text: String, color: Int = Highlight.DEFAULT_COLOR) {
+    fun add(
+        chapter: Int,
+        start: Int,
+        end: Int,
+        text: String,
+        color: Int = Highlight.DEFAULT_COLOR,
+    ) {
         val clean = text.trim()
-        if (chapter < 0 || offset < 0 || clean.isEmpty()) return
-        if (highlights.any { it.chapterIndex == chapter && it.offset == offset }) return
-        highlights = (highlights + Highlight(chapter, offset, clean, color))
-            .sortedWith(compareBy({ it.chapterIndex }, { it.offset }))
+        if (chapter < 0 || start < 0 || end <= start || clean.isEmpty()) return
+        if (highlights.any {
+                it.chapterIndex == chapter && it.startOffset == start && it.endOffset == end
+            }
+        ) return
+        highlights = (highlights + Highlight(chapter, start, end, clean, color))
+            .sortedWith(compareBy({ it.chapterIndex }, { it.startOffset }))
         persist()
     }
 
@@ -69,13 +79,17 @@ class HighlightStore(context: Context) {
             val array = JSONArray(raw)
             (0 until array.length()).mapNotNull { index ->
                 val item = array.optJSONObject(index) ?: return@mapNotNull null
+                val text = item.optString("text").orEmpty()
+                val start = item.optInt("start", item.optInt("offset", -1))
+                val end = item.optInt("end", if (start >= 0) start + text.length else -1)
                 Highlight(
                     chapterIndex = item.optInt("chapter", -1),
-                    offset = item.optInt("offset", -1),
-                    text = item.optString("text").orEmpty(),
+                    startOffset = start,
+                    endOffset = end,
+                    text = text,
                     color = item.optInt("color", Highlight.DEFAULT_COLOR),
-                ).takeIf { it.chapterIndex >= 0 && it.offset >= 0 && it.text.isNotBlank() }
-            }.sortedWith(compareBy({ it.chapterIndex }, { it.offset }))
+                ).takeIf { it.chapterIndex >= 0 && it.startOffset >= 0 && it.endOffset > it.startOffset }
+            }.sortedWith(compareBy({ it.chapterIndex }, { it.startOffset }))
         }.getOrDefault(emptyList())
     }
 
@@ -86,7 +100,8 @@ class HighlightStore(context: Context) {
             array.put(
                 JSONObject()
                     .put("chapter", highlight.chapterIndex)
-                    .put("offset", highlight.offset)
+                    .put("start", highlight.startOffset)
+                    .put("end", highlight.endOffset)
                     .put("text", highlight.text)
                     .put("color", highlight.color),
             )

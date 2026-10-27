@@ -104,8 +104,14 @@ class CurlView @JvmOverloads constructor(
     /** A held finger on the page, in view coordinates. */
     var onLongPress: ((Float, Float) -> Unit)? = null
 
-    /** Saved highlights that fall on the page being drawn, with their own band colour. */
-    var highlightSentences: Map<Int, Int> = emptyMap()
+    /** Saved highlight bands on this page, each with its own colour. */
+    var savedRects: List<Pair<RectF, Int>> = emptyList()
+
+    /** The live text selection (word range) being dragged out. */
+    var selectionRects: List<RectF> = emptyList()
+    var selecting: Boolean = false
+    var onSelectionExtend: ((Float, Float) -> Unit)? = null
+    var onSelectionCancel: (() -> Unit)? = null
         set(value) {
             if (field == value) return
             field = value
@@ -122,6 +128,7 @@ class CurlView @JvmOverloads constructor(
     private val cylinderPaint = Paint()
     private val highlightPaint = Paint().apply { color = 0x59FFFFFF }
     private val savedHighlightPaint = Paint().apply { color = 0x66FAC854.toInt() }
+    private val selectionPaint = Paint().apply { color = 0x553F7AD9 }
     private val flapEdgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1.2f * density
@@ -455,12 +462,12 @@ class CurlView @JvmOverloads constructor(
 
     /** Draws the amber band for the sentence being read, over the idle page. */
     private fun drawHighlight(canvas: Canvas, source: PageSource) {
-        for ((sentence, color) in highlightSentences) {
+        for ((rect, color) in savedRects) {
             savedHighlightPaint.color = color
-            val rects = source.highlightRects(baseIndex, sentence)
-            for (index in rects.indices) {
-                canvas.drawRoundRect(rects[index], highlightRadius, highlightRadius, savedHighlightPaint)
-            }
+            canvas.drawRoundRect(rect, highlightRadius, highlightRadius, savedHighlightPaint)
+        }
+        for (rect in selectionRects) {
+            canvas.drawRoundRect(rect, highlightRadius, highlightRadius, selectionPaint)
         }
         if (highlightSentence < 0) return
         val rects = source.highlightRects(baseIndex, highlightSentence)
@@ -477,6 +484,7 @@ class CurlView @JvmOverloads constructor(
         onLongPress?.invoke(press.first, press.second)
     }
     private var pendingPress: Pair<Float, Float>? = null
+    private var selectionDragged = false
     private var pressedLong = false
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -485,6 +493,12 @@ class CurlView @JvmOverloads constructor(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                if (selecting) {
+                    downX = event.x
+                    downY = event.y
+                    selectionDragged = false
+                    return true
+                }
                 beginDrag()
                 downX = event.x
                 downY = event.y
@@ -496,6 +510,15 @@ class CurlView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                if (selecting) {
+                    if (kotlin.math.abs(event.x - downX) > 8f ||
+                        kotlin.math.abs(event.y - downY) > 8f
+                    ) {
+                        selectionDragged = true
+                    }
+                    if (selectionDragged) onSelectionExtend?.invoke(event.x, event.y)
+                    return true
+                }
                 if (!pressedLong && (kotlin.math.abs(event.x - downX) > 12f ||
                         kotlin.math.abs(event.y - downY) > 12f)
                 ) {
@@ -508,6 +531,12 @@ class CurlView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (selecting) {
+                    if (!selectionDragged || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        onSelectionCancel?.invoke()
+                    }
+                    return true
+                }
                 removeCallbacks(longPress)
                 val wasLong = pressedLong
                 pendingPress = null

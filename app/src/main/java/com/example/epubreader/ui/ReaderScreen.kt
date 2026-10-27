@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
@@ -265,10 +266,10 @@ fun ReaderScreen(
     var showPlayer by remember { mutableStateOf(false) }
     /** The full player, opened by tapping the title in the reading bar. */
     var showPlayerSheet by remember { mutableStateOf(false) }
-    /** While on, a tap on a sentence saves a highlight instead of moving the voice. */
-    var highlightMode by remember { mutableStateOf(false) }
-    /** The sentence a long-press selected, waiting for a colour. */
-    var pendingHighlight by remember { mutableStateOf<Int?>(null) }
+    /** The live word selection: chapter and character range, plus its bands. */
+    var selection by remember { mutableStateOf<TextSelection?>(null) }
+    /** The selection popover's colour row is open. */
+    var colourOpen by remember { mutableStateOf(false) }
     /** Minutes the sleep timer was set for; 0 when it is off. */
     var sleepMinutes by remember { mutableIntStateOf(0) }
     var sleepLeft by remember { mutableIntStateOf(0) }
@@ -714,19 +715,18 @@ fun ReaderScreen(
         )
     }
 
-    // Saved highlights on the page being drawn: the view is imperative, so push them.
+    // Saved highlight bands on the page being drawn, then the live selection on top.
     LaunchedEffect(highlightStore.highlights, pageIndex, ready) {
         val source = ready ?: return@LaunchedEffect
-        holder.view?.highlightSentences = highlightStore.highlights
-            .mapNotNull { highlight ->
-                val sentence = source.sentenceAtAnchor(highlight.chapterIndex, highlight.offset)
-                if (sentence >= 0 && source.sentencePage(sentence) == pageIndex) {
-                    sentence to highlight.color
-                } else {
-                    null
-                }
-            }
-            .toMap()
+        holder.view?.savedRects = highlightStore.highlights.flatMap { highlight ->
+            source.rangeRects(pageIndex, highlight.chapterIndex, highlight.startOffset, highlight.endOffset)
+                .map { it to highlight.color }
+        }
+        holder.view?.invalidate()
+    }
+    LaunchedEffect(selection) {
+        holder.view?.selectionRects = selection?.rects.orEmpty()
+        holder.view?.selecting = selection != null
         holder.view?.invalidate()
     }
 
@@ -843,17 +843,6 @@ fun ReaderScreen(
      */
     fun pageTapped(x: Float, y: Float) {
         val source = ready
-        if (highlightMode) {
-            val sentence = source?.sentenceAt(currentPage(), x, y)
-            val anchor = sentence?.let { source?.anchorOfSentence(it) }
-            if (sentence != null && anchor != null) {
-                highlightStore.add(anchor.first, anchor.second, source.sentenceText(sentence))
-                highlightMode = false
-                speechNote = highlightSavedNote
-                scheduleAutoHide()
-            }
-            return
-        }
         val reading = speechState != SpeechState.IDLE
         if (!reading) {
             val width = holder.view?.width?.toFloat() ?: 0f
@@ -1027,9 +1016,39 @@ fun ReaderScreen(
                 if (source != null) {
                     view.pageSource = source
                     view.onPageTap = { x, y -> pageTapped(x, y) }
-                    view.onLongPress = { x, y ->
-                        val sentence = ready?.sentenceAt(currentPage(), x, y)
-                        if (sentence != null && sentence >= 0) pendingHighlight = sentence
+                    view.onLongPress = long@{ x, y ->
+                        val source = ready ?: return@long
+                        val page = currentPage()
+                        val hit = source.offsetAt(page, x, y) ?: return@long
+                        val words = source.wordBounds(hit.first, hit.second) ?: return@long
+                        if (speech.state == SpeechState.PLAYING) speech.pause()
+                        selection = TextSelection(
+                            page = page,
+                            chapter = hit.first,
+                            start = words.first,
+                            end = words.last + 1,
+                            rects = source.rangeRects(page, hit.first, words.first, words.last + 1),
+                        )
+                        colourOpen = false
+                        scheduleAutoHide()
+                    }
+                    view.onSelectionExtend = extend@{ x, y ->
+                        val current = selection ?: return@extend
+                        val source = ready ?: return@extend
+                        val hit = source.offsetAt(current.page, x, y) ?: return@extend
+                        val words = source.wordBounds(hit.first, hit.second) ?: return@extend
+                        if (hit.first != current.chapter) return@extend
+                        val start = minOf(current.start, words.first)
+                        val end = maxOf(current.end, words.last + 1)
+                        selection = current.copy(
+                            start = start,
+                            end = end,
+                            rects = source.rangeRects(current.page, current.chapter, start, end),
+                        )
+                    }
+                    view.onSelectionCancel = {
+                        selection = null
+                        colourOpen = false
                     }
                     // Re-assigned here rather than only in `factory`, so the callback
                     // reads this composition's state (the book, the cursor, the voice)
@@ -1141,19 +1160,6 @@ fun ReaderScreen(
                             ) { SearchGlyph() }
                             PairDivider()
                             PairButton(
-                                onClick = {
-                                    highlightMode = !highlightMode
-                                    speechNote = if (highlightMode) highlightModeNote else null
-                                    scheduleAutoHide()
-                                },
-                                contentDescription = stringResource(R.string.reader_highlight),
-                            ) {
-                                EditGlyph(
-                                    color = if (highlightMode) ReaderTheme.Accent else ReaderTheme.Ink,
-                                )
-                            }
-                            PairDivider()
-                            PairButton(
                                 onClick = { toggleBookmark() },
                                 contentDescription = stringResource(
                                     if (pageMarked()) R.string.reader_bookmark_remove
@@ -1256,54 +1262,58 @@ fun ReaderScreen(
         }
     }
 
-    val choosing = pendingHighlight
-    if (choosing != null && ready != null) {
-        ModalBottomSheet(
-            onDismissRequest = { pendingHighlight = null },
-            containerColor = ReaderTheme.Paper,
-            contentColor = ReaderTheme.Ink,
+    val live = selection
+    if (live != null && ready != null) {
+        val anchor = live.rects.firstOrNull()
+        val density = LocalDensity.current
+        Box(
+            modifier = Modifier
+                .offset {
+                    val x = ((anchor?.left ?: 24f)).toInt()
+                    val y = ((anchor?.top ?: 200f) - with(density) { 64.dp.toPx() }).toInt()
+                        .coerceAtLeast(0)
+                    androidx.compose.ui.unit.IntOffset(x, y)
+                }
+                .clip(RoundedCornerShape(12.dp))
+                .background(ReaderTheme.Paper)
+                .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 28.dp)) {
+            if (!colourOpen) {
                 Text(
-                    text = stringResource(R.string.highlight_pick_color),
+                    text = stringResource(R.string.reader_highlight),
+                    modifier = Modifier
+                        .clickable { colourOpen = true }
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    color = ReaderTheme.Ink,
+                    fontSize = 14.sp,
+                    color = ReaderTheme.Accent,
                 )
-                Spacer(modifier = Modifier.height(14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     for (color in com.example.epubreader.reader.Highlight.COLORS) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(32.dp)
                                 .clip(CircleShape)
                                 .background(ComposeColor(color))
                                 .clickable {
-                                    val anchor = ready.anchorOfSentence(choosing)
-                                    if (anchor != null) {
-                                        highlightStore.add(
-                                            anchor.first,
-                                            anchor.second,
-                                            ready.sentenceText(choosing),
-                                            color,
-                                        )
-                                        speechNote = highlightSavedNote
-                                    }
-                                    pendingHighlight = null
+                                    val text = ready.chapterSlice(live.chapter, live.start, live.end)
+                                    highlightStore.add(
+                                        live.chapter,
+                                        live.start,
+                                        live.end,
+                                        text,
+                                        color,
+                                    )
+                                    speechNote = highlightSavedNote
+                                    selection = null
+                                    colourOpen = false
                                 },
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = ready.sentenceText(choosing),
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 13.sp,
-                    color = ReaderTheme.InkSoft,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
         }
     }
@@ -1326,7 +1336,7 @@ fun ReaderScreen(
                     }
                 },
                 highlights = highlightStore.highlights.mapNotNull { highlight ->
-                    ready.markRow(highlight.chapterIndex, highlight.offset)?.let { row ->
+                    ready.markRow(highlight.chapterIndex, highlight.startOffset)?.let { row ->
                         HighlightRow(highlight, row.chapterTitle, row.pageIndex)
                     }
                 },
@@ -1967,6 +1977,15 @@ private fun TocContent(
     }
     Spacer(modifier = Modifier.height(24.dp))
 }
+
+/** A live text selection: page, chapter, character range and its bands. */
+private data class TextSelection(
+    val page: Int,
+    val chapter: Int,
+    val start: Int,
+    val end: Int,
+    val rects: List<android.graphics.RectF>,
+)
 
 /** One saved highlight, resolved for the sheet. */
 private data class HighlightRow(
