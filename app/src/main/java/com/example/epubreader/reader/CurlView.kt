@@ -554,7 +554,6 @@ class CurlView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
-                if (pressedLong) return true
                 if (selecting) {
                     if (draggingHandle != 0) {
                         onSelectionHandleDrag?.invoke(draggingHandle - 1, event.x, event.y)
@@ -568,6 +567,7 @@ class CurlView @JvmOverloads constructor(
                     if (selectionDragged) onSelectionExtend?.invoke(event.x, event.y)
                     return true
                 }
+                if (pressedLong) return true
                 if (!pressedLong && (kotlin.math.abs(event.x - downX) > 12f ||
                         kotlin.math.abs(event.y - downY) > 12f)
                 ) {
