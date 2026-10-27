@@ -567,7 +567,17 @@ class CurlView @JvmOverloads constructor(
                     if (selectionDragged) onSelectionExtend?.invoke(event.x, event.y)
                     return true
                 }
-                if (pressedLong) return true
+                if (pressedLong && !selecting) {
+                    // The long press was declined (blank paper): a real drag from here is
+                    // still a page turn, not a selection.
+                    if (kotlin.math.abs(event.x - downX) > 12f ||
+                        kotlin.math.abs(event.y - downY) > 12f
+                    ) {
+                        pressedLong = false
+                    } else {
+                        return true
+                    }
+                }
                 if (!pressedLong && (kotlin.math.abs(event.x - downX) > 12f ||
                         kotlin.math.abs(event.y - downY) > 12f)
                 ) {
@@ -581,7 +591,10 @@ class CurlView @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (selecting) {
-                    if (direction != 0) animateTo(0f, commit = false)
+                    if (direction != 0) {
+                    queuedTarget = -1
+                    animateTo(0f, commit = false)
+                }
                     if (pressedLong) {
                         pressedLong = false
                         return true
@@ -593,13 +606,20 @@ class CurlView @JvmOverloads constructor(
                     if (!selectionDragged || event.actionMasked == MotionEvent.ACTION_CANCEL) {
                         onSelectionCancel?.invoke()
                     }
+                    velocity?.recycle()
+                    velocity = null
                     return true
                 }
                 removeCallbacks(longPress)
                 val wasLong = pressedLong
                 pendingPress = null
                 if (wasLong) {
-                    if (direction != 0) animateTo(0f, commit = false)
+                    if (direction != 0) {
+                        queuedTarget = -1
+                        animateTo(0f, commit = false)
+                    }
+                    velocity?.recycle()
+                    velocity = null
                     return true
                 }
                 velocity?.addMovement(event)

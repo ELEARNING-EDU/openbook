@@ -106,5 +106,7 @@ class VoiceCatalogTest {
         assertEquals("Iom · Local", VoiceCatalog.label("en-US-x-iom-local"))
         assertFalse(VoiceCatalog.label("vi-vn-x-gft-network").contains("vi-vn"))
         assertEquals("vi-vn", VoiceCatalog.label("vi-vn"))
+        assertEquals("Default", VoiceCatalog.label("vi-VN-language"))
+        assertEquals("Sfg Female 1 · Local", VoiceCatalog.label("en-us-x-sfg#female_1-local"))
     }
 }

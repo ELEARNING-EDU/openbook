@@ -131,7 +131,7 @@ object VoiceCatalog {
      */
     fun label(name: String): String {
         val stripped = name.replaceFirst(LOCALE_PREFIX, "")
-        val tokens = stripped.split('-', '_', ' ')
+        val tokens = stripped.split('-', '_', ' ', '#')
             .filter { it.isNotBlank() && !it.equals("x", ignoreCase = true) }
         if (tokens.isEmpty()) return name
         val pretty = tokens.map { token ->
@@ -144,6 +144,7 @@ object VoiceCatalog {
             }
         }
         val quality = pretty.lastOrNull()
+        if (pretty.size == 1) return quality ?: name
         return if (quality == "Local" || quality == "Network" || quality == "Default") {
             (pretty.dropLast(1).joinToString(" ") + " · " + quality).trim()
         } else {
