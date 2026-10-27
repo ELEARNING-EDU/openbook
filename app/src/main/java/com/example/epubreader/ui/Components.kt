@@ -152,10 +152,10 @@ fun CircleButton(
             .size(size)
             .drawBehind { softCircleShadow() }
             .clip(CircleShape)
-            .background(if (active) ReaderTheme.Accent else ReaderTheme.Paper.copy(alpha = 0.82f))
+            .background(if (active) ReaderTheme.Accent else ReaderTheme.Paper.copy(alpha = 0.55f))
             .border(
                 1.dp,
-                if (active) ReaderTheme.Accent else ReaderTheme.Ink.copy(alpha = 0.20f),
+                if (active) ReaderTheme.Accent else ReaderTheme.Ink.copy(alpha = 0.10f),
                 CircleShape,
             )
             .alpha(if (enabled) 1f else 0.4f)
@@ -187,8 +187,8 @@ fun ButtonPair(
             .height(44.dp)
             .drawBehind { softRoundShadow(cornerRadius = 22.dp.toPx()) }
             .clip(RoundedCornerShape(22.dp))
-            .background(ReaderTheme.Paper.copy(alpha = 0.82f))
-            .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.20f), RoundedCornerShape(22.dp)),
+            .background(ReaderTheme.Paper.copy(alpha = 0.55f))
+            .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.10f), RoundedCornerShape(22.dp)),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -222,7 +222,7 @@ fun PairDivider() {
         modifier = Modifier
             .width(1.dp)
             .height(20.dp)
-            .background(ReaderTheme.Ink.copy(alpha = 0.16f)),
+            .background(ReaderTheme.Ink.copy(alpha = 0.10f)),
     )
 }
 
