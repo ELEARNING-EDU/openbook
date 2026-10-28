@@ -148,6 +148,17 @@
     <string name="reader_player">Reading controls</string>
     <string name="reader_previous_page">Previous page</string>
     <string name="reader_next_page">Next page</string>
+    <string name="guide_turn_title">Turn the page</string>
+    <string name="guide_turn_body">Tap the left or right edge of the page, or drag the paper across, to go back and forth. Tapping the middle of the page hides the buttons.</string>
+    <string name="guide_chrome_title">The top bar</string>
+    <string name="guide_chrome_body">Contents, search, a bookmark for this page, and the reading settings for text size, theme and font. Tap the middle of the page to bring the bar back.</string>
+    <string name="guide_mark_title">Highlight a passage</string>
+    <string name="guide_mark_body">Press and hold a word, then drag either end bar to widen the selection. Choose Highlight to keep it in colour. Press a saved highlight to change or remove it.</string>
+    <string name="guide_voice_title">Listen instead</string>
+    <string name="guide_voice_body">Tap the earphone at the bottom-left to have the page read aloud. The voice keeps going when you leave the reader, and the notification controls it.</string>
+    <string name="guide_skip">Skip</string>
+    <string name="guide_next">Next</string>
+    <string name="guide_start">Start reading</string>
     <string name="toc_tab">Contents</string>
     <string name="marks_tab">Bookmarks (%1$d)</string>
     <string name="toc_empty">This book has no table of contents.</string>

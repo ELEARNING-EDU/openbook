@@ -143,6 +143,17 @@
     <string name="reader_player">Điều khiển đọc</string>
     <string name="reader_previous_page">Trang trước</string>
     <string name="reader_next_page">Trang sau</string>
+    <string name="guide_turn_title">Lật trang</string>
+    <string name="guide_turn_body">Chạm vào mép trái hoặc mép phải trang để sang trang, hoặc kéo nhẹ tờ giấy. Chạm vào giữa trang để ẩn các nút đi.</string>
+    <string name="guide_chrome_title">Thanh công cụ phía trên</string>
+    <string name="guide_chrome_body">Mục lục, tìm trong sách, đánh dấu trang này, và cài đặt cỡ chữ, nền, phông. Chạm giữa trang để hiện lại thanh này.</string>
+    <string name="guide_mark_title">Đánh dấu đoạn văn</string>
+    <string name="guide_mark_body">Nhấn giữ một từ, rồi kéo hai thanh ở hai đầu để chọn rộng ra. Chọn Highlight để lưu lại thành màu. Nhấn vào đoạn đã đánh dấu để đổi màu hoặc xoá.</string>
+    <string name="guide_voice_title">Nghe thay vì đọc</string>
+    <string name="guide_voice_body">Chạm nút tai nghe ở góc dưới trái để máy đọc trang này. Ra khỏi màn đọc máy vẫn đọc tiếp, và thanh thông báo điều khiển được.</string>
+    <string name="guide_skip">Bỏ qua</string>
+    <string name="guide_next">Tiếp</string>
+    <string name="guide_start">Bắt đầu đọc</string>
     <string name="toc_tab">Mục lục</string>
     <string name="marks_tab">Đánh dấu (%1$d)</string>
     <string name="toc_empty">Sách này không có mục lục.</string>

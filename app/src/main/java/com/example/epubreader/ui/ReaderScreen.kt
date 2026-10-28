@@ -1729,6 +1729,23 @@ fun ReaderScreen(
             },
         )
     }
+
+    // The guide waits for the first page: shown over a blank spinner it would explain
+    // buttons that are not there yet. It is marked seen on open, so a rotation or a
+    // second book does not bring it back.
+    var guideOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(ready != null) {
+        if (ready != null && staged == DemoOptions.None && ReaderGuide.pending(context)) {
+            ReaderGuide.done(context)
+            guideOpen = true
+        }
+    }
+    if (guideOpen) {
+        ReaderGuideOverlay(onDone = {
+            guideOpen = false
+            scheduleAutoHide()
+        })
+    }
 }
 
 /** `Sách · Chương`, as the player's headline, with the chapter the voice is in. */

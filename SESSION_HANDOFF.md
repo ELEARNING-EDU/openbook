@@ -731,3 +731,14 @@ round found, fixed and measured, in the order the rounds happened.
   a real 900px drag's at 444.0 against 444.0 (0.0px). The evidence that the rule changed:
   `demoDrag -260,90` logs `finger 275.1 → sweep 460.4/2248.8 (20%)` (was 12%), and the
   `-800,+700` gesture that fell back at 34% now reads 79% and turns.
+
+## Reader gesture guide (2026-10-28)
+
+`ui/ReaderGuide.kt` — a four-step walkthrough card over the first page a reader opens
+(turn the page, the top bar, highlighting, listening). It waits for `ready != null` so it
+never explains buttons that are not there yet, is suppressed for harness demo launches
+(`staged != DemoOptions.None`), and is marked seen on **open** in `readerGuide.xml`, so a
+rotation, a second book or a force-stop cannot bring it back. Skip and "Start reading"
+both just close it; no setting re-opens it yet. Verified on E1 (`emulator-5554`, now the
+only AVD in use): all four steps, Skip, close, reopen another book = no guide; Vietnamese
+strings checked by temporarily setting `appLanguage` to `vi`, then removed.
