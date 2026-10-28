@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,25 +10,45 @@ plugins {
     alias(libs.plugins.kover)
 }
 
+// Release key lives outside Git: keystore.properties + keystore/ are ignored.
+val releaseKeystore = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
 android {
-    namespace = "com.example.epubreader"
+    namespace = "com.elearning.openbook"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.example.epubreader"
+        applicationId = "com.elearning.openbook"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2026102800
+        versionName = "20261028.00"
     }
 
     lint {
         abortOnError = true
         checkDependencies = true
+        // versionCode is date-based (YYYYMMDDCC) by owner decision; the 2.1B ceiling is reached in 2137.
+        disable += "HighAppVersionCode"
+    }
+
+    signingConfigs {
+        if (releaseKeystore.containsKey("storeFile")) {
+            create("release") {
+                storeFile = rootProject.file(releaseKeystore.getProperty("storeFile"))
+                storePassword = releaseKeystore.getProperty("storePassword")
+                keyAlias = releaseKeystore.getProperty("keyAlias")
+                keyPassword = releaseKeystore.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -52,10 +73,10 @@ kover {
         filters {
             includes {
                 classes(
-                    "com.example.epubreader.library.*",
-                    "com.example.epubreader.reader.*",
-                    "com.example.epubreader.epub.*",
-                    "com.example.epubreader.model.*",
+                    "com.elearning.openbook.library.*",
+                    "com.elearning.openbook.reader.*",
+                    "com.elearning.openbook.epub.*",
+                    "com.elearning.openbook.model.*",
                     "*ViewModel",
                 )
             }

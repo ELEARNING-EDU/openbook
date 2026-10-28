@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Sách</string>
+    <string name="app_name">OpenBook</string>
 
     <!-- Shell: tabs and the app-level screens -->
     <string name="tab_home">Home</string>

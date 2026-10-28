@@ -13,7 +13,56 @@ below supersedes the older Part 12 details further down.
 3. This file — the last session, the uncommitted work, the open questions.
 4. `docs/` is the app's user guide; `docs/qa/2026-10-23/` holds the test/QA evidence.
 
-## Latest checkpoint — 2026-10-26 (Home parity: stats, shelves, week chart)
+## Latest checkpoint — 2026-10-28 (release signing + release APK on E1)
+
+- **Package rename (same day, after the release build):** `namespace` + every Kotlin
+  `package`/`import` + the test sources moved from `com.example.epubreader` to
+  **`com.elearning.openbook`** (62 files; `git mv` of `app/src/main/java/com/example/epubreader`
+  and the test tree, then a string replace; Kover include globs updated with the same replace).
+  `applicationId` was already `com.elearning.openbook`. A stale Hilt transform needed
+  `:app:clean` once ("Could not find class file for 'com.example.epubreader.ReaderApplication'").
+  Rebuilt: `assembleRelease` green, 112/112 tests green, APK **1,776,989 bytes** sha256
+  `df3c7032a2354dcd1df0090f209442d90035dcb13b376c6dec44d98891e89ee9`, installed over the
+  previous build with `install -r` (same package, same key → **data kept**), launches, reader
+  resumes page 1/12, 0 crash-log lines.
+- Generated cover (book without a usable image): title and author are now **white** (author at
+  78%) instead of the theme ink, which was low contrast on the five dark gradients
+  (`Components.BookCover`). Rebuilt + installed: `assembleRelease` green, sha256
+  `368b712c57f39423e53dc9aa45b5d2ec17a7fd7e33c1b5cbf8f07f484232af48`; verified on E1 in the
+  Home card and in Library.
+- **New release key (same day, owner request after the old one was lost):** the old
+  `openbook-release.jks` was replaced with a fresh one (alias `openbook`, same DN, same
+  password in `keystore.properties`). The signing certificate is now SHA-256
+  **`4bd1456eaa9ce2f21e2206bc4c75646ea55724698e3a8c8f16095663fb0d97f3`** (the old builds
+  were signed by `c39dec49…`). Release rebuilt: sha256
+  `d800185cb762a641b0a8e29946c27495c9cbaead28cb04eeac4569a9e02282d8`, 0 crashes after
+  `uninstall` + `install` on E1 (the signature change forces a data wipe again).
+- Stray file: `keystore/upload.jks` (alias `upload`, random password) was created by another
+  tool run at 12:18 and had taken over `keystore.properties`; it is left in place untouched and
+  is no longer used. Delete it if it is unwanted.
+- Added a real release key and signing config. Key: `keystore/openbook-release.jks` (alias
+  `openbook`, PKCS12, 30 years, DN `CN=OpenBook, O=OpenBook, L=Ho Chi Minh, C=VN`), gitignored
+  together with `keystore.properties` (new `.gitignore` entries `keystore.properties`,
+  `keystore/`, `*.jks`). `app/build.gradle.kts` reads `keystore.properties` at the root and
+  wires `signingConfigs.release`; without the file the release build stays unsigned.
+  Password/alias are in `keystore.properties` only — not in Git, not in this file.
+- `:app:assembleRelease` BUILD SUCCESSFUL (57 s, R8 + resource shrinking as before).
+  APK `app/build/outputs/apk/release/app-release.apk`, **1,777,001 bytes**, sha256
+  `38afdf81f841bea2ecbd48b053a4765a560d5e0d9705eddae27cadf23613ae39`,
+  signer SHA-256 `c39dec49…ff038` (CN=OpenBook, not the debug key).
+- Installed on `emulator-5554` (AVD `E1`) after `uninstall com.elearning.openbook` — the
+  previously installed build was signed with the debug key, so the signature change forced a
+  data wipe (the emulator's book list and reading progress are gone; the sample book was
+  re-seeded on launch).
+- Smoke on the release APK: cold start → notification permission asked → Home (0 min, no
+  streak) → Library (sample `Ngọn Hải Đăng Cuối Cùng`) → reader page 1/12 with the first-run
+  gesture guide → Skip dismisses it; 0 crash-log entries. Screenshots in `/tmp`
+  (`openbook-release.png`, `lib.png`, `final2.png`).
+- Not done: Play upload/`.aab` (`bundleRelease`), version bump, unit tests/lint not re-run for
+  this build-config-only change, and the release build was not exercised beyond the smoke
+  above (TTS/notification path).
+
+## Previous checkpoint — 2026-10-26 (Home parity: stats, shelves, week chart)
 
 - HEAD is now `694069c` on branch `android` (checkpoint commit with the parity, robustness,
   Home, Hilt/DI, ViewModel and quality-gate work); nothing pushed. Left out of it: the

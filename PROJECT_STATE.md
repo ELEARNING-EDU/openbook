@@ -9,7 +9,7 @@ state" first, then the Part sections for the reasoning and the measurements behi
 
 | Fact | Value |
 | --- | --- |
-| App / package | **Sách** · `com.example.epubreader` (applicationId = namespace) |
+| App / package | **Sách** · `com.elearning.openbook` (applicationId = namespace; renamed from `com.example.epubreader` on 2026-10-28) |
 | Module / size | `:app` only · 37 Kotlin files · **12,191 lines** under `app/src/main/java` |
 | Toolchain | Gradle 9.8.0 · AGP 9.4.1 · Kotlin 2.4.20 · JDK 17 (jbr-17.0.14) |
 | SDK | compileSdk 37 · targetSdk 36 · minSdk 26 |

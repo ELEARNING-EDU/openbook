@@ -13,5 +13,10 @@ captures/
 # Machine-specific SDK path — never commit it
 local.properties
 
+# Release signing — never commit the key or its passwords
+keystore.properties
+keystore/
+*.jks
+
 # macOS
 .DS_Store

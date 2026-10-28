@@ -1,75 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Approved OpenBook mark: hollow book, right page mid-turn, equaliser in the page.
+     Source: design/google-play/v2/icon.svg. Drawn at 0.76 so it stays inside the
+     adaptive-icon safe zone (66 of 108 dp) under a circular mask. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+    android:viewportWidth="512"
+    android:viewportHeight="512">
 
-    <!-- An open book: two pages angling away from the spine, plus a soft drop shadow. -->
-
-    <!-- Shadow under the book -->
-    <path
-        android:pathData="M30,80 Q54,88 78,80 L78,84 Q54,92 30,84 Z"
-        android:fillColor="#000000"
-        android:fillAlpha="0.28" />
-
-    <!-- Left page -->
-    <path
-        android:pathData="M30,38 L52,43 L52,77 L30,72 Z"
-        android:fillColor="#F7F2E7" />
-
-    <!-- Right page -->
-    <path
-        android:pathData="M56,43 L78,38 L78,72 L56,77 Z"
-        android:fillColor="#EFE7D6" />
-
-    <!-- Spine -->
-    <path
-        android:pathData="M51,42.5 L57,42.5 L57,77.5 L51,77.5 Z"
-        android:fillColor="#9E5932" />
-
-    <!-- Ruled lines, left page -->
-    <path
-        android:pathData="M35,50 L47,52.5"
-        android:strokeColor="#B9AD98"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M35,56 L47,58.5"
-        android:strokeColor="#B9AD98"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M35,62 L47,64.5"
-        android:strokeColor="#B9AD98"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M35,68 L43,69.6"
-        android:strokeColor="#B9AD98"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
-
-    <!-- Ruled lines, right page -->
-    <path
-        android:pathData="M61,52.5 L73,50"
-        android:strokeColor="#B9AD98"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M61,58.5 L73,56"
-        android:strokeColor="#B9AD98"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M61,64.5 L73,62"
-        android:strokeColor="#B9AD98"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M61,70.5 L69,68.9"
-        android:strokeColor="#B9AD98"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round" />
-
+    <group android:pivotX="256" android:pivotY="256" android:scaleX="0.76" android:scaleY="0.76">
+    <path android:fillColor="#FBF7EE" android:pathData="M88,172 L178,172 C226,173 248,178 256,186 C300,174 416,148 424,138 L424,368 L88,368 Z" />
+    <group android:pivotX="256" android:pivotY="253" android:scaleX="0.892857" android:scaleY="0.816327">
+        <path android:fillColor="#9E5932" android:pathData="M88,172 L178,172 C226,173 248,178 256,186 C300,174 416,148 424,138 L424,368 L88,368 Z" />
+    </group>
+    <path android:fillColor="#FBF7EE" android:pathData="M247,204 L265,204 L265,350 L247,350 Z" />
+    <path android:fillColor="#FBF7EE" android:pathData="M296,258 A8,8 0 0 1 304,250 L304,286 A8,8 0 0 1 296,294 Z" />
+    <path android:fillColor="#FBF7EE" android:pathData="M324,238 A8,8 0 0 1 332,230 L332,306 A8,8 0 0 1 324,314 Z" />
+    <path android:fillColor="#FBF7EE" android:pathData="M352,218 A8,8 0 0 1 360,210 L360,326 A8,8 0 0 1 352,334 Z" />
+    <path android:fillColor="#FBF7EE" android:pathData="M380,246 A8,8 0 0 1 388,238 L388,298 A8,8 0 0 1 380,306 Z" />
+    </group>
 </vector>
