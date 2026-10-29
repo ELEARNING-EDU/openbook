@@ -63,7 +63,7 @@ Website thư viện/kho sách mở: người đọc xem thông tin sách và m�
 
 - Đăng nhập: Google OAuth qua Auth.js.
 - Admin: email (so sánh không phân biệt hoa thường) nằm trong biến môi trường `ADMIN_EMAILS` (danh sách phân cách bằng dấu phẩy).
-- Hàm `isAdmin(email)` dùng chung; middleware chặn `/admin/*`, và **mọi** Server Action admin tự kiểm tra lại quyền phía server.
+- Hàm `isAdmin(email)` dùng chung; layout `/admin` kiểm tra quyền phía server (không dùng middleware vì adapter MongoDB không chạy ở edge), và **mọi** Server Action admin tự kiểm tra lại quyền phía server.
 - Server Action review yêu cầu đã đăng nhập.
 
 ## 6. Giao diện
