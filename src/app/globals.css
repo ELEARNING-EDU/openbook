@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-cream: #fbf6ec;
+  --color-ink: #3b2a1a;
+  --color-brick: #c2410c;
+  --color-moss: #4d7c0f;
+  --font-display: var(--font-playfair);
+  --font-sans: var(--font-be-vietnam);
+}
+
+body {
+  @apply bg-cream text-ink font-sans antialiased;
+}
+
+h1,
+h2,
+h3 {
+  @apply font-display;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 600ms ease,
+    transform 600ms ease;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
