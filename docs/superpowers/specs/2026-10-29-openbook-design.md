@@ -29,10 +29,11 @@ Website thư viện/kho sách mở: người đọc xem thông tin sách và m�
 **Công khai**
 | Route | Nội dung |
 |---|---|
-| `/` | Banner, sách nổi bật, sách mới, danh sách thể loại |
+| `/` | Slider banner lớn: 8 sách tải nhiều nhất; sách nổi bật; sách mới; mỗi thể loại một hàng sách (tối đa 10, sắp theo lượt tải) kèm link "Xem tất cả" |
 | `/books` | Danh sách sách; tìm theo tên/tác giả (`?q=`), lọc thể loại (`?category=`), phân trang (`?page=`, 20 sách/trang) |
 | `/books/[slug]` | Bìa, tiêu đề, tác giả, mô tả, thể loại, nút link đọc/tải, điểm trung bình, form đánh giá (khi đăng nhập), danh sách bình luận không bị ẩn |
-| `/categories/[slug]` | Sách thuộc thể loại, phân trang |
+| `/categories/[slug]` | Slider banner lớn: 5 sách tải nhiều nhất của thể loại; bên dưới là toàn bộ sách thuộc thể loại, phân trang |
+| `/books/[slug]/go/[i]` | Route handler: tăng `downloadCount` rồi chuyển hướng 302 tới `links[i].url`; `i` không hợp lệ → 404 |
 
 **Admin** (`/admin/*`, chỉ admin)
 | Route | Nội dung |
@@ -45,7 +46,7 @@ Website thư viện/kho sách mở: người đọc xem thông tin sách và m�
 
 ## 4. Dữ liệu (MongoDB)
 
-**Book**: `title` (bắt buộc), `slug` (unique, sinh từ title bỏ dấu), `author` (bắt buộc), `description`, `coverUrl`, `links: [{label, url}]` (≥ 1), `categoryIds: ObjectId[]`, `featured: boolean`, `ratingAvg: number`, `ratingCount: number`, `createdAt`, `updatedAt`.
+**Book**: `title` (bắt buộc), `slug` (unique, sinh từ title bỏ dấu), `author` (bắt buộc), `description`, `coverUrl`, `links: [{label, url}]` (≥ 1), `categoryIds: ObjectId[]`, `featured: boolean`, `ratingAvg: number`, `ratingCount: number`, `downloadCount: number` (mặc định 0, tăng mỗi lần bấm link đọc/tải), `createdAt`, `updatedAt`.
 
 **Category**: `name` (bắt buộc), `slug` (unique).
 
@@ -74,6 +75,7 @@ Website thư viện/kho sách mở: người đọc xem thông tin sách và m�
 
 **Thành phần**
 - Thẻ sách: bo góc lớn, bìa 2:3, hover nhấc lên + nghiêng nhẹ, hiển thị sao.
+- Slider banner: mỗi slide nền gradient ấm lấy cảm hứng từ bìa, bìa sách lớn + tiêu đề, tác giả, số lượt tải, mô tả ngắn, nút "Xem sách". Tự chuyển slide mỗi 5 giây (dừng khi hover/focus, tắt khi `prefers-reduced-motion`), có nút trước/sau, chấm điều hướng, vuốt trên mobile (CSS scroll-snap). Không thêm thư viện slider. Không có sách → ẩn slider.
 - Header: logo, ô tìm kiếm, menu thể loại, avatar/nút "Đăng nhập Google"; mobile dùng hamburger mở drawer.
 - Hiệu ứng hiện dần khi cuộn, chỉ dùng CSS/Tailwind; tắt khi `prefers-reduced-motion`.
 - Bìa thiếu/lỗi → ảnh placeholder theo màu chủ đề.
