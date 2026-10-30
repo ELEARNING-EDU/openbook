@@ -12,9 +12,12 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "dompurify": "^3.4.17",
+    "fflate": "^0.8.3",
     "mongoose": "^9.11.4",
     "next": "16.4.3",
     "next-auth": "^5.0.0-beta.32",
+    "page-flip": "^2.0.7",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "^4.6.7"
@@ -27,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "jsdom": "^30.1.3",
     "mongodb-memory-server": "^11.3.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
