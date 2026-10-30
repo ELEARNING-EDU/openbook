@@ -21,6 +21,10 @@ describe("bookSchema", () => {
       bookSchema.safeParse({ ...validBook, links: [{ label: "x", url: "javascript:alert(1)" }] }).success,
     ).toBe(false);
   });
+  it("URL rỗng/không hợp lệ trả lỗi thay vì throw", () => {
+    const r = bookSchema.safeParse({ ...validBook, links: [{ label: "x", url: "" }], coverUrl: "not a url" });
+    expect(r.success).toBe(false);
+  });
   it("yêu cầu ít nhất 1 link", () => {
     expect(bookSchema.safeParse({ ...validBook, links: [] }).success).toBe(false);
   });

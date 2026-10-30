@@ -1,4 +1,5 @@
 import type { Types } from "mongoose";
+import { connection } from "next/server";
 import { connectDB } from "@/lib/db";
 import { isObjectId } from "@/lib/book-service";
 import { Book, type BookDoc } from "@/models/Book";
@@ -6,6 +7,12 @@ import { Category } from "@/models/Category";
 import { Review, type ReviewDoc } from "@/models/Review";
 
 export const PAGE_SIZE = 20;
+
+// Reads are per-request: opt out of prerendering before the driver touches clocks/randomness.
+async function ready() {
+  await connection();
+  await connectDB();
+}
 
 export type CategoryDTO = { id: string; name: string; slug: string };
 
@@ -79,7 +86,7 @@ function toReviewDTO(r: ReviewLean): ReviewDTO {
 }
 
 async function findBooks(filter: object, sort: Record<string, 1 | -1>, skip: number, limit: number) {
-  await connectDB();
+  await ready();
   const docs = await Book.find(filter)
     .sort(sort)
     .skip(skip)
@@ -104,7 +111,7 @@ export async function getTopDownloaded({ categoryId, limit = 8 }: { categoryId?:
 }
 
 export async function listBooks({ q, category, page }: { q?: string; category?: string; page: number }) {
-  await connectDB();
+  await ready();
   const filter: Record<string, unknown> = {};
   const term = q?.trim();
   if (term) {
@@ -131,12 +138,12 @@ export async function getBookById(id: string): Promise<BookDTO | null> {
 }
 
 export async function listCategories(): Promise<CategoryDTO[]> {
-  await connectDB();
+  await ready();
   return (await Category.find().sort({ name: 1 }).lean<CatLean[]>()).map(toCategoryDTO);
 }
 
 export async function getCategoryBySlug(slug: string): Promise<CategoryDTO | null> {
-  await connectDB();
+  await ready();
   const c = await Category.findOne({ slug }).lean<CatLean>();
   return c ? toCategoryDTO(c) : null;
 }
@@ -154,13 +161,13 @@ export async function getCategorySections(perCategory = 10) {
 
 export async function getVisibleReviews(bookId: string): Promise<ReviewDTO[]> {
   if (!isObjectId(bookId)) return [];
-  await connectDB();
+  await ready();
   const docs = await Review.find({ bookId, hidden: false }).sort({ createdAt: -1 }).lean<ReviewLean[]>();
   return docs.map(toReviewDTO);
 }
 
 export async function listAllReviews(limit = 100): Promise<ReviewDTO[]> {
-  await connectDB();
+  await ready();
   const docs = await Review.find()
     .sort({ createdAt: -1 })
     .limit(limit)
@@ -171,7 +178,7 @@ export async function listAllReviews(limit = 100): Promise<ReviewDTO[]> {
 
 export async function getUserReview(bookId: string, userId: string): Promise<ReviewDTO | null> {
   if (!isObjectId(bookId)) return null;
-  await connectDB();
+  await ready();
   const r = await Review.findOne({ bookId, userId }).lean<ReviewLean>();
   return r ? toReviewDTO(r) : null;
 }

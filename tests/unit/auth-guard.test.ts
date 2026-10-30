@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.fn();
 vi.mock("@/auth", () => ({ auth }));
+vi.mock("next/server", () => ({ connection: async () => {} }));
 
 const { requireAdmin, requireUser, getSessionUser } = await import("@/lib/auth-guard");
 

@@ -1,10 +1,13 @@
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 
 export type SessionUser = { id: string; name: string; email: string; image?: string; isAdmin: boolean };
 
 export async function getSessionUser(): Promise<SessionUser | null> {
+  // Session reads are per-request; Auth.js also uses crypto randomness, which prerendering forbids.
+  await connection();
   const u = (await auth())?.user;
   if (!u?.id || !u.email) return null;
   return { id: u.id, name: u.name ?? u.email, email: u.email, image: u.image ?? undefined, isAdmin: isAdmin(u.email) };

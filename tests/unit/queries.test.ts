@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("next/server", () => ({ connection: async () => {} }));
 import { link, setupTestDB } from "../helpers/mongo";
 import { Book } from "@/models/Book";
 import { Category } from "@/models/Category";

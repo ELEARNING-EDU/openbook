@@ -3,8 +3,7 @@ import { z } from "zod";
 const httpUrl = z
   .string()
   .trim()
-  .url("URL không hợp lệ")
-  .refine((u) => /^https?:$/.test(new URL(u).protocol), "Chỉ chấp nhận link http/https");
+  .pipe(z.url({ protocol: /^https?$/, hostname: z.regexes.domain, error: "Cần link http/https hợp lệ" }));
 
 export const bookSchema = z.object({
   title: z.string().trim().min(1, "Nhập tên sách").max(200),
