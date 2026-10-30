@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Cover } from "@/components/Cover";
+import { BookActions } from "@/components/reader/BookActions";
 import { ReviewForm } from "@/components/ReviewForm";
 import { ReviewList } from "@/components/ReviewList";
 import { Stars } from "@/components/Stars";
@@ -66,23 +67,11 @@ async function BookDetail({ params }: Pick<Props, "params">) {
             </span>
             <span>🔥 {book.downloadCount.toLocaleString("vi-VN")} lượt tải</span>
           </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {book.links.map((l, i) => (
-              // Plain <a>: a prefetching <Link> would hit the counter route.
-              <a
-                key={i}
-                href={`/books/${book.slug}/go/${i}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brick to-rose-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
-              >
-                📖 {l.label}
-              </a>
-            ))}
-          </div>
+          <BookActions book={book} />
           {book.description && <p className="mt-8 max-w-prose whitespace-pre-line leading-relaxed text-ink/85">{book.description}</p>}
         </div>
       </div>
+      <div id="reader-slot" />
       <section>
         <h2 className="mb-6 text-2xl font-bold md:text-3xl">Đánh giá & bình luận</h2>
         <Suspense fallback={<p className="text-ink/60">Đang tải đánh giá…</p>}>
