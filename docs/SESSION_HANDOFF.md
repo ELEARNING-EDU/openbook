@@ -13,6 +13,10 @@ Cập nhật: 2026-10-30
 - `npm run lint`, `npm run build` (kể cả khi không có env): pass.
 - Luồng admin/review kiểm tra bằng script trình duyệt với cookie JWT tự tạo: pass.
 
-## Bước tiếp theo
+## Tính năng đang làm: trình đọc sách (Reader)
+- Spec: `docs/superpowers/specs/2026-10-30-reader-design.md` (chờ người dùng duyệt). Chưa có code.
+- Kế tiếp: duyệt spec → `superpowers:writing-plans`.
+
+## Bước tiếp theo (ứng dụng chính)
 1. Người dùng điền `.env.local` thật (Atlas + Google OAuth), `npm run seed`, `npm run dev`, thử đăng nhập Google.
 2. Deploy Vercel theo README.
