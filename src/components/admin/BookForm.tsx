@@ -23,6 +23,7 @@ export function BookForm({ book, categories }: { book?: BookDTO; categories: Cat
   const [author, setAuthor] = useState(book?.author ?? "");
   const [description, setDescription] = useState(book?.description ?? "");
   const [coverUrl, setCoverUrl] = useState(book?.coverUrl ?? "");
+  const [epubUrl, setEpubUrl] = useState(book?.epubUrl ?? "");
   const [links, setLinks] = useState(book?.links.length ? book.links : [{ label: "Đọc online", url: "" }]);
   const [categoryIds, setCategoryIds] = useState<string[]>(book?.categories.map((c) => c.id) ?? []);
   const [featured, setFeatured] = useState(book?.featured ?? false);
@@ -37,7 +38,7 @@ export function BookForm({ book, categories }: { book?: BookDTO; categories: Cat
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const r = await saveBook(book?.id ?? null, { title, author, description, coverUrl, links, categoryIds, featured });
+          const r = await saveBook(book?.id ?? null, { title, author, description, coverUrl, epubUrl, links, categoryIds, featured });
           if (r.ok) {
             toast("Đã lưu");
             router.push("/admin/books");
@@ -69,6 +70,11 @@ export function BookForm({ book, categories }: { book?: BookDTO; categories: Cat
           <label htmlFor="coverUrl" className="mb-1 block text-sm font-semibold">URL ảnh bìa</label>
           <input id="coverUrl" type="url" placeholder="https://…" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} className={input} />
           <FieldError errors={errors.coverUrl} />
+        </div>
+        <div>
+          <label htmlFor="epubUrl" className="mb-1 block text-sm font-semibold">Link EPUB (để đọc online)</label>
+          <input id="epubUrl" type="url" placeholder="https://…/sach.epub" value={epubUrl} onChange={(e) => setEpubUrl(e.target.value)} className={input} />
+          <FieldError errors={errors.epubUrl} />
         </div>
         <fieldset>
           <legend className="mb-1 text-sm font-semibold">Link đọc / tải *</legend>

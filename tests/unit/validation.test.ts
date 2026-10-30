@@ -25,6 +25,12 @@ describe("bookSchema", () => {
     const r = bookSchema.safeParse({ ...validBook, links: [{ label: "x", url: "" }], coverUrl: "not a url" });
     expect(r.success).toBe(false);
   });
+  it("epubUrl rỗng hoặc http/https tên miền", () => {
+    expect(bookSchema.safeParse({ ...validBook, epubUrl: "" }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, epubUrl: "https://www.gutenberg.org/ebooks/1342.epub3.images" }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, epubUrl: "http://127.0.0.1/x.epub" }).success).toBe(false);
+    expect(bookSchema.safeParse({ ...validBook, epubUrl: "file:///etc/passwd" }).success).toBe(false);
+  });
   it("yêu cầu ít nhất 1 link", () => {
     expect(bookSchema.safeParse({ ...validBook, links: [] }).success).toBe(false);
   });

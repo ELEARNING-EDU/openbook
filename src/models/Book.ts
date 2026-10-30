@@ -7,6 +7,7 @@ const bookSchema = new Schema(
     author: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
     coverUrl: { type: String, default: "" },
+    epubUrl: { type: String, default: "" },
     links: {
       type: [{ _id: false, label: { type: String, required: true }, url: { type: String, required: true } }],
       default: [],

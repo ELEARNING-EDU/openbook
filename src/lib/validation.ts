@@ -10,6 +10,7 @@ export const bookSchema = z.object({
   author: z.string().trim().min(1, "Nhập tác giả").max(200),
   description: z.string().trim().max(5000).default(""),
   coverUrl: z.union([z.literal(""), httpUrl]).default(""),
+  epubUrl: z.union([z.literal(""), httpUrl]).default(""),
   links: z
     .array(z.object({ label: z.string().trim().min(1, "Nhập nhãn").max(50), url: httpUrl }))
     .min(1, "Cần ít nhất 1 link")

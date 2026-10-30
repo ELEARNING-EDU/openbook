@@ -36,4 +36,9 @@ export async function recordDownload(slug: string, index: number): Promise<strin
   return book?.links[index]?.url ?? null;
 }
 
+export async function incrementDownload(slug: string): Promise<boolean> {
+  await connectDB();
+  return (await Book.updateOne({ slug }, { $inc: { downloadCount: 1 } })).matchedCount > 0;
+}
+
 export const isObjectId = (id: string) => Types.ObjectId.isValid(id) && /^[a-f\d]{24}$/i.test(id);

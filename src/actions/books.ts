@@ -2,7 +2,7 @@
 
 import { runAction, formError } from "@/actions/types";
 import { requireAdmin } from "@/lib/auth-guard";
-import { isObjectId, uniqueSlug } from "@/lib/book-service";
+import { incrementDownload, isObjectId, uniqueSlug } from "@/lib/book-service";
 import { connectDB } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import { bookSchema, type BookInput } from "@/lib/validation";
@@ -44,4 +44,10 @@ export async function toggleFeatured(id: string) {
     const r = await Book.updateOne({ _id: id }, [{ $set: { featured: { $not: "$featured" } } }], { updatePipeline: true });
     return r.matchedCount ? { ok: true } : formError("Không tìm thấy sách");
   });
+}
+
+// Public: counts one "download" each time the in-page reader is opened.
+export async function recordRead(slug: string): Promise<void> {
+  if (typeof slug !== "string" || !/^[a-z0-9-]{1,200}$/.test(slug)) return;
+  await incrementDownload(slug);
 }

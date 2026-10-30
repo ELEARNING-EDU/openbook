@@ -23,6 +23,7 @@ export type BookDTO = {
   author: string;
   description: string;
   coverUrl: string;
+  epubUrl: string;
   links: { label: string; url: string }[];
   categories: CategoryDTO[];
   featured: boolean;
@@ -56,6 +57,7 @@ function toBookDTO(b: BookLean): BookDTO {
     author: b.author,
     description: b.description ?? "",
     coverUrl: b.coverUrl ?? "",
+    epubUrl: b.epubUrl ?? "",
     links: b.links.map((l) => ({ label: l.label, url: l.url })),
     categories: (b.categoryIds ?? []).filter(Boolean).map(toCategoryDTO),
     featured: b.featured,

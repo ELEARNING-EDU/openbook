@@ -5,7 +5,7 @@ const guard = vi.hoisted(() => ({ requireAdmin: vi.fn(), requireUser: vi.fn() })
 vi.mock("@/lib/auth-guard", () => guard);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-const { saveBook, deleteBook, toggleFeatured } = await import("@/actions/books");
+const { saveBook, deleteBook, toggleFeatured, recordRead } = await import("@/actions/books");
 const { saveCategory, deleteCategory } = await import("@/actions/categories");
 const { submitReview, setReviewHidden, deleteReview } = await import("@/actions/reviews");
 const { Book } = await import("@/models/Book");
@@ -71,6 +71,19 @@ describe("saveBook", () => {
     asAdmin();
     expect((await saveBook("0123456789abcdef01234567", validBook)).ok).toBe(false);
     expect((await saveBook("abc", validBook)).ok).toBe(false);
+  });
+  it("lưu epubUrl", async () => {
+    asAdmin();
+    const url = "https://www.gutenberg.org/ebooks/84.epub3.images";
+    const { id } = (await saveBook(null, { ...validBook, epubUrl: url })) as { id: string };
+    expect((await Book.findById(id).lean())?.epubUrl).toBe(url);
+  });
+  it("recordRead tăng lượt tải, không cần đăng nhập", async () => {
+    asAdmin();
+    const { id } = (await saveBook(null, validBook)) as { id: string };
+    asGuest();
+    await recordRead("truyen-kieu");
+    expect((await Book.findById(id).lean())?.downloadCount).toBe(1);
   });
   it("toggleFeatured đảo trạng thái", async () => {
     asAdmin();

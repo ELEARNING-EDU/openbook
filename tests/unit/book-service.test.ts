@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { link, setupTestDB } from "../helpers/mongo";
 import { Book } from "@/models/Book";
 import { Review } from "@/models/Review";
-import { recalcBookRating, recordDownload, uniqueSlug } from "@/lib/book-service";
+import { incrementDownload, recalcBookRating, recordDownload, uniqueSlug } from "@/lib/book-service";
 
 setupTestDB();
 
@@ -56,5 +56,14 @@ describe("Review unique index", () => {
     const b = await book();
     await Review.create({ bookId: b._id, userId: "u1", userName: "A", rating: 5 });
     await expect(Review.create({ bookId: b._id, userId: "u1", userName: "A", rating: 3 })).rejects.toThrow(/duplicate key/);
+  });
+});
+
+describe("incrementDownload", () => {
+  it("tăng lượt tải khi sách tồn tại", async () => {
+    const b = await book();
+    expect(await incrementDownload("truyen-kieu")).toBe(true);
+    expect((await Book.findById(b._id).lean())?.downloadCount).toBe(1);
+    expect(await incrementDownload("khong-co")).toBe(false);
   });
 });
