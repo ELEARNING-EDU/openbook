@@ -1,19 +1,18 @@
 # Session handoff
 
-Cập nhật: 2026-10-29
+Cập nhật: 2026-10-30
 
 ## Trạng thái
-- Nhánh `web`. Chưa có code ứng dụng.
-- Spec đã duyệt: `docs/superpowers/specs/2026-10-29-openbook-design.md`.
-- Kế hoạch 7 task: `docs/superpowers/plans/2026-10-29-openbook.md` (chờ duyệt + chọn cách thực thi).
+- Nhánh `web`. Đã triển khai đủ 7 task của `docs/superpowers/plans/2026-10-29-openbook.md` (spec: `docs/superpowers/specs/2026-10-29-openbook-design.md`).
 - `TODO.md` (yêu cầu gốc) chưa commit — để nguyên.
+- Chưa push, chưa deploy. Chưa thử đăng nhập Google thật (cần OAuth client của người dùng).
 
-## Quyết định đã chốt
-Thư viện sách mở, sách = metadata + link ngoài; người đọc đăng nhập Google để đánh giá/bình luận; admin qua `ADMIN_EMAILS`; Next.js + MongoDB Atlas + Vercel; phong cách ấm cổ điển + sinh động.
+## Kiểm chứng (2026-10-30)
+- `npm test`: 7 file, 48/48 pass.
+- `npm run e2e`: 14/14 pass (mobile 390px + desktop 1280px), DB MongoDB in-memory đã seed.
+- `npm run lint`, `npm run build` (kể cả khi không có env): pass.
+- Luồng admin/review kiểm tra bằng script trình duyệt với cookie JWT tự tạo: pass.
 
 ## Bước tiếp theo
-1. Người dùng duyệt kế hoạch và chọn Subagent-driven hoặc Native.
-2. Bắt đầu Task 1 (scaffold vào /tmp rồi rsync sang, vì thư mục không trống).
-
-## Kiểm chứng
-Chưa có build/test (chưa có code).
+1. Người dùng điền `.env.local` thật (Atlas + Google OAuth), `npm run seed`, `npm run dev`, thử đăng nhập Google.
+2. Deploy Vercel theo README.

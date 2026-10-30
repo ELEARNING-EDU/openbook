@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OpenBook
 
-## Getting Started
+Thư viện sách mở: giới thiệu sách kèm link đọc/tải miễn phí, người đọc đăng nhập Google để chấm điểm và bình luận, admin quản lý sách, thể loại và bình luận.
 
-First, run the development server:
+- Trang chủ: slider sách tải nhiều nhất, sách nổi bật, sách mới, mỗi thể loại một hàng sách.
+- Trang thể loại: slider sách tải nhiều nhất của thể loại + toàn bộ sách, phân trang.
+- Lượt tải được đếm khi người đọc bấm link (`/books/<slug>/go/<i>` → chuyển tới link thật).
+- Admin (`/admin`): chỉ các email trong `ADMIN_EMAILS`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Công nghệ: Next.js 16 (App Router, Cache Components), MongoDB + Mongoose, Auth.js (Google), Tailwind CSS, Zod, Vitest, Playwright.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Thiết kế: `docs/superpowers/specs/2026-10-29-openbook-design.md`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Chạy trên máy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. `npm install`
+2. `cp .env.example .env.local` rồi điền:
+   - `MONGODB_URI` — chuỗi kết nối MongoDB Atlas (hoặc MongoDB local).
+   - `AUTH_SECRET` — tạo bằng `npx auth secret` hoặc `openssl rand -base64 32`.
+   - `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` — tạo OAuth Client (loại *Web application*) tại Google Cloud Console → APIs & Services → Credentials. Thêm *Authorized redirect URI*: `http://localhost:3000/api/auth/callback/google`.
+   - `ADMIN_EMAILS` — email Google của admin, phân cách bằng dấu phẩy.
+3. `npm run seed` — tạo 4 thể loại và 12 sách mẫu (**xoá** sách, thể loại, bình luận hiện có).
+4. `npm run dev` → <http://localhost:3000>
 
-## Learn More
+## Kiểm thử
 
-To learn more about Next.js, take a look at the following resources:
+- `npm test` — unit/integration (Vitest, MongoDB chạy trong bộ nhớ, không cần Atlas).
+- `npm run e2e` — Playwright ở khung mobile 390px và desktop 1280px. Cần `.env.local` có `AUTH_TRUST_HOST=true` và DB đã seed. Lần đầu chạy `npx playwright install chromium`.
+- `npm run lint`, `npm run build`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy lên Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. MongoDB Atlas → *Network Access* → cho phép `0.0.0.0/0` (Vercel không có IP cố định). Tạo database user và lấy chuỗi kết nối.
+2. Vercel → *Add New Project* → import repo. Nếu app nằm trong thư mục con, đặt *Root Directory* tương ứng.
+3. *Environment Variables*: `MONGODB_URI`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ADMIN_EMAILS` (không cần `AUTH_TRUST_HOST` trên Vercel).
+4. Deploy. Sau đó thêm redirect URI `https://<domain-của-bạn>/api/auth/callback/google` vào OAuth Client trên Google Cloud.
+5. Muốn có dữ liệu mẫu trên production: chạy `MONGODB_URI="<chuỗi Atlas>" npm run seed` từ máy của bạn.
