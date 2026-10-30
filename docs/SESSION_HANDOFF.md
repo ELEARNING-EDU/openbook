@@ -8,7 +8,7 @@ Cập nhật: 2026-10-30
 - Chưa push, chưa deploy. Chưa thử đăng nhập Google thật (cần OAuth client của người dùng).
 
 ## Kiểm chứng (2026-10-30)
-- `npm test`: 7 file, 48/48 pass.
+- `npm test`: 8 file, 49/49 pass.
 - `npm run e2e`: 14/14 pass (mobile 390px + desktop 1280px), DB MongoDB in-memory đã seed.
 - `npm run lint`, `npm run build` (kể cả khi không có env): pass.
 - Luồng admin/review kiểm tra bằng script trình duyệt với cookie JWT tự tạo: pass.

@@ -17,7 +17,8 @@ export async function submitReview(bookId: string, input: ReviewInput) {
     if (!(await Book.exists({ _id: bookId }))) return formError("Không tìm thấy sách");
     await Review.updateOne(
       { bookId, userId: user.id },
-      { ...data, userName: user.name, userImage: user.image, hidden: false },
+      // hidden is set only on insert so resubmitting can't undo an admin's hide.
+      { $set: { ...data, userName: user.name, userImage: user.image }, $setOnInsert: { hidden: false } },
       { upsert: true },
     );
     await recalcBookRating(bookId);

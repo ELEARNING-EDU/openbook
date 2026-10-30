@@ -111,6 +111,19 @@ describe("reviews", () => {
     expect([b?.ratingAvg, b?.ratingCount]).toEqual([3, 1]);
     expect((await Review.findOne().lean())?.userName).toBe("Đọc Giả");
   });
+  it("review đã bị admin ẩn vẫn ẩn khi người viết gửi lại", async () => {
+    asAdmin();
+    const { id } = (await saveBook(null, validBook)) as { id: string };
+    asReader();
+    await submitReview(id, { rating: 1, comment: "spam" });
+    const rid = String((await Review.findOne().lean())?._id);
+    asAdmin();
+    await setReviewHidden(rid, true);
+    asReader();
+    await submitReview(id, { rating: 1, comment: "spam" });
+    expect((await Review.findById(rid).lean())?.hidden).toBe(true);
+    expect((await Book.findById(id).lean())?.ratingCount).toBe(0);
+  });
   it("khách không gửi được", async () => {
     asAdmin();
     const { id } = (await saveBook(null, validBook)) as { id: string };
