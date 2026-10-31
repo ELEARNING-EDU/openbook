@@ -13,7 +13,7 @@ try {
 
 const cover = (isbn: string) => `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
 const gutenberg = (id: number) => [
-  { label: "Đọc online", url: `https://www.gutenberg.org/ebooks/${id}.html.images` },
+  { label: "Đọc trên Gutenberg", url: `https://www.gutenberg.org/ebooks/${id}.html.images` },
   { label: "Tải EPUB", url: `https://www.gutenberg.org/ebooks/${id}.epub3.images` },
 ];
 const gutenbergEpub = (id: number) => `https://www.gutenberg.org/ebooks/${id}.epub3.images`;

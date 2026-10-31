@@ -12,6 +12,17 @@ export function sanitizeChapter(xhtml: string, { baseHref, imageUrl, chapterInde
   const body = doc.getElementsByTagName("body")[0];
   if (!body) return "";
 
+  // Gutenberg-style covers wrap the picture in <svg><image>; svg is stripped, so keep it as a plain <img>.
+  for (const svg of Array.from(body.getElementsByTagNameNS("*", "svg"))) {
+    const image = svg.getElementsByTagNameNS("*", "image")[0];
+    const href = image?.getAttributeNS("http://www.w3.org/1999/xlink", "href") ?? image?.getAttribute("href");
+    if (!href) continue;
+    const img = doc.createElementNS("http://www.w3.org/1999/xhtml", "img");
+    img.setAttribute("src", href);
+    img.setAttribute("alt", "");
+    svg.replaceWith(img);
+  }
+
   const clean = DOMPurify.sanitize(body.innerHTML, {
     FORBID_TAGS,
     FORBID_ATTR: ["style", "class", "id", "xmlns"],

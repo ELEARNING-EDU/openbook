@@ -29,6 +29,13 @@ describe("sanitizeChapter", () => {
     expect(internal).toContain('data-chapter="1"');
     expect(internal).not.toContain("href");
   });
+  it("ảnh bìa dạng <svg><image> thành <img>", () => {
+    const urls = (p: string) => (p === "OEBPS/cover.jpg" ? "blob:c" : undefined);
+    const svg = '<div><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 8 11"><image width="8" height="11" xlink:href="../cover.jpg"/></svg></div>';
+    const out = sanitizeChapter(wrap(svg), opts(urls));
+    expect(out).toContain('<img src="blob:c"');
+    expect(out).not.toContain("svg");
+  });
   it("bỏ style inline", () => {
     expect(sanitizeChapter(wrap('<p style="color:red">x</p>'), opts())).toBe("<p>x</p>");
   });
