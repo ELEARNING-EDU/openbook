@@ -35,7 +35,7 @@
   the EPUB robustness spec is kept. Gate re-run after the deletion.
 - Committed on branch `android` (worktree of `OpenBook`, tracking `origin/android`):
   `e7f83f7` (code), `53248ba` (docs move + sync), `114b4db` (cleanup), `f2537bc` (docs/qa
-  removed) — four commits ahead of the remote, not pushed. Next action: T-114 (author
+  removed) — pushed to `origin/android` on 2026-11-01. Next action: T-114 (author
   override) is the smallest P2, then T-116; T-110/T-115 and T-113 pair up.
 
 ## Review checkpoint — 2026-10-29 (code không đổi)

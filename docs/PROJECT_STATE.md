@@ -85,7 +85,7 @@ behind any number.
 | Sample book | `app/src/main/assets/sample.epub`, 9,720 bytes, seeded into `filesDir/Books` |
 | APK | debug `19,887,772 bytes` · sha256 `fe035903a519fae6e3af11c620b0da4f70a13d3ac2cb7f156f2c5f132feae506` (2026-11-01) |
 | Device | Android 16 / API 36 · 1344x2992 · density 480. `emulator-5554` (AVD `E2`) is the main device and is shared with other work: other sessions force-stop the app and steal input, so every device result must be read together with its logcat. `emulator-5556` (AVD `E3`) also belongs to other work |
-| Git | `android` is a **linked worktree** of the repo at `/Users/cuong/Workspace/Projects/OpenBook` (git dir `OpenBook/.git/worktrees/android`); branch `android` tracks `origin/android` = `https://github.com/cuongdq88/openbook-android.git` (second remote `openbook-web` for the web worktree). After the 2026-11-01 work: `e7f83f7` (code), `53248ba` (docs moved + synced), `114b4db` (dead code and junk), `f2537bc` (docs/qa removed) — **4 commits ahead of `origin/android`, not pushed**. The working tree still carries pre-existing removals (`.agents/`, `.ai-toolkit/`, `.claude/`, `CLAUDE.md`, root state files) and `.commandcode/` |
+| Git | `android` is a **linked worktree** of the repo at `/Users/cuong/Workspace/Projects/OpenBook` (git dir `OpenBook/.git/worktrees/android`); branch `android` tracks `origin/android` = `https://github.com/cuongdq88/openbook-android.git` (second remote `openbook-web` for the web worktree). After the 2026-11-01 work: `e7f83f7` (code), `53248ba` (docs moved + synced), `114b4db` (dead code and junk), `f2537bc` (docs/qa removed) plus the docs correction — **pushed to `origin/android` at `b4e7c2c` on 2026-11-01**. The working tree still carries pre-existing removals (`.agents/`, `.ai-toolkit/`, `.claude/`, `CLAUDE.md`, root state files) and `.commandcode/` |
 | Tasks | 117 IDs; T-095…T-104 verified earlier, T-108/T-109/T-112 closed on 2026-11-01; see `TASKS.md`; handoff in `SESSION_HANDOFF.md` |
 | Next action | No open P1. Remaining work is T-114…T-117 (P2), the T-110/T-113 pair, the T-111 corpus restore, and the owner-blocked decisions T-064/T-066…T-079 (see `TODO.md`) |
 
@@ -191,7 +191,8 @@ behind any number.
 - Current branch / worktree: linked worktree at
   `/Users/cuong/Workspace/Projects/openbook/android` of the repo `OpenBook`; branch `android`
   tracks `origin/android` (`openbook-android` on GitHub). The 2026-11-01 commits are
-  `e7f83f7`, `53248ba`, `114b4db`, `f2537bc`, four ahead of the remote at the time of writing.
+  `e7f83f7`, `53248ba`, `114b4db`, `f2537bc` and the docs correction, all pushed to
+  `origin/android` on 2026-11-01.
   The working tree is **dirty and nothing is staged** (pre-existing environment removals).
   Checked 2026-11-01; the authoritative
   Git block is "Facts at a glance" at the top of this file.
