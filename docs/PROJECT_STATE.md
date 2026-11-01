@@ -85,7 +85,7 @@ behind any number.
 | Sample book | `app/src/main/assets/sample.epub`, 9,720 bytes, seeded into `filesDir/Books` |
 | APK | debug `19,887,772 bytes` · sha256 `fe035903a519fae6e3af11c620b0da4f70a13d3ac2cb7f156f2c5f132feae506` (2026-11-01) |
 | Device | Android 16 / API 36 · 1344x2992 · density 480. `emulator-5554` (AVD `E2`) is the main device and is shared with other work: other sessions force-stop the app and steal input, so every device result must be read together with its logcat. `emulator-5556` (AVD `E3`) also belongs to other work |
-| Git | branch `android`, **no remote**. Commits from 2026-11-01: `e7f83f7` (code), `53248ba` (docs moved into `docs/` + synced), `114b4db` (dead code and junk removed) and a docs commit that removes `docs/qa/`. The working tree still carries pre-existing removals (`.agents/`, `.ai-toolkit/`, `.claude/`, `CLAUDE.md`, root state files) and `.commandcode/` |
+| Git | `android` is a **linked worktree** of the repo at `/Users/cuong/Workspace/Projects/OpenBook` (git dir `OpenBook/.git/worktrees/android`); branch `android` tracks `origin/android` = `https://github.com/cuongdq88/openbook-android.git` (second remote `openbook-web` for the web worktree). After the 2026-11-01 work: `e7f83f7` (code), `53248ba` (docs moved + synced), `114b4db` (dead code and junk), `f2537bc` (docs/qa removed) — **4 commits ahead of `origin/android`, not pushed**. The working tree still carries pre-existing removals (`.agents/`, `.ai-toolkit/`, `.claude/`, `CLAUDE.md`, root state files) and `.commandcode/` |
 | Tasks | 117 IDs; T-095…T-104 verified earlier, T-108/T-109/T-112 closed on 2026-11-01; see `TASKS.md`; handoff in `SESSION_HANDOFF.md` |
 | Next action | No open P1. Remaining work is T-114…T-117 (P2), the T-110/T-113 pair, the T-111 corpus restore, and the owner-blocked decisions T-064/T-066…T-079 (see `TODO.md`) |
 
@@ -188,11 +188,12 @@ behind any number.
 - Platform: Pixel_9_Pro_XL AVD, Android 16 / API 36, 1344x2992, density 480.
 
 ## Verified current state
-- Current branch / worktree: Git repository at
-  `/Users/cuong/Workspace/Projects/openbook/android`, branch `android` (HEAD is the newest
-  commit in `git log`; this session's are `e7f83f7`, `53248ba` and `114b4db`).
-  The working tree is **dirty and nothing is staged** (pre-existing environment removals);
-  there is no remote. Checked 2026-11-01; the authoritative
+- Current branch / worktree: linked worktree at
+  `/Users/cuong/Workspace/Projects/openbook/android` of the repo `OpenBook`; branch `android`
+  tracks `origin/android` (`openbook-android` on GitHub). The 2026-11-01 commits are
+  `e7f83f7`, `53248ba`, `114b4db`, `f2537bc`, four ahead of the remote at the time of writing.
+  The working tree is **dirty and nothing is staged** (pre-existing environment removals).
+  Checked 2026-11-01; the authoritative
   Git block is "Facts at a glance" at the top of this file.
 - Verified working features:
   - `:app:assembleDebug` succeeds (JDK 17, Gradle 9.8, AGP/Kotlin from the version
@@ -580,9 +581,8 @@ adb logcat -s ReaderScreen SleepTimer Narration
   `adb shell 'timeout 15 screencap -p /sdcard/x.png'` + `adb pull`, or a device-side burst
   loop, when capturing animation frames.
 - The sample book's `dc:creator`/`dc:title` are synthetic demo content, not a real book.
-- Git history is two commits (Part 7 baseline, then Parts 8–11 + docs + toolkit on 2026-10-21),
-  so there is a rollback point for the current behaviour — but no remote, hence no off-machine
-  copy and no backup if this disk is lost.
+- Git history had no remote in the earlier standalone repo; the current worktree tracks
+  `origin/android`, so there is an off-machine copy — but only of what has been pushed.
 - Touch injection can wedge on this AVD: taps and drags stop being delivered to the app
   (the chrome stops answering) while `dumpsys window` still shows the app focused and logcat
   is clean. `adb reboot` clears it (~85s to boot); prefer one short `input` step per shell call
