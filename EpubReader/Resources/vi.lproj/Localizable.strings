@@ -11,6 +11,16 @@
 "home.empty.title" = "Chưa có sách đang đọc";
 "home.empty.body" = "Mở một cuốn sách trong Thư viện để bắt đầu. Khi bạn đọc được một trang, nó sẽ xuất hiện ở đây.";
 "home.openLibrary" = "Mở Thư viện";
+"home.new.title" = "Mới thêm";
+"home.suggestions.title" = "Gợi ý cho bạn";
+"home.suggestions.reason" = "Cùng tác giả";
+"home.finished.title" = "Đọc xong gần đây";
+"home.weekly.title" = "Tuần này";
+"home.added.month" = "Thêm %@";
+"home.finished.month" = "Xong %@";
+"home.book.a11y" = "%1$@, %2$@";
+"home.weekly.a11y" = "%1$@, %2$@";
+
 "home.stats.title" = "Thành tích";
 "home.stats.today" = "%@ hôm nay";
 "home.stats.goalMet" = "Mục tiêu %d phút · đã đạt";
@@ -169,6 +179,22 @@
 "reader.play" = "Đọc";
 "reader.pause" = "Tạm dừng";
 "reader.stop" = "Dừng đọc";
+
+"reader.highlight.action" = "Tô sáng";
+"reader.highlight.remove" = "Xoá";
+"reader.highlight.color.yellow" = "Vàng";
+"reader.highlight.color.green" = "Xanh lá";
+"reader.highlight.color.blue" = "Xanh dương";
+"reader.highlight.color.pink" = "Hồng";
+"reader.action.translate" = "Dịch";
+"reader.action.search" = "Tìm";
+"reader.action.copy" = "Sao chép";
+"reader.action.share" = "Chia sẻ";
+"reader.action.more" = "Thêm thao tác";
+"reader.bookmarks.count" = "Đánh dấu (%lld)";
+"reader.highlights.count" = "Tô sáng (%lld)";
+"reader.highlights" = "Tô sáng";
+"reader.noHighlights" = "Chưa có đoạn nào được đánh dấu.";
 
 "customize.title" = "Tuỳ chỉnh giao diện";
 "customize.cancel" = "Huỷ thay đổi";

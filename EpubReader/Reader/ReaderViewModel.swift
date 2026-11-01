@@ -12,6 +12,8 @@ final class ReaderViewModel: ObservableObject {
     @Published var toc: [TocEntry] = []
     @Published var title = ""
     @Published var author = ""
+    /// The language the package declared, passed to the voice as a hint.
+    @Published private(set) var languageTag: String?
     @Published var isLoading = true
     @Published var errorMessage: String?
 
@@ -76,6 +78,7 @@ final class ReaderViewModel: ObservableObject {
 
                 title = raw.title
                 author = raw.author
+                languageTag = raw.language
                 isLoading = false
                 rebuildPagesIfPossible()
             } catch {
@@ -170,6 +173,40 @@ final class ReaderViewModel: ObservableObject {
     }
 
     func allChapters() -> [Chapter] { chapters }
+
+    /// A chapter's plain text in the reader's own coordinates, so a selection can
+    /// be grown or shrunk to whole words.
+    func chapterText(at index: Int) -> NSString? {
+        guard chapters.indices.contains(index) else { return nil }
+        return chapters[index].text.string as NSString
+    }
+
+    /// The word under a character offset, in chapter coordinates.
+    func wordRange(chapter index: Int, around offset: Int) -> NSRange? {
+        guard let text = chapterText(at: index) else { return nil }
+        let range = TextSelection.wordRange(in: text, around: offset)
+        return range.length > 0 ? range : nil
+    }
+
+    /// A new passage when a long press is dragged: from the word first touched to
+    /// the word under the finger.
+    func draggedSelection(
+        chapter index: Int,
+        anchor: Int,
+        current: Int
+    ) -> NSRange? {
+        guard let text = chapterText(at: index) else { return nil }
+        let range = TextSelection.range(from: anchor, to: current, in: text)
+        return range.length > 0 ? range : nil
+    }
+
+    func text(inChapter index: Int, range: NSRange) -> String? {
+        guard let text = chapterText(at: index),
+              range.location >= 0,
+              range.location + range.length <= text.length
+        else { return nil }
+        return text.substring(with: range)
+    }
 
     /// Where narration should start when the user asks for "this page": the first
     /// sentence that *begins* on the page, falling back to one that merely crosses it.

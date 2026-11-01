@@ -1,6 +1,8 @@
 import AVFoundation
 import Foundation
+import MediaPlayer
 import NaturalLanguage
+import UIKit
 
 /// Splits text into sentence ranges (UTF-16, so they line up with `NSRange`).
 enum SentenceSplitter {
@@ -29,9 +31,16 @@ enum NarrationState: Equatable {
 /// Reads the book aloud and reports which sentence is being spoken, so the reader
 /// can highlight it and follow along.
 ///
+/// One instance for the whole app: the voice is the reading session, not the
+/// screen that opened it. A reader may leave the book — or the app may go to the
+/// background — and the reading carries on; the lock screen and Control Centre
+/// control the same engine through `MPRemoteCommandCenter`.
+///
 /// Everything that touches published state runs on the main thread; the
 /// synthesizer's callbacks arrive on an internal queue.
 final class SpeechController: NSObject, ObservableObject {
+
+    static let shared = SpeechController()
 
     static let rateOptions: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5]
     /// Minutes the player can be told to stop after; `nil` is "no timer".
@@ -47,15 +56,21 @@ final class SpeechController: NSObject, ObservableObject {
     @Published private(set) var rateFactor: Double = 1.0
     /// The chosen voice, by its system identifier.
     @Published private(set) var voiceID: String?
-    /// The language the open book is written in, so the picker can keep to
-    /// voices that can actually pronounce it.
+    /// The language the book is written in, worked out from its text first and
+    /// its package tag second.
     @Published private(set) var bookLanguage: String?
     /// Minutes left on the sleep timer, or `nil` when it is off.
     @Published private(set) var sleepMinutes: Int?
     private var sleepTask: Task<Void, Never>?
 
+    /// The book currently loaded into the voice. The app uses it to come back to
+    /// the right book when the now-playing controls bring it forward.
+    private(set) var book: BookItem?
+    private(set) var bookID: String?
+
     private let synthesizer = AVSpeechSynthesizer()
     private var chapters: [Chapter] = []
+    private var chapterTitles: [String] = []
     /// Where the current utterance starts inside its chapter string.
     private var utteranceBase = 0
     /// The utterance we still consider "ours". `stopSpeaking` reports `didFinish`
@@ -65,6 +80,9 @@ final class SpeechController: NSObject, ObservableObject {
     /// Where the voice last reached, so a speed change can resume in the same
     /// sentence instead of jumping back to the top of the page.
     private var lastSpokenOffset = 0
+    private var artwork: MPMediaItemArtwork?
+    private var interruptionObserver: NSObjectProtocol?
+    private var routeObserver: NSObjectProtocol?
 
     var isSpeaking: Bool { state == .playing }
     var isBusy: Bool { state != .idle }
@@ -79,17 +97,70 @@ final class SpeechController: NSObject, ObservableObject {
         voiceID = UserDefaults.standard.string(forKey: Self.voiceKey)
 
         activateAudioSession()
+        configureRemoteCommands()
+        observeAudioChanges()
     }
 
-    func configure(chapters: [Chapter]) {
-        self.chapters = chapters
-        guard bookLanguage == nil,
-              let sample = chapters.lazy.map(\.text.string).first(where: { $0.count > 20 })
-        else { return }
-        bookLanguage = NLLanguageRecognizer
-            .dominantLanguage(for: String(sample.prefix(1200)))?
-            .rawValue
+    deinit {
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+        if let routeObserver {
+            NotificationCenter.default.removeObserver(routeObserver)
+        }
     }
+
+    // MARK: - The book
+
+    /// Loads a book into the voice.
+    ///
+    /// Opening the book that is already reading keeps the voice exactly where it
+    /// is — that is what makes reopening a book from the shelf or from the lock
+    /// screen continue the narration instead of starting it again. A different
+    /// book stops the old one first.
+    func openBook(_ book: BookItem, chapters: [Chapter], languageTag: String?) {
+        let sameBook = bookID == book.id && self.chapters.count == chapters.count
+
+        if !sameBook {
+            if bookID != nil { stop() }
+            bookID = book.id
+            artwork = MPMediaItemArtwork(boundsSize: CGSize(width: 512, height: 512)) { _ in
+                BookArtwork.image(for: book.title)
+            }
+            bookLanguage = BookLanguage.resolve(
+                tag: languageTag,
+                sample: Self.sampleText(from: chapters)
+            )
+            currentChapter = min(currentChapter, max(0, chapters.count - 1))
+        }
+
+        self.book = book
+        self.chapters = chapters
+        chapterTitles = chapters.map(\.title)
+        updateNowPlaying()
+    }
+
+    /// A re-typeset changes the chapter objects but not the book. The reader stops
+    /// the voice before rebuilding, so only the text and its language are replaced.
+    func adopt(chapters: [Chapter], languageTag: String?) {
+        self.chapters = chapters
+        chapterTitles = chapters.map(\.title)
+        bookLanguage = BookLanguage.resolve(
+            tag: languageTag,
+            sample: Self.sampleText(from: chapters)
+        )
+        updateNowPlaying()
+    }
+
+    private static func sampleText(from chapters: [Chapter]) -> String {
+        for chapter in chapters {
+            let text = chapter.text.string
+            if text.count > 20 { return String(text.prefix(1200)) }
+        }
+        return chapters.first.map { String($0.text.string.prefix(1200)) } ?? ""
+    }
+
+    // MARK: - Reading
 
     /// Starts narration at the sentence containing `offset` (chapter coordinates).
     func speak(chapter index: Int, fromChapterOffset offset: Int) {
@@ -133,6 +204,7 @@ final class SpeechController: NSObject, ObservableObject {
             + "wasPaused \(wasPaused)"
         )
         synthesizer.speak(utterance)
+        updateNowPlaying()
     }
 
     func pause() {
@@ -140,6 +212,7 @@ final class SpeechController: NSObject, ObservableObject {
         // `.word` lets the current word finish rather than clipping it.
         synthesizer.pauseSpeaking(at: .word)
         state = .paused
+        updateNowPlaying()
     }
 
     func resume() {
@@ -150,6 +223,7 @@ final class SpeechController: NSObject, ObservableObject {
             // The queue was dropped while paused, so pick the sentence back up.
             speak(chapter: currentChapter, fromChapterOffset: lastSpokenOffset)
         }
+        updateNowPlaying()
     }
 
     func togglePlayPause() {
@@ -161,12 +235,14 @@ final class SpeechController: NSObject, ObservableObject {
     }
 
     func stop() {
+        NSLog("[speech] stop \(bookID ?? "none")")
         activeUtterance = nil
-        if synthesizer.isSpeaking {
+        if synthesizer.isSpeaking || synthesizer.isPaused {
             synthesizer.stopSpeaking(at: .immediate)
         }
         state = .idle
         highlighted = nil
+        updateNowPlaying()
     }
 
     /// Rate can only be set on a fresh utterance, so the current sentence restarts
@@ -177,7 +253,10 @@ final class SpeechController: NSObject, ObservableObject {
         rateFactor = clamped
         UserDefaults.standard.set(clamped, forKey: Self.rateKey)
 
-        guard state != .idle else { return }
+        guard state != .idle else {
+            updateNowPlaying()
+            return
+        }
         let wasPaused = state == .paused
         speak(chapter: currentChapter, fromChapterOffset: lastSpokenOffset)
         if wasPaused { pause() }
@@ -191,17 +270,28 @@ final class SpeechController: NSObject, ObservableObject {
 
     // MARK: - Seeking
 
-    /// Moves the narration a whole chapter at a time — the player's skip buttons.
+    /// Moves the narration a whole chapter at a time — the player's skip buttons
+    /// and the lock screen's previous/next. Chapters with no words (a cover, a
+    /// picture-only page) are stepped over rather than become a dead stop.
     func skipChapter(by delta: Int) {
-        let target = currentChapter + delta
-        guard chapters.indices.contains(target) else { return }
+        guard let target = playableChapter(from: currentChapter, by: delta) else { return }
         let wasPaused = state == .paused
         speak(chapter: target, fromChapterOffset: 0)
         if wasPaused { pause() }
     }
 
-    var canSkipBackward: Bool { currentChapter > 0 }
-    var canSkipForward: Bool { currentChapter + 1 < chapters.count }
+    var canSkipBackward: Bool { playableChapter(from: currentChapter, by: -1) != nil }
+    var canSkipForward: Bool { playableChapter(from: currentChapter, by: 1) != nil }
+
+    private func playableChapter(from index: Int, by delta: Int) -> Int? {
+        guard !chapters.isEmpty, delta != 0 else { return nil }
+        var next = index + delta
+        while chapters.indices.contains(next) {
+            if !chapters[next].sentences.isEmpty { return next }
+            next += delta
+        }
+        return nil
+    }
 
     // MARK: - Sleep timer
 
@@ -312,12 +402,160 @@ final class SpeechController: NSObject, ObservableObject {
     private func activateAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try session.setCategory(
+                .playback,
+                mode: .spokenAudio,
+                options: [.duckOthers, .allowBluetoothA2DP, .allowAirPlay]
+            )
             try session.setActive(true)
             NSLog("[speech] audio session ready")
         } catch {
             NSLog("[speech] audio session failed: \(error)")
         }
+    }
+
+    private func observeAudioChanges() {
+        let center = NotificationCenter.default
+
+        interruptionObserver = center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let self,
+                  let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: raw)
+            else { return }
+            switch type {
+            case .began:
+                self.pause()
+            case .ended:
+                // Become audible again, but never start reading by itself: the
+                // reader may have put the book down when the call arrived.
+                try? AVAudioSession.sharedInstance().setActive(true)
+            @unknown default:
+                break
+            }
+        }
+
+        routeObserver = center.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let self,
+                  let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: raw)
+            else { return }
+            // Headphones pulled out: stop reading into the room.
+            if reason == .oldDeviceUnavailable { self.pause() }
+        }
+    }
+
+    // MARK: - Lock screen and Control Centre
+
+    private func configureRemoteCommands() {
+        let center = MPRemoteCommandCenter.shared()
+
+        center.playCommand.isEnabled = true
+        center.pauseCommand.isEnabled = true
+        center.togglePlayPauseCommand.isEnabled = true
+        center.nextTrackCommand.isEnabled = true
+        center.previousTrackCommand.isEnabled = true
+        center.stopCommand.isEnabled = true
+        center.changePlaybackPositionCommand.isEnabled = false
+        center.skipForwardCommand.isEnabled = false
+        center.skipBackwardCommand.isEnabled = false
+
+        center.playCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                switch self.state {
+                case .paused:
+                    self.resume()
+                case .idle:
+                    if !self.chapters.isEmpty {
+                        self.speak(
+                            chapter: self.currentChapter,
+                            fromChapterOffset: self.lastSpokenOffset
+                        )
+                    }
+                case .playing:
+                    break
+                }
+            }
+            return .success
+        }
+
+        center.pauseCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.pause() }
+            return .success
+        }
+
+        center.togglePlayPauseCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.togglePlayPause() }
+            return .success
+        }
+
+        center.nextTrackCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.skipChapter(by: 1) }
+            return .success
+        }
+
+        center.previousTrackCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.skipChapter(by: -1) }
+            return .success
+        }
+
+        center.stopCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.stop() }
+            return .success
+        }
+    }
+
+    /// Puts the book on the lock screen: its cover, title and chapter, plus the
+    /// three controls (previous chapter, play/pause, next chapter).
+    private func updateNowPlaying() {
+        let center = MPNowPlayingInfoCenter.default()
+
+        guard let book, state != .idle else {
+            center.nowPlayingInfo = nil
+            center.playbackState = .stopped
+            if UserDefaults.standard.bool(forKey: "demoDebug") {
+                NSLog("[nowplaying] cleared")
+            }
+            return
+        }
+
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: book.title,
+            MPMediaItemPropertyArtist: book.author,
+            MPMediaItemPropertyAlbumTitle: chapterTitle(currentChapter),
+            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
+            MPNowPlayingInfoPropertyPlaybackRate: state == .playing ? rateFactor : 0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: rateFactor,
+            MPNowPlayingInfoPropertyExternalContentIdentifier: book.id
+        ]
+        if let artwork {
+            info[MPMediaItemPropertyArtwork] = artwork
+        }
+
+        center.nowPlayingInfo = info
+        center.playbackState = state == .playing ? .playing : .paused
+
+        if UserDefaults.standard.bool(forKey: "demoDebug") {
+            NSLog(
+                "[nowplaying] \(state) chapter \(currentChapter) "
+                + "title \(book.title) album \(chapterTitle(currentChapter)) "
+                + "artwork \(artwork != nil)"
+            )
+        }
+    }
+
+    private func chapterTitle(_ index: Int) -> String {
+        guard chapterTitles.indices.contains(index) else { return book?.title ?? "" }
+        let title = chapterTitles[index]
+        return title.isEmpty ? (book?.title ?? "") : title
     }
 }
 
@@ -338,7 +576,12 @@ extension SpeechController: AVSpeechSynthesizerDelegate {
             let chapter = chapters[chapterIndex]
             // Snap to whole sentences — highlighting word by word is noisy.
             guard let sentence = chapter.sentences.first(where: { NSLocationInRange(absolute, $0) }) else { return }
-            if sentence != self.highlighted { self.highlighted = sentence }
+            if sentence != self.highlighted {
+                self.highlighted = sentence
+                if UserDefaults.standard.bool(forKey: "demoDebug") {
+                    NSLog("[speech] sounding \(sentence.location)+\(sentence.length)")
+                }
+            }
         }
     }
 
@@ -349,8 +592,9 @@ extension SpeechController: AVSpeechSynthesizerDelegate {
                 return
             }
             self.activeUtterance = nil
-            let next = self.currentChapter + 1
-            guard self.chapters.indices.contains(next) else {
+            // Step over chapters that carry no words: a cover page must not stop
+            // the reading, and neither must a run of picture-only pages.
+            guard let next = self.playableChapter(from: self.currentChapter, by: 1) else {
                 self.stop()
                 return
             }
@@ -364,6 +608,7 @@ extension SpeechController: AVSpeechSynthesizerDelegate {
             guard let self, utterance === self.activeUtterance else { return }
             self.activeUtterance = nil
             self.state = .idle
+            self.updateNowPlaying()
         }
     }
 }

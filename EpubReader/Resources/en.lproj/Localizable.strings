@@ -11,6 +11,16 @@
 "home.empty.title" = "Nothing in progress";
 "home.empty.body" = "Open a book in the Library to begin. Once you have read a page, it will appear here.";
 "home.openLibrary" = "Open Library";
+"home.new.title" = "Recently added";
+"home.suggestions.title" = "For you";
+"home.suggestions.reason" = "Same author";
+"home.finished.title" = "Recently finished";
+"home.weekly.title" = "This week";
+"home.added.month" = "Added %@";
+"home.finished.month" = "Finished %@";
+"home.book.a11y" = "%1$@, %2$@";
+"home.weekly.a11y" = "%1$@, %2$@";
+
 "home.stats.title" = "Achievement";
 "home.stats.today" = "%@ today";
 "home.stats.goalMet" = "%d-minute goal · met";
@@ -169,6 +179,22 @@
 "reader.play" = "Play";
 "reader.pause" = "Pause";
 "reader.stop" = "Stop reading";
+
+"reader.highlight.action" = "Highlight";
+"reader.highlight.remove" = "Remove";
+"reader.highlight.color.yellow" = "Yellow";
+"reader.highlight.color.green" = "Green";
+"reader.highlight.color.blue" = "Blue";
+"reader.highlight.color.pink" = "Pink";
+"reader.action.translate" = "Translate";
+"reader.action.search" = "Search";
+"reader.action.copy" = "Copy";
+"reader.action.share" = "Share";
+"reader.action.more" = "More actions";
+"reader.bookmarks.count" = "Bookmarks (%lld)";
+"reader.highlights.count" = "Highlights (%lld)";
+"reader.highlights" = "Highlights";
+"reader.noHighlights" = "No passages highlighted yet.";
 
 "customize.title" = "Customize appearance";
 "customize.cancel" = "Discard changes";

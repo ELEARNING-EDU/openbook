@@ -81,6 +81,7 @@ enum EpubArchiveReader {
         return RawBook(
             title: info.title.isEmpty ? fallbackTitle(from: url) : info.title,
             author: info.author,
+            language: info.language.isEmpty ? nil : info.language,
             chapters: chapters
         )
     }
@@ -96,6 +97,7 @@ enum EpubArchiveReader {
     struct PackageInfo {
         var title = ""
         var author = ""
+        var language = ""
         var manifest: [String: ManifestItem] = [:]
         var spine: [String] = []
         var navHref: String?
@@ -310,6 +312,8 @@ final class PackageParser: NSObject, XMLParserDelegate {
             capture = "title"
         case "dc:creator", "creator":
             capture = "creator"
+        case "dc:language", "language":
+            capture = "language"
         case "item":
             if let id = attributeDict["id"], let href = attributeDict["href"] {
                 let item = EpubArchiveReader.ManifestItem(
@@ -346,6 +350,9 @@ final class PackageParser: NSObject, XMLParserDelegate {
             capture = nil
         case "dc:creator", "creator":
             if capture == "creator", info.author.isEmpty { info.author = text }
+            capture = nil
+        case "dc:language", "language":
+            if capture == "language", info.language.isEmpty { info.language = text }
             capture = nil
         default:
             break

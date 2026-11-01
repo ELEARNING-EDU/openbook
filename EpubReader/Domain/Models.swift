@@ -33,6 +33,10 @@ struct RawChapter {
 struct RawBook {
     let title: String
     let author: String
+    /// The `dc:language` the package declared, when it declared one. It is a
+    /// hint only: many books sold online carry the wrong tag, so the voice also
+    /// looks at the text itself.
+    let language: String?
     let chapters: [RawChapter]
 }
 

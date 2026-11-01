@@ -51,8 +51,14 @@ struct MainView: View {
     @State private var tab: MainTab = .home
     @State private var homePath: [BookItem] = []
     @State private var libraryPath: [BookItem] = []
+    /// Set while the app is in the background, so coming back can put the reader
+    /// on the book the voice is still reading.
+    @State private var wasBackgrounded = false
 
+    @EnvironmentObject private var library: LibraryStore
+    @ObservedObject private var speech = SpeechController.shared
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(AppLanguage.storageKey) private var languageID = AppLanguage.system.rawValue
 
     private var palette: ReaderPalette { .shell(dark: colorScheme == .dark) }
@@ -96,6 +102,66 @@ struct MainView: View {
         .tint(palette.swiftAccent)
         .environment(\.locale, language.locale)
         .onAppear(perform: applyDemoTabHook)
+        .onOpenURL(perform: openBook(from:))
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .background:
+                wasBackgrounded = true
+            case .active:
+                guard wasBackgrounded else { return }
+                wasBackgrounded = false
+                openPlayingBook()
+            default:
+                break
+            }
+        }
+    }
+
+    /// `epubreader://book/<file name>` opens that book at its saved place. The
+    /// now-playing panel itself cannot carry a URL on iOS, so its tap is handled
+    /// by `openPlayingBook()`; this is the link the app can be handed from
+    /// elsewhere.
+    private func openBook(from url: URL) {
+        guard url.scheme == "epubreader" else { return }
+        let name = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
+        guard let book = library.books.first(where: { $0.id == name }) else { return }
+        tab = .library
+        libraryPath = [book]
+    }
+
+    /// Coming back from the background with the voice still reading — the tap on
+    /// the lock screen or Control Centre that brought the app forward — lands on
+    /// the book being read, at the sentence being spoken.
+    ///
+    /// iOS gives an app no callback of its own for a tap on the now-playing
+    /// panel; activation is the signal it does give.
+    private func openPlayingBook() {
+        guard speech.state != .idle,
+              let id = speech.bookID,
+              let book = library.books.first(where: { $0.id == id })
+        else { return }
+
+        let visibleBook: String?
+        switch tab {
+        case .home: visibleBook = homePath.last?.id
+        case .library: visibleBook = libraryPath.last?.id
+        case .store: visibleBook = nil
+        }
+        guard visibleBook != id else { return }
+
+        if UserDefaults.standard.bool(forKey: "demoDebug") {
+            NSLog("[route] opening the book the voice is reading: \(id)")
+        }
+
+        switch tab {
+        case .home:
+            homePath = [book]
+        case .library:
+            libraryPath = [book]
+        case .store:
+            tab = .library
+            libraryPath = [book]
+        }
     }
 
     /// Lets a capture run start on any tab without a touch:

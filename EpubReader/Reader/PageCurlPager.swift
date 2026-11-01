@@ -17,15 +17,27 @@ struct PageCurlPager: UIViewControllerRepresentable {
     let revision: Int
     @Binding var index: Int
 
-    var highlight: NSRange?
-    var highlightChapter: Int?
+    var highlights: [PageHighlightSpan] = []
+    var ttsHighlight: NSRange?
+    var ttsChapter: Int?
+    var selection: NSRange?
+    var selectionEditable = true
     var onTap: (PageTap) -> Void = { _ in }
+    var onSelectionBegan: () -> Void = {}
+    var onSelectionChanged: (SelectionReport) -> Void = { _ in }
+    var onSelectionCancel: () -> Void = {}
+    var onHighlightLongPress: (SelectionReport) -> Void = { _ in }
+    var onHandleMoved: (Bool, Int) -> Void = { _, _ in }
+    var wordRange: (Int, Int) -> NSRange? = { _, _ in nil }
+    var draggedWordRange: (Int, Int, Int) -> NSRange? = { _, _, _ in nil }
     /// A turn asked for by a tap rather than by a finger on the paper. The token
     /// makes the same page reachable again, and the curl is played by the pager.
     var turn: PageTurnRequest?
     var demoTapPoint: CGPoint?
     var demoFold: DemoFold?
     var demoDrag: DemoDrag?
+    var demoLongPress: DemoLongPress?
+    var demoLongPressAgain: DemoLongPress?
 
     func makeUIViewController(context: Context) -> PageCurlBook {
         let book = PageCurlBook()
@@ -37,9 +49,15 @@ struct PageCurlPager: UIViewControllerRepresentable {
         }
         book.apply(
             pages: pages, safeTop: safeTop, palette: palette, margin: margin,
-            revision: revision, highlight: highlight, highlightChapter: highlightChapter,
-            onTap: onTap,
-            demoTapPoint: demoTapPoint, demoFold: demoFold
+            revision: revision, highlights: highlights,
+            ttsHighlight: ttsHighlight, ttsChapter: ttsChapter,
+            selection: selection, selectionEditable: selectionEditable,
+            onTap: onTap, onSelectionBegan: onSelectionBegan,
+            onSelectionChanged: onSelectionChanged, onSelectionCancel: onSelectionCancel,
+            onHighlightLongPress: onHighlightLongPress, onHandleMoved: onHandleMoved,
+            wordRange: wordRange, draggedWordRange: draggedWordRange,
+            demoTapPoint: demoTapPoint, demoFold: demoFold,
+            demoLongPress: demoLongPress, demoLongPressAgain: demoLongPressAgain
         )
         book.show(page: index)
         return book
@@ -51,9 +69,15 @@ struct PageCurlPager: UIViewControllerRepresentable {
         }
         book.apply(
             pages: pages, safeTop: safeTop, palette: palette, margin: margin,
-            revision: revision, highlight: highlight, highlightChapter: highlightChapter,
-            onTap: onTap,
-            demoTapPoint: demoTapPoint, demoFold: demoFold
+            revision: revision, highlights: highlights,
+            ttsHighlight: ttsHighlight, ttsChapter: ttsChapter,
+            selection: selection, selectionEditable: selectionEditable,
+            onTap: onTap, onSelectionBegan: onSelectionBegan,
+            onSelectionChanged: onSelectionChanged, onSelectionCancel: onSelectionCancel,
+            onHighlightLongPress: onHighlightLongPress, onHandleMoved: onHandleMoved,
+            wordRange: wordRange, draggedWordRange: draggedWordRange,
+            demoTapPoint: demoTapPoint, demoFold: demoFold,
+            demoLongPress: demoLongPress, demoLongPressAgain: demoLongPressAgain
         )
         // The turn goes first: it is the one that animates, and the still page
         // that follows it is ignored while the sheet is in the air.
@@ -87,9 +111,23 @@ final class PageCurlBook: UIViewController {
     private var palette: ReaderPalette = ReaderTheme.defaultPalette
     private var margin: CGFloat = 0
     private var revision = -1
-    private var highlight: NSRange?
-    private var highlightChapter: Int?
+    private var highlights: [PageHighlightSpan] = []
+    private var ttsHighlight: NSRange?
+    private var ttsChapter: Int?
+    private var selection: NSRange?
+    private var selectionEditable = true
     private var onTap: (PageTap) -> Void = { _ in }
+    private var onSelectionBegan: () -> Void = {}
+    private var onSelectionChanged: (SelectionReport) -> Void = { _ in }
+    private var onSelectionCancel: () -> Void = {}
+    private var onHighlightLongPress: (SelectionReport) -> Void = { _ in }
+    private var onHandleMoved: (Bool, Int) -> Void = { _, _ in }
+    private var wordRange: (Int, Int) -> NSRange? = { _, _ in nil }
+    private var draggedWordRange: (Int, Int, Int) -> NSRange? = { _, _, _ in nil }
+    private var demoLongPress: DemoLongPress?
+    private var demoLongPressAgain: DemoLongPress?
+    private var demoLongPressDelivered = false
+    private var demoLongPressAgainDelivered = false
     /// Set while a curl we asked for is in the air, so the binding catching up
     /// does not cut it short with a still page.
     private var animating = false
@@ -128,9 +166,19 @@ final class PageCurlBook: UIViewController {
 
     func apply(
         pages: [PageContent], safeTop: CGFloat, palette: ReaderPalette, margin: CGFloat,
-        revision: Int, highlight: NSRange?, highlightChapter: Int?,
+        revision: Int, highlights: [PageHighlightSpan],
+        ttsHighlight: NSRange?, ttsChapter: Int?,
+        selection: NSRange?, selectionEditable: Bool,
         onTap: @escaping (PageTap) -> Void,
-        demoTapPoint: CGPoint?, demoFold: DemoFold?
+        onSelectionBegan: @escaping () -> Void,
+        onSelectionChanged: @escaping (SelectionReport) -> Void,
+        onSelectionCancel: @escaping () -> Void,
+        onHighlightLongPress: @escaping (SelectionReport) -> Void,
+        onHandleMoved: @escaping (Bool, Int) -> Void,
+        wordRange: @escaping (Int, Int) -> NSRange?,
+        draggedWordRange: @escaping (Int, Int, Int) -> NSRange?,
+        demoTapPoint: CGPoint?, demoFold: DemoFold?,
+        demoLongPress: DemoLongPress?, demoLongPressAgain: DemoLongPress?
     ) {
         let reset = revision != self.revision
             || palette != self.palette
@@ -143,11 +191,23 @@ final class PageCurlBook: UIViewController {
         self.palette = palette
         self.margin = margin
         self.revision = revision
-        self.highlight = highlight
-        self.highlightChapter = highlightChapter
+        self.highlights = highlights
+        self.ttsHighlight = ttsHighlight
+        self.ttsChapter = ttsChapter
+        self.selection = selection
+        self.selectionEditable = selectionEditable
         self.onTap = onTap
+        self.onSelectionBegan = onSelectionBegan
+        self.onSelectionChanged = onSelectionChanged
+        self.onSelectionCancel = onSelectionCancel
+        self.onHighlightLongPress = onHighlightLongPress
+        self.onHandleMoved = onHandleMoved
+        self.wordRange = wordRange
+        self.draggedWordRange = draggedWordRange
         self.demoTapPoint = demoTapPoint
         self.demoFold = demoFold
+        self.demoLongPress = demoLongPress
+        self.demoLongPressAgain = demoLongPressAgain
 
         view.backgroundColor = palette.paper
         pager.view.backgroundColor = palette.paper
@@ -157,18 +217,50 @@ final class PageCurlBook: UIViewController {
             backs.removeAll()
             demoTapDelivered = false
             demoFoldPlayed = false
+            demoLongPressDelivered = false
+            demoLongPressAgainDelivered = false
             show(page: current, animated: false)
         } else {
             for front in fronts.values {
-                front.updateHighlight(highlight, chapter: highlightChapter)
+                configure(front)
             }
         }
 
+        // A chosen passage owns the glass: the curl's own gestures would turn the
+        // page under the finger, so they step aside until the passage is let go.
+        let locked = selection != nil
+        for recognizer in pager.gestureRecognizers {
+            recognizer.isEnabled = !locked
+        }
+
         deliverDemoTapIfArmed()
+        deliverDemoLongPressesIfArmed()
         playDemoFoldIfNeeded()
         if UserDefaults.standard.bool(forKey: "demoDebug") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in self?.probe() }
         }
+    }
+
+    /// Hands a page everything it needs: the callbacks, the saved passages and the
+    /// passage currently being chosen.
+    private func configure(_ front: ReaderPageViewController) {
+        front.onTap = { [weak self] tap in self?.onTap(tap) }
+        front.onSelectionBegan = { [weak self] in self?.onSelectionBegan() }
+        front.onSelectionChanged = { [weak self] report in self?.onSelectionChanged(report) }
+        front.onSelectionCancel = { [weak self] in self?.onSelectionCancel() }
+        front.onHighlightLongPress = { [weak self] report in self?.onHighlightLongPress(report) }
+        front.onHandleMoved = { [weak self] isStart, offset in
+            self?.onHandleMoved(isStart, offset)
+        }
+        front.wordRange = wordRange
+        front.draggedWordRange = draggedWordRange
+        front.updateOverlays(
+            highlights: highlights,
+            tts: ttsHighlight,
+            ttsChapter: ttsChapter,
+            selection: selection,
+            editable: selectionEditable
+        )
     }
 
     func show(page: Int, animated: Bool = false) {
@@ -259,9 +351,8 @@ final class PageCurlBook: UIViewController {
             pageIndex: page, content: pages[page], safeTop: safeTop,
             palette: palette, margin: margin
         )
-        controller.onTap = { [weak self] tap in self?.onTap(tap) }
-        controller.updateHighlight(highlight, chapter: highlightChapter)
         fronts[page] = controller
+        configure(controller)
         return controller
     }
 
@@ -291,6 +382,26 @@ final class PageCurlBook: UIViewController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self, self.pages.indices.contains(self.current) else { return }
             self.front(at: self.current).tap(at: point)
+        }
+    }
+
+    /// Plays a long press from the harness, so the selection path can be run on a
+    /// machine whose simulator cannot be touched.
+    private func deliverDemoLongPressesIfArmed() {
+        deliver(demoLongPress, delivered: &demoLongPressDelivered)
+        deliver(demoLongPressAgain, delivered: &demoLongPressAgainDelivered)
+    }
+
+    private func deliver(_ request: DemoLongPress?, delivered: inout Bool) {
+        guard !delivered, let request, pages.indices.contains(current) else { return }
+        delivered = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + request.after) { [weak self] in
+            guard let self, self.pages.indices.contains(self.current) else { return }
+            let page = self.front(at: self.current)
+            page.performDemoLongPress(at: request.point)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                page.performDemoReleaseSelection()
+            }
         }
     }
 
@@ -497,4 +608,11 @@ final class SheetBackViewController: UIViewController, SheetSide {
 struct PageTurnRequest: Equatable {
     let id: Int
     let target: Int
+}
+
+/// A long press the harness plays from a point: where the finger went down, and
+/// how long after the pages were ready.
+struct DemoLongPress {
+    let point: CGPoint
+    let after: Double
 }

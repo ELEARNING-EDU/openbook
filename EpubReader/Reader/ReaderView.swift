@@ -5,11 +5,16 @@ struct ReaderView: View {
     let book: BookItem
 
     @StateObject private var model = ReaderViewModel()
-    @StateObject private var speech = SpeechController()
+    /// The reading session, shared by the whole app: leaving the book or
+    /// backgrounding the app must not stop the voice, and the lock screen
+    /// controls the same engine.
+    @ObservedObject private var speech = SpeechController.shared
     /// The app-wide reading appearance: the library is painted from the same
     /// object, so the shelf and the page never disagree about the palette.
     @ObservedObject private var settings = ReaderSettings.shared
     @StateObject private var bookmarks = BookmarkStore()
+    /// The passages the reader has marked in this book.
+    @StateObject private var highlights = HighlightStore()
     /// The place in this book, remembered across visits and shared with the
     /// library's "how far have I read" figure.
     @ObservedObject private var progress = ReadingProgressStore.shared
@@ -27,6 +32,11 @@ struct ReaderView: View {
     @State private var turnRequest: PageTurnRequest?
     @State private var showSearch = false
     @State private var searchQuery = ""
+    /// The passage the reader is choosing, and where the popup should sit.
+    @State private var selection: ActiveSelection?
+    /// The popup's two shapes: the compact row, and the vertical list behind ›.
+    @State private var selectionExpanded = false
+    @State private var selectionChoosingColor = false
     /// Which half of the contents sheet is showing: the book's own outline, or the
     /// places the reader has marked.
     @State private var tocSection = 0
@@ -60,6 +70,34 @@ struct ReaderView: View {
         case hidden
     }
 
+    /// A passage being chosen, in chapter coordinates, with the rectangle the
+    /// popup is anchored on. `highlight` is set when the passage is already
+    /// saved — that popup offers a recolour or a removal instead of a save.
+    private struct ActiveSelection: Equatable {
+        var chapter: Int
+        var range: NSRange
+        var anchor: CGRect
+        var highlight: Highlight?
+    }
+
+    /// One line of the Highlights tab.
+    private struct HighlightRow: Identifiable {
+        let highlight: Highlight
+        let hit: ReaderViewModel.Hit
+        var id: String { highlight.id }
+    }
+
+    /// Every saved passage of the book, in the shape a page paints.
+    private var highlightSpans: [PageHighlightSpan] {
+        highlights.highlights.map {
+            PageHighlightSpan(
+                chapterIndex: $0.chapterIndex,
+                range: $0.range,
+                color: $0.highlightColor.uiColor
+            )
+        }
+    }
+
     private var chromeVisible: Bool { chrome != .hidden }
 
     /// How long the chrome stays put after it is shown.
@@ -87,164 +125,7 @@ struct ReaderView: View {
                 width: geo.size.width,
                 height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom
             )
-            let safeTop = geo.safeAreaInsets.top
-
-            ZStack(alignment: .top) {
-                palette.swiftPaper.ignoresSafeArea()
-
-                if !model.pages.isEmpty {
-                    ZStack(alignment: .bottom) {
-                        PageCurlPager(
-                            pages: model.pages,
-                            safeTop: safeTop,
-                            palette: palette,
-                            margin: CGFloat(settings.applied.margin),
-                            revision: model.pagesRevision,
-                            index: $pageIndex,
-                            highlight: speech.highlighted,
-                            highlightChapter: speech.highlighted == nil ? nil : speech.currentChapter,
-                            onTap: pageTapped,
-                            turn: turnRequest,
-                            demoTapPoint: demoTapArmed ? demoTapPoint : nil,
-                            demoFold: demoFold,
-                            demoDrag: demoDrag
-                        )
-
-                        // Floats above the paper, so it stays put while pages curl.
-                        bottomBar
-                            .padding(.horizontal, ReaderMetrics.hMargin)
-                            .padding(.bottom, ReaderMetrics.controlsBottomInset)
-                            .opacity(chromeVisible ? 1 : 0)
-                            .allowsHitTesting(chromeVisible)
-                    }
-                    .ignoresSafeArea()
-                }
-
-                if model.isLoading {
-                    loadingState
-                }
-
-                if let message = model.errorMessage {
-                    errorState(message)
-                }
-
-                progressLine
-                    .opacity(chromeVisible ? 1 : 0)
-
-                toolbar
-                    .padding(.top, ReaderMetrics.topButtonGap)
-                    .padding(.horizontal, ReaderMetrics.hMargin)
-
-                if UserDefaults.standard.bool(forKey: "demoDebug") {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Spacer()
-                        Text(
-                            "size \(Int(geo.size.width))x\(Int(geo.size.height))\n"
-                            + "text \(Int(ReaderMetrics.textRect(in: full, safeTop: safeTop).height)) tall\n"
-                            + "safeTop \(Int(geo.safeAreaInsets.top)) safeBottom \(Int(geo.safeAreaInsets.bottom))\n"
-                            + "full \(Int(full.width))x\(Int(full.height))\n"
-                            + "pages \(model.pages.count) index \(pageIndex)\n"
-                            + "state \(stateLabel) rate \(speech.rateLabel) player \(showPlayer)\n"
-                            + "chrome \(chrome.rawValue) body \(Int(settings.custom.bodySize)) lead \(settings.custom.lineSpacingLabel)\n"
-                            + "theme \(settings.themeID) dark \(settings.isDarkAppearance) "
-                            + "col \(settings.custom.columns) margin \(Int(settings.custom.margin)) "
-                            + "mark \(settings.isCustomised ? "yes" : "no")\n"
-                            + "chapter \(speech.currentChapter)\n"
-                            + "voice \(speech.voiceName)\n"
-                            + "spoken "
-                            + (speech.highlighted.map { "\($0.location)+\($0.length)" } ?? "nil")
-                        )
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .padding(6)
-                        .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
-                        .padding(8)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    // Clear of the audio control that now sits in the corner.
-                    .padding(.bottom, 74)
-                }
-            }
-            .onAppear {
-                bookmarks.open(book: book.url)
-                model.load(
-                    url: book.url,
-                    style: settings.applied,
-                    palette: palette
-                )
-                model.updatePagination(for: full, safeTop: safeTop, style: settings.applied)
-                stats.startSession(at: Date())
-                scheduleAutoHide()
-            }
-            // A theme or a setting is a re-typeset, not a repaint: the ink, the
-            // face, the leading and the margins are all baked into the attributed
-            // string, so the paper cannot simply draw over the top.
-            .onChange(of: settings.applied) { _, _ in scheduleRestyle() }
-            .onChange(of: settings.themeID) { _, _ in scheduleRestyle() }
-            .onChange(of: full) { _, newValue in
-                model.updatePagination(for: newValue, safeTop: safeTop, style: settings.applied)
-            }
-            .onChange(of: safeTop) { _, newValue in
-                // The safe-area inset reads as 0 on the very first layout pass, so
-                // the real value only shows up here a moment later.
-                model.updatePagination(for: full, safeTop: newValue, style: settings.applied)
-            }
-            .onChange(of: model.pages.count) { _, count in
-                // Chapters exist only after the book has been parsed and paginated.
-                speech.configure(chapters: model.allChapters())
-                resumeReading(pageCount: count)
-                applyDemoHooks(pageCount: count)
-                applyNarrationDemoHook()
-            }
-            .onDisappear {
-                // A page turn waits a moment before it is written; leaving the
-                // book must not lose the last of them.
-                saveToken += 1
-                savePosition()
-                stats.endSession(at: Date())
-            }
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active {
-                    stats.startSession(at: Date())
-                    // Narration may have been playing when the app left the
-                    // foreground; the new session must know before it counts.
-                    stats.setListening(speech.state == .playing, at: Date())
-                } else {
-                    savePosition()
-                    stats.endSession(at: Date())
-                }
-            }
-            .onChange(of: speech.state) { _, newState in
-                stats.setListening(newState == .playing, at: Date())
-            }
-            .onChange(of: speech.highlighted) { _, newValue in
-                // The voice drives the page — but only while it is actually
-                // speaking: paused, the reader is the one holding the book, and a
-                // late callback must not turn their page for them.
-                guard speech.state == .playing, let spoken = newValue else { return }
-                stats.noteActivity(at: Date())
-                if let target = model.pageIndex(
-                    forChapterOffset: spoken.location,
-                    chapter: speech.currentChapter
-                ), target != pageIndex {
-                    pageIndex = target
-                }
-            }
-            .onChange(of: pageIndex) { _, newIndex in
-                scheduleSavePosition()
-                stats.noteActivity(at: Date())
-                guard speech.state == .playing, model.pages.indices.contains(newIndex) else { return }
-                let page = model.pages[newIndex]
-                // Filter out the page changes the voice itself just caused: those
-                // land on the page that already holds the spoken sentence.
-                if let spoken = speech.highlighted,
-                   page.chapterIndex == speech.currentChapter,
-                   spoken.location >= page.range.location,
-                   spoken.location < page.range.location + page.range.length {
-                    return
-                }
-                speak(page: page)
-            }
+            screen(size: geo.size, full: full, safeTop: geo.safeAreaInsets.top)
         }
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
@@ -259,6 +140,217 @@ struct ReaderView: View {
                 pageNumber: pageIndex + 1,
                 pageCount: max(model.pages.count, 1)
             )
+        }
+    }
+
+    private func screen(size: CGSize, full: CGSize, safeTop: CGFloat) -> some View {
+        screenBody(size: size, full: full, safeTop: safeTop)
+            .onAppear { prepare(full: full, safeTop: safeTop) }
+            // A theme or a setting is a re-typeset, not a repaint: the ink, the
+            // face, the leading and the margins are all baked into the attributed
+            // string, so the paper cannot simply draw over the top.
+            .onChange(of: settings.applied) { _, _ in scheduleRestyle() }
+            .onChange(of: settings.themeID) { _, _ in scheduleRestyle() }
+            .onChange(of: full) { _, newValue in
+                layoutChanged(full: newValue, safeTop: safeTop)
+            }
+            .onChange(of: safeTop) { _, newValue in
+                layoutChanged(full: full, safeTop: newValue)
+            }
+            .onChange(of: model.pages.count) { _, count in pagesChanged(count) }
+            .onDisappear { leaveBook() }
+            .onChange(of: scenePhase) { _, phase in handleScenePhase(phase) }
+            .onChange(of: speech.state) { _, newState in
+                stats.setListening(newState == .playing, at: Date())
+            }
+            .onChange(of: speech.highlighted) { _, newValue in spokenChanged(newValue) }
+            .onChange(of: pageIndex) { _, newIndex in pageChanged(to: newIndex) }
+    }
+
+    private func prepare(full: CGSize, safeTop: CGFloat) {
+        bookmarks.open(book: book.url)
+        highlights.open(bookID: book.id)
+        model.load(
+            url: book.url,
+            style: settings.applied,
+            palette: palette
+        )
+        model.updatePagination(for: full, safeTop: safeTop, style: settings.applied)
+        stats.startSession(at: Date())
+        scheduleAutoHide()
+    }
+
+    private func layoutChanged(full: CGSize, safeTop: CGFloat) {
+        // A chosen passage is anchored to the old layout: a rotation or a
+        // split-view resize makes its offsets meaningless.
+        cancelSelection()
+        model.updatePagination(for: full, safeTop: safeTop, style: settings.applied)
+    }
+
+    private func pagesChanged(_ count: Int) {
+        // Chapters exist only after the book has been parsed and paginated.
+        // Opening the book that is already reading keeps the voice where it is;
+        // opening another one stops the old book first.
+        speech.openBook(
+            book,
+            chapters: model.allChapters(),
+            languageTag: model.languageTag
+        )
+        resumeReading(pageCount: count)
+        applyDemoHooks(pageCount: count)
+        applyNarrationDemoHook()
+    }
+
+    /// The voice drives the page — but only while it is actually speaking:
+    /// paused, the reader is the one holding the book, and a late callback must
+    /// not turn their page for them.
+    private func spokenChanged(_ spoken: NSRange?) {
+        guard speech.state == .playing, let spoken else { return }
+        stats.noteActivity(at: Date())
+        if let target = model.pageIndex(
+            forChapterOffset: spoken.location,
+            chapter: speech.currentChapter
+        ), target != pageIndex {
+            pageIndex = target
+        }
+    }
+
+    private func pageChanged(to newIndex: Int) {
+        cancelSelection()
+        scheduleSavePosition()
+        stats.noteActivity(at: Date())
+        guard speech.state == .playing, model.pages.indices.contains(newIndex) else { return }
+        let page = model.pages[newIndex]
+        // Filter out the page changes the voice itself just caused: those land on
+        // the page that already holds the spoken sentence.
+        if let spoken = speech.highlighted,
+           page.chapterIndex == speech.currentChapter,
+           spoken.location >= page.range.location,
+           spoken.location < page.range.location + page.range.length {
+            return
+        }
+        speak(page: page)
+    }
+
+    private func leaveBook() {
+        // A page turn waits a moment before it is written; leaving the book must
+        // not lose the last of them.
+        saveToken += 1
+        savePosition()
+        stats.endSession(at: Date())
+    }
+
+    private func screenBody(size: CGSize, full: CGSize, safeTop: CGFloat) -> some View {
+        ZStack(alignment: .top) {
+            palette.swiftPaper.ignoresSafeArea()
+
+            pageSurface(full: full, safeTop: safeTop)
+
+            if model.isLoading {
+                loadingState
+            }
+
+            if let message = model.errorMessage {
+                errorState(message)
+            }
+
+            progressLine
+                .opacity(chromeVisible ? 1 : 0)
+
+            toolbar
+                .padding(.top, ReaderMetrics.topButtonGap)
+                .padding(.horizontal, ReaderMetrics.hMargin)
+
+            debugOverlay(size: size, full: full, safeTop: safeTop)
+        }
+    }
+
+    /// The page, the passage popup and the floating controls, as one surface.
+    @ViewBuilder
+    private func pageSurface(full: CGSize, safeTop: CGFloat) -> some View {
+        if !model.pages.isEmpty {
+            ZStack(alignment: .bottom) {
+                readerPager(full: full, safeTop: safeTop)
+
+                if let active = selection {
+                    selectionPopup(active, full: full)
+                        .zIndex(4)
+                }
+
+                // Floats above the paper, so it stays put while pages curl.
+                bottomBar
+                    .padding(.horizontal, ReaderMetrics.hMargin)
+                    .padding(.bottom, ReaderMetrics.controlsBottomInset)
+                    .opacity(chromeVisible ? 1 : 0)
+                    .allowsHitTesting(chromeVisible)
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    @ViewBuilder
+    private func debugOverlay(size: CGSize, full: CGSize, safeTop: CGFloat) -> some View {
+        if UserDefaults.standard.bool(forKey: "demoDebug") {
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer()
+                Text(debugInfo(size: size, full: full, safeTop: safeTop))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .padding(6)
+                    .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
+                    .padding(8)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // Clear of the audio control that now sits in the corner.
+            .padding(.bottom, 74)
+        }
+    }
+
+    /// The reading surface. Kept out of `body` so the compiler is not asked to
+    /// solve the whole screen and this initializer in one expression.
+    private func readerPager(full: CGSize, safeTop: CGFloat) -> some View {
+        PageCurlPager(
+            pages: model.pages,
+            safeTop: safeTop,
+            palette: palette,
+            margin: CGFloat(settings.applied.margin),
+            revision: model.pagesRevision,
+            index: $pageIndex,
+            highlights: highlightSpans,
+            ttsHighlight: speech.highlighted,
+            ttsChapter: speech.highlighted == nil ? nil : speech.currentChapter,
+            selection: selection?.range,
+            selectionEditable: selection?.highlight == nil,
+            onTap: pageTapped,
+            onSelectionBegan: selectionBegan,
+            onSelectionChanged: selectionChanged,
+            onSelectionCancel: cancelSelection,
+            onHighlightLongPress: highlightLongPressed,
+            onHandleMoved: handleMoved,
+            wordRange: { chapter, offset in
+                model.wordRange(chapter: chapter, around: offset)
+            },
+            draggedWordRange: { chapter, anchor, current in
+                model.draggedSelection(chapter: chapter, anchor: anchor, current: current)
+            },
+            turn: turnRequest,
+            demoTapPoint: demoTapArmed ? demoTapPoint : nil,
+            demoFold: demoFold,
+            demoDrag: demoDrag,
+            demoLongPress: demoLongPress,
+            demoLongPressAgain: demoLongPressAgain
+        )
+    }
+
+    private func handleScenePhase(_ phase: ScenePhase) {
+        if phase == .active {
+            stats.startSession(at: Date())
+            // Narration may have been playing when the app left the foreground;
+            // the new session must know before it counts.
+            stats.setListening(speech.state == .playing, at: Date())
+        } else {
+            savePosition()
+            stats.endSession(at: Date())
         }
     }
 
@@ -369,6 +461,283 @@ struct ReaderView: View {
         scheduleAutoHide()
     }
 
+    // MARK: - Choosing a passage
+
+    /// A long press always stops the voice first: the reader is reaching into
+    /// the page, and the page should not move under the finger. Nothing starts
+    /// it again by itself.
+    private func selectionBegan() {
+        if speech.state == .playing {
+            speech.pause()
+        }
+        autoHideToken += 1
+    }
+
+    private func selectionChanged(_ report: SelectionReport) {
+        // While an already-saved passage is open for editing, only its popup
+        // anchor needs to follow the page; its range is the saved one.
+        if selection?.highlight != nil {
+            selection?.anchor = report.rect
+            return
+        }
+        let changed = selection?.range != report.range
+        selection = ActiveSelection(
+            chapter: report.chapter,
+            range: report.range,
+            anchor: report.rect,
+            highlight: nil
+        )
+        if changed {
+            selectionExpanded = false
+            selectionChoosingColor = false
+        }
+    }
+
+    /// A long press that landed on a saved passage: offer to recolour or remove
+    /// it instead of choosing the word again.
+    private func highlightLongPressed(_ report: SelectionReport) {
+        guard let hit = highlights.highlight(
+            chapter: report.chapter,
+            offset: report.range.location
+        ) else { return }
+        if speech.state == .playing {
+            speech.pause()
+        }
+        selection = ActiveSelection(
+            chapter: report.chapter,
+            range: hit.range,
+            anchor: report.rect,
+            highlight: hit
+        )
+        selectionExpanded = false
+        selectionChoosingColor = false
+    }
+
+    private func cancelSelection() {
+        guard selection != nil else { return }
+        selection = nil
+        selectionExpanded = false
+        selectionChoosingColor = false
+    }
+
+    /// A dragged bar: the page reports where the finger is, and the passage is
+    /// snapped back onto whole words here, where the chapter's text lives.
+    private func handleMoved(_ isStart: Bool, _ offset: Int) {
+        guard var current = selection, current.highlight == nil,
+              let text = model.chapterText(at: current.chapter)
+        else { return }
+
+        var start = current.range.location
+        var end = current.range.location + current.range.length
+        if isStart {
+            start = TextSelection.adjustedStart(in: text, proposed: offset, end: end)
+        } else {
+            end = TextSelection.adjustedEnd(in: text, proposed: offset, start: start)
+        }
+        guard end > start else { return }
+        current.range = NSRange(location: start, length: end - start)
+        selection = current
+    }
+
+    private func chooseHighlightColor(_ color: HighlightColor) {
+        guard let current = selection else { return }
+        if let highlight = current.highlight {
+            highlights.updateColor(of: highlight, to: color)
+        } else if let text = model.text(inChapter: current.chapter, range: current.range) {
+            highlights.add(
+                chapterIndex: current.chapter,
+                startOffset: current.range.location,
+                endOffset: current.range.location + current.range.length,
+                text: text,
+                color: color
+            )
+        }
+        // No toast: the band in the new colour is the answer.
+        cancelSelection()
+    }
+
+    private func removeSelectedHighlight() {
+        guard let highlight = selection?.highlight else { return }
+        highlights.remove(highlight)
+        cancelSelection()
+    }
+
+    // MARK: - The selection popup
+
+    /// The popup rides on the passage, not on a bottom sheet. It is put above the
+    /// passage when there is room, below it otherwise, and kept inside the screen
+    /// so no button is ever cut off.
+    private func selectionPopup(_ active: ActiveSelection, full: CGSize) -> some View {
+        let width: CGFloat = selectionChoosingColor ? 236 : (selectionExpanded ? 214 : 286)
+        let height: CGFloat = selectionChoosingColor ? 54 : (selectionExpanded ? 250 : 48)
+        let edge: CGFloat = 10
+        let halfWidth = width / 2
+        let x = min(
+            max(active.anchor.midX, halfWidth + edge),
+            max(halfWidth + edge, full.width - halfWidth - edge)
+        )
+        let above = active.anchor.minY - height / 2 - 12
+        let below = active.anchor.maxY + height / 2 + 12
+        let y = above - height / 2 >= edge
+            ? above
+            : min(below, full.height - edge - height / 2)
+
+        return Group {
+            if selectionChoosingColor {
+                highlightColorRow
+            } else if active.highlight != nil {
+                savedHighlightRow
+            } else if selectionExpanded {
+                expandedSelectionList
+            } else {
+                compactSelectionRow
+            }
+        }
+        .frame(width: width)
+        .background(
+            // Opaque, unlike the floating controls: a popup sits on top of a
+            // line of text, and the text must not read through its buttons.
+            Color(palette.controlPaper),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(palette.swiftInk.opacity(0.14))
+        )
+        .shadow(color: .black.opacity(0.22), radius: 12, y: 5)
+        .position(x: x, y: y)
+    }
+
+    private var compactSelectionRow: some View {
+        HStack(spacing: 0) {
+            popupAction("reader.highlight.action", enabled: true) {
+                selectionChoosingColor = true
+            }
+            popupDivider
+            popupAction("reader.action.translate", enabled: false) {}
+            popupDivider
+            popupAction("reader.action.search", enabled: false) {}
+            popupDivider
+            Button {
+                withAnimation(.easeInOut(duration: 0.16)) { selectionExpanded = true }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(palette.swiftInk)
+                    .frame(width: 36, height: 48)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("reader.action.more"))
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var expandedSelectionList: some View {
+        VStack(spacing: 0) {
+            popupRow("reader.highlight.action", icon: "highlighter", enabled: true) {
+                selectionChoosingColor = true
+            }
+            popupRow("reader.action.translate", icon: "character.bubble", enabled: false) {}
+            popupRow("reader.action.search", icon: "magnifyingglass", enabled: false) {}
+            popupRow("reader.action.copy", icon: "doc.on.doc", enabled: false) {}
+            popupRow("reader.action.share", icon: "square.and.arrow.up", enabled: false) {}
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var savedHighlightRow: some View {
+        HStack(spacing: 0) {
+            popupAction("reader.highlight.action", enabled: true) {
+                selectionChoosingColor = true
+            }
+            popupDivider
+            Button {
+                removeSelectedHighlight()
+            } label: {
+                Text("reader.highlight.remove")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .frame(height: 48)
+                    .padding(.horizontal, 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var highlightColorRow: some View {
+        HStack(spacing: 14) {
+            ForEach(HighlightColor.allCases, id: \.rawValue) { color in
+                Button {
+                    chooseHighlightColor(color)
+                } label: {
+                    Circle()
+                        .fill(color.swiftColor)
+                        .frame(width: 30, height: 30)
+                        .overlay(
+                            Circle().strokeBorder(palette.swiftInk.opacity(0.18))
+                        )
+                        .frame(width: 40, height: 48)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(verbatim: L10n.string(color.labelKey)))
+            }
+        }
+        .padding(.horizontal, 10)
+    }
+
+    private func popupAction(
+        _ key: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(verbatim: L10n.string(key))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(palette.swiftInk)
+                .opacity(enabled ? 1 : 0.4)
+                .frame(height: 48)
+                .padding(.horizontal, 10)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    private func popupRow(
+        _ key: String,
+        icon: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 22)
+                Text(verbatim: L10n.string(key))
+                    .font(.system(size: 15, weight: .medium))
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(palette.swiftInk)
+            .opacity(enabled ? 1 : 0.4)
+            .padding(.horizontal, 16)
+            .frame(height: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    private var popupDivider: some View {
+        Rectangle()
+            .fill(palette.swiftInk.opacity(0.12))
+            .frame(width: 1, height: 20)
+    }
+
     // MARK: - Demo / automation hooks
 
     /// Lets the harness jump to a page and trigger an animated page turn without
@@ -465,6 +834,8 @@ struct ReaderView: View {
             }
         }
 
+        applyHighlightDemoHooks()
+
         if defaults.bool(forKey: "demoTocSection1") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { tocSection = 1 }
         }
@@ -523,6 +894,71 @@ struct ReaderView: View {
         guard delay > 0 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             if pageIndex + 1 < pageCount { pageIndex += 1 }
+        }
+    }
+
+    /// Drives the passage selection, its popup and the Highlights tab from launch
+    /// arguments, so the whole flow can be photographed without a finger.
+    private func applyHighlightDemoHooks() {
+        let defaults = UserDefaults.standard
+
+        if let name = defaults.string(forKey: "demoPickColor") {
+            let delay = defaults.object(forKey: "demoPickColorAfter") != nil
+                ? defaults.double(forKey: "demoPickColorAfter")
+                : 2.6
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                if let color = HighlightColor.allCases.first(where: { "\($0)" == name }) {
+                    chooseHighlightColor(color)
+                }
+            }
+        }
+
+        if let name = defaults.string(forKey: "demoPickColor2") {
+            let delay = defaults.object(forKey: "demoPickColor2After") != nil
+                ? defaults.double(forKey: "demoPickColor2After")
+                : 4.6
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                if let color = HighlightColor.allCases.first(where: { "\($0)" == name }) {
+                    chooseHighlightColor(color)
+                }
+            }
+        }
+
+        let removeAfter = defaults.double(forKey: "demoRemoveHighlightAfter")
+        if removeAfter > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + removeAfter) {
+                removeSelectedHighlight()
+            }
+        }
+
+        if defaults.bool(forKey: "demoExpandSelection") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { selectionExpanded = true }
+        }
+
+        if defaults.bool(forKey: "demoColorRow") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { selectionChoosingColor = true }
+        }
+
+        // Grows the passage as a dragged end bar would, so the multi-line band and
+        // its two bars can be checked without a finger.
+        let extendTo = defaults.integer(forKey: "demoExtendSelectionTo")
+        if extendTo > 0 {
+            let delay = defaults.object(forKey: "demoExtendSelectionAfter") != nil
+                ? defaults.double(forKey: "demoExtendSelectionAfter")
+                : 2.8
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                handleMoved(false, extendTo)
+            }
+        }
+
+        if defaults.bool(forKey: "demoHighlightsTab") {
+            // The sheet is opened first and the section chosen a beat later: the
+            // segmented control takes its first selection from the state it sees
+            // when the sheet appears.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.8) {
+                showTOC = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { tocSection = 2 }
+            }
         }
     }
 
@@ -684,6 +1120,20 @@ struct ReaderView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2 + pauseAfter) { speech.togglePlayPause() }
         }
 
+        // The same chapter skips the lock screen's previous/next buttons use.
+        let nextAfter = defaults.double(forKey: "demoNextChapterAfter")
+        if nextAfter > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2 + nextAfter) {
+                speech.skipChapter(by: 1)
+            }
+        }
+        let previousAfter = defaults.double(forKey: "demoPreviousChapterAfter")
+        if previousAfter > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2 + previousAfter) {
+                speech.skipChapter(by: -1)
+            }
+        }
+
         // Presses the player's "+" speed button, to prove that control works.
         let fasterSteps = defaults.integer(forKey: "demoFaster")
         if fasterSteps > 0 {
@@ -699,6 +1149,15 @@ struct ReaderView: View {
                 showNowPlaying = true
             }
         }
+
+        // Leaves the book while it is being read, to prove the voice carries on
+        // outside the reading screen.
+        let leaveAfter = defaults.double(forKey: "demoLeaveReaderAfter")
+        if leaveAfter > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2 + leaveAfter) {
+                dismiss()
+            }
+        }
     }
 
     private var stateLabel: String {
@@ -707,6 +1166,38 @@ struct ReaderView: View {
         case .playing: return "playing"
         case .paused: return "paused"
         }
+    }
+
+    /// The harness's read-out. Built as lines rather than one long expression:
+    /// the compiler gives up on a concatenation this size.
+    private func debugInfo(size: CGSize, full: CGSize, safeTop: CGFloat) -> String {
+        var lines: [String] = []
+        lines.append("size \(Int(size.width))x\(Int(size.height))")
+        lines.append("text \(Int(ReaderMetrics.textRect(in: full, safeTop: safeTop).height)) tall")
+        lines.append("full \(Int(full.width))x\(Int(full.height)) safeTop \(Int(safeTop))")
+        lines.append("pages \(model.pages.count) index \(pageIndex)")
+        lines.append("state \(stateLabel) rate \(speech.rateLabel) player \(showPlayer)")
+        lines.append(
+            "chrome \(chrome.rawValue) body \(Int(settings.custom.bodySize)) "
+                + "lead \(settings.custom.lineSpacingLabel)"
+        )
+        lines.append(
+            "theme \(settings.themeID) dark \(settings.isDarkAppearance) "
+                + "col \(settings.custom.columns) margin \(Int(settings.custom.margin)) "
+                + "mark \(settings.isCustomised ? "yes" : "no")"
+        )
+        lines.append("chapter \(speech.currentChapter)")
+        lines.append("voice \(speech.voiceName)")
+        lines.append(
+            "marks \(bookmarks.marks.count) highlights \(highlights.highlights.count) selection "
+                + (selection.map { "\($0.range.location)+\($0.range.length)" } ?? "nil")
+                + " expanded \(selectionExpanded) colors \(selectionChoosingColor)"
+        )
+        lines.append(
+            "spoken "
+                + (speech.highlighted.map { "\($0.location)+\($0.length)" } ?? "nil")
+        )
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Narration
@@ -945,6 +1436,19 @@ struct ReaderView: View {
     private func resumeReading(pageCount: Int) {
         guard !restoredPosition, pageCount > 0 else { return }
         restoredPosition = true
+
+        // The voice may have carried on while this screen was closed. Reopening
+        // the book it is reading lands on the sentence being spoken, not on the
+        // place that was saved before the reading moved on.
+        if speech.state != .idle, speech.bookID == book.id, let spoken = speech.highlighted,
+           let target = model.pageIndex(
+               forChapterOffset: spoken.location,
+               chapter: speech.currentChapter
+           ) {
+            pageIndex = target
+            return
+        }
+
         guard let place = progress.position(for: book.id) else { return }
         if let target = model.pageIndex(forChapterOffset: place.offset, chapter: place.chapter) {
             pageIndex = target
@@ -984,6 +1488,7 @@ struct ReaderView: View {
     /// Re-typesetting re-imports the HTML of every chapter, which is slow enough
     /// that holding down a size button must not run it once per press.
     private func scheduleRestyle() {
+        cancelSelection()
         restyleToken += 1
         let token = restyleToken
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -997,6 +1502,7 @@ struct ReaderView: View {
     /// Page numbers do not survive a re-typeset, so the position is held as a
     /// chapter plus a character offset and translated back into a page.
     private func restyleReader() {
+        cancelSelection()
         var anchor: (chapter: Int, offset: Int)?
         if model.pages.indices.contains(pageIndex) {
             let page = model.pages[pageIndex]
@@ -1010,7 +1516,7 @@ struct ReaderView: View {
         }
 
         model.restyle(style: settings.applied, palette: palette)
-        speech.configure(chapters: model.allChapters())
+        speech.adopt(chapters: model.allChapters(), languageTag: model.languageTag)
 
         if let anchor,
            let target = model.pageIndex(forChapterOffset: anchor.offset, chapter: anchor.chapter) {
@@ -1032,6 +1538,33 @@ struct ReaderView: View {
         return CGPoint(
             x: defaults.double(forKey: "demoTapX"),
             y: defaults.double(forKey: "demoTapY")
+        )
+    }
+
+    /// A long press the harness plays from a point, so the selection can be run
+    /// without a touch: `-demoSelectX 200 -demoSelectY 230 -demoSelectAfter 1.5`.
+    /// A second press at `-demoSelect2X/-demoSelect2Y` lands on the saved passage
+    /// and opens its Highlight · Remove popup.
+    private var demoLongPress: DemoLongPress? {
+        demoLongPress(prefix: "demoSelect")
+    }
+
+    private var demoLongPressAgain: DemoLongPress? {
+        demoLongPress(prefix: "demoSelect2")
+    }
+
+    private func demoLongPress(prefix: String) -> DemoLongPress? {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: "\(prefix)Y") != nil else { return nil }
+        let after = defaults.object(forKey: "\(prefix)After") != nil
+            ? defaults.double(forKey: "\(prefix)After")
+            : 1.5
+        return DemoLongPress(
+            point: CGPoint(
+                x: defaults.double(forKey: "\(prefix)X"),
+                y: defaults.double(forKey: "\(prefix)Y")
+            ),
+            after: after
         )
     }
 
@@ -1249,20 +1782,23 @@ struct ReaderView: View {
             VStack(spacing: 0) {
                 Picker("", selection: $tocSection) {
                     Text("reader.contents").tag(0)
-                    Text("reader.marks").tag(1)
+                    Text(verbatim: L10n.format("reader.bookmarks.count", bookmarks.marks.count))
+                        .tag(1)
+                    Text(verbatim: L10n.format("reader.highlights.count", highlights.highlights.count))
+                        .tag(2)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
 
-                if tocSection == 0 {
-                    contentsList
-                } else {
-                    marksList
+                switch tocSection {
+                case 0: contentsList
+                case 1: bookmarksList
+                default: highlightsList
                 }
             }
             .background(palette.swiftPaper)
-            .navigationTitle(tocSection == 0 ? L10n.string("reader.contents") : L10n.string("reader.marked"))
+            .navigationTitle(contentsTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -1300,9 +1836,17 @@ struct ReaderView: View {
         .scrollContentBackground(.hidden)
     }
 
+    private var contentsTitle: String {
+        switch tocSection {
+        case 0: return L10n.string("reader.contents")
+        case 1: return L10n.string("reader.marked")
+        default: return L10n.string("reader.highlights")
+        }
+    }
+
     /// Marks are stored by position, so they are resolved into pages here — a mark
     /// keeps pointing at its sentence after a change of type size.
-    private var marksList: some View {
+    private var bookmarksList: some View {
         let resolved = bookmarks.marks.compactMap {
             model.hit(chapterIndex: $0.chapterIndex, offset: $0.offset)
         }
@@ -1335,6 +1879,52 @@ struct ReaderView: View {
                     bookmarks.remove(at: IndexSet(offsets.map { resolved[$0] }.compactMap { hit in
                         bookmarks.marks.firstIndex { $0.id == hit.id }
                     }))
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+    }
+
+    /// The passages the reader has marked, read down the book. They are stored by
+    /// character range, so each row is resolved into a page against the current
+    /// typesetting — a highlight survives a change of type size.
+    private var highlightsList: some View {
+        let rows = highlights.highlights.compactMap { mark -> HighlightRow? in
+            guard let hit = model.hit(chapterIndex: mark.chapterIndex, offset: mark.startOffset)
+            else { return nil }
+            return HighlightRow(highlight: mark, hit: hit)
+        }
+        return List {
+            if rows.isEmpty {
+                Text("reader.noHighlights")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(rows) { row in
+                    Button {
+                        pageIndex = row.hit.pageIndex
+                        showTOC = false
+                    } label: {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(row.hit.chapterTitle)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(palette.swiftAccent)
+                            Text(verbatim: row.highlight.text)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                            Text(verbatim: L10n.format("reader.pageRef", row.hit.pageIndex + 1))
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                .onDelete { offsets in
+                    let removable = offsets.compactMap { index in
+                        rows.indices.contains(index) ? rows[index].highlight : nil
+                    }
+                    for mark in removable { highlights.remove(mark) }
                 }
             }
         }
