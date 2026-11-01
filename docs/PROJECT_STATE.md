@@ -32,8 +32,8 @@
 - Not done: no device run of T-113 (position saved while narrating in the background), no
   corpus (T-111), and the P2 defects T-114…T-117 remain.
 - Cleanup after the gate: the dead `ui/SearchScreen.kt` (240 lines, no caller since search moved
-  to `SearchSheet`) and the stray `.DS_Store` files were deleted; nothing else in the source
-  tree was unused.
+  to `SearchSheet`), the stray `.DS_Store` files and the dated `docs/qa/` evidence folder were
+  deleted; nothing else in the source tree was unused. The EPUB robustness spec is kept.
 
 ## Review checkpoint — 2026-10-29 (code không đổi)
 
@@ -67,8 +67,9 @@
 
 Updated: 2026-11-01T15:20+07:00 (Asia/Saigon)
 Canonical. Everything about this project lives in this file; the rest of `docs/` holds the task
-list, the handoff, the specs and the QA evidence. Read "Facts at a glance" and "Verified current
-state" first, then the Part sections for the reasoning and the measurements behind any number.
+list, the handoff, the priority list and the EPUB robustness spec. Read "Facts at a glance" and
+"Verified current state" first, then the Part sections for the reasoning and the measurements
+behind any number.
 
 ## Facts at a glance
 
@@ -84,7 +85,7 @@ state" first, then the Part sections for the reasoning and the measurements behi
 | Sample book | `app/src/main/assets/sample.epub`, 9,720 bytes, seeded into `filesDir/Books` |
 | APK | debug `19,887,772 bytes` · sha256 `fe035903a519fae6e3af11c620b0da4f70a13d3ac2cb7f156f2c5f132feae506` (2026-11-01) |
 | Device | Android 16 / API 36 · 1344x2992 · density 480. `emulator-5554` (AVD `E2`) is the main device and is shared with other work: other sessions force-stop the app and steal input, so every device result must be read together with its logcat. `emulator-5556` (AVD `E3`) also belongs to other work |
-| Git | branch `android`, **41 commits**, **no remote**, HEAD `5714072` (`refactor(app): ship as com.elearning.openbook`). The working tree is dirty: this session's docs move into `docs/`, the removed `.agents/`/`.ai-toolkit/`/`.claude/`/`CLAUDE.md`/root state files, and the untracked `docs/qa/` evidence |
+| Git | branch `android`, **no remote**. Commits from 2026-11-01: `e7f83f7` (code), `53248ba` (docs moved into `docs/` + synced), `114b4db` (dead code and junk removed) and a docs commit that removes `docs/qa/`. The working tree still carries pre-existing removals (`.agents/`, `.ai-toolkit/`, `.claude/`, `CLAUDE.md`, root state files) and `.commandcode/` |
 | Tasks | 117 IDs; T-095…T-104 verified earlier, T-108/T-109/T-112 closed on 2026-11-01; see `TASKS.md`; handoff in `SESSION_HANDOFF.md` |
 | Next action | No open P1. Remaining work is T-114…T-117 (P2), the T-110/T-113 pair, the T-111 corpus restore, and the owner-blocked decisions T-064/T-066…T-079 (see `TODO.md`) |
 
@@ -188,9 +189,10 @@ state" first, then the Part sections for the reasoning and the measurements behi
 
 ## Verified current state
 - Current branch / worktree: Git repository at
-  `/Users/cuong/Workspace/Projects/openbook/android`, branch `android`, HEAD `5714072`.
-  The working tree is **dirty and nothing is staged** (docs moved into `docs/`, environment
-  removals, untracked QA evidence); there is no remote. Checked 2026-11-01; the authoritative
+  `/Users/cuong/Workspace/Projects/openbook/android`, branch `android` (HEAD is the newest
+  commit in `git log`; this session's are `e7f83f7`, `53248ba` and `114b4db`).
+  The working tree is **dirty and nothing is staged** (pre-existing environment removals);
+  there is no remote. Checked 2026-11-01; the authoritative
   Git block is "Facts at a glance" at the top of this file.
 - Verified working features:
   - `:app:assembleDebug` succeeds (JDK 17, Gradle 9.8, AGP/Kotlin from the version

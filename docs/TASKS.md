@@ -41,7 +41,7 @@ Bốn lỗi mới dưới đây đều **Pending**, owner chưa phân công, kh�
 ### Lỗi/backlog đã có, không tạo ID trùng
 
 - **T-108 / T-109 (P1):** callback điều khiển và timer vẫn thuộc composition `ReaderScreen.kt:605–652`; Back hủy chúng dù SpeechHolder còn sống. Bằng chứng device ngày 2026-10-28 là lịch sử, không chạy lại trong phiên này.
-- **T-112 (P1):** `epub/ZipExtract.kt:28` vẫn `readBytes()` toàn archive không giới hạn. `EpubArchive.kt:201–202` đọc metadata cũng chưa giới hạn trước cấp phát. Khi sửa phải chặn cả đường import/list và mở sách, không chỉ ảnh sau giải nén. Probe JVM cũ trong `docs/qa/2026-10-29/` chưa chạy lại.
+- **T-112 (P1):** `epub/ZipExtract.kt:28` vẫn `readBytes()` toàn archive không giới hạn. `EpubArchive.kt:201–202` đọc metadata cũng chưa giới hạn trước cấp phát. Khi sửa phải chặn cả đường import/list và mở sách, không chỉ ảnh sau giải nén. Probe JVM cũ (đã xoá cùng `docs/qa/` ngày 2026-11-01) chưa chạy lại.
 - **T-110 / T-113 (P2):** xóa sách chưa gọi `HighlightStore.erase`; vị trí TTS sau Back chưa có owner lưu bền ngoài UI. Đã đối chiếu code, không thực hiện xóa sách thật.
 - **T-111:** `ios/build/qa/epub-corpus/manifest.json` hiện không tồn tại. Không tuyên bố corpus đã pass; 79 pass/33 skip là số lịch sử từ phiên trước.
 

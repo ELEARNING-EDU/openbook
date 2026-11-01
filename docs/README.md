@@ -9,8 +9,10 @@ vào thư mục này; không tạo lại bản ở root.
 | Danh sách task (đang mở và đã xong, kèm bằng chứng) | `TASKS.md` |
 | Bàn giao phiên làm việc, việc tiếp theo | `SESSION_HANDOFF.md` |
 | Việc chưa làm, đã xếp ưu tiên | `TODO.md` |
-| Spec QA độ bền EPUB + benchmark + mini player | `epub-robustness-player-qa.md` |
-| Bằng chứng test/QA theo ngày | `qa/<YYYY-MM-DD>/` |
+| Spec QA độ bền EPUB + benchmark + mini player (vẫn dùng làm tiêu chí nghiệm thu) | `epub-robustness-player-qa.md` |
+
+Thư mục bằng chứng QA theo ngày (`docs/qa/`) đã được xoá ngày 2026-11-01; các tham chiếu
+`docs/qa/...` còn trong phần lịch sử chỉ là ghi chép, không còn file để mở.
 
 Spec Home parity (`home-ui-parity.md`) và full player parity (`full-player-parity.md`) đã bị
 xoá khỏi cây làm việc; nội dung còn lại được ghi trong `PROJECT_STATE.md` (các pass 4–7).

@@ -4,7 +4,8 @@
 
 - Owner asked to read `docs/`, update the project state, then fix code. Done in that order.
 - Docs: `docs/README.md` now describes the real layout (`PROJECT_STATE.md`, `TASKS.md`,
-  `SESSION_HANDOFF.md`, `TODO.md`, specs and `qa/` all live in `docs/`). `PROJECT_STATE.md`
+  `SESSION_HANDOFF.md`, `TODO.md` and the EPUB robustness spec all live in `docs/`).
+  `PROJECT_STATE.md`
   facts were refreshed (53 Kotlin files / 15,809 lines, HEAD `5714072`, 115 discovered tests,
   release signing, current device state) and the verify commands use the real path/package.
   `TASKS.md` had three broken tables and six "Verified complete" rows still under `Open`;
@@ -29,7 +30,9 @@
   not exported, so `adb` could not trigger `ACTION_STOP`.
 - Not done: T-113 device run, corpus restore (T-111), P2 defects T-114…T-117.
 - Cleanup: deleted the dead `ui/SearchScreen.kt` (no caller; `SearchSheet` is the live search
-  surface) and the `.DS_Store` files; A-OPT-01 is closed. Gate re-run after the deletion.
+  surface), the `.DS_Store` files and the whole `docs/qa/` evidence folder (28 KB, 2026-10-29;
+  the checks it records are now in `TASKS.md` and `PROJECT_STATE.md`). A-OPT-01 is closed and
+  the EPUB robustness spec is kept. Gate re-run after the deletion.
 - Committed on branch `android`: `e7f83f7` (code) and `53248ba` (docs move + sync), plus the
   cleanup commit that follows them. Nothing pushed (no remote). Next action: T-114 (author
   override) is the smallest P2, then T-116; T-110/T-115 and T-113 pair up.
@@ -76,7 +79,8 @@ below supersedes the older Part 12 details further down.
    current state".
 2. `TASKS.md` — the `Open` block is the whole to-do list; `Closed` carries the evidence.
 3. This file — the last session, the uncommitted work, the open questions.
-4. `README.md` — what else is here; `qa/2026-10-29/` holds the newest test/QA evidence.
+4. `README.md` — what else is here. The dated QA evidence folder (`docs/qa/`) was removed on
+   2026-11-01; older references to it are historical notes, not files.
 
 Checkpoints below 2026-11-01 are historical; their paths, package names and build hashes
 describe the build of that day, not the current tree.
