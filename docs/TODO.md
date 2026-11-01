@@ -26,9 +26,9 @@ liệu nằm trong `docs/`.
 
 ## Tối ưu có căn cứ, làm sau lỗi chức năng
 
-- [ ] **A-OPT-01 · bỏ search screen không còn caller.** `app/src/main/java/com/elearning/openbook/ui/SearchScreen.kt`
-  (~240 dòng) chỉ còn declaration/log; luồng thực dùng `SearchSheet`. Xóa sau khi xác nhận
-  caller/config, compile và smoke search sheet.
+- [x] **A-OPT-01 · bỏ search screen không còn caller.** Đã xoá
+  `app/src/main/java/com/elearning/openbook/ui/SearchScreen.kt` (240 dòng) ngày 2026-11-01 sau
+  khi xác nhận không còn caller/config; luồng tìm kiếm dùng `SearchSheet`. Gate chạy lại xanh.
 - [ ] **A-OPT-02 · tránh parse lại mọi sách sau một thay đổi metadata.** `LibraryStore.books/describe`
   đọc lại ZIP/OPF/bìa cho cả thư viện; `AppViewModel.updateMetadata/markFinished` bỏ `BookItem`
   trả về rồi gọi `books()` lại. Đo số lượt đọc/thời gian trước-sau; giữ quy tắc sort và lỗi đọc.

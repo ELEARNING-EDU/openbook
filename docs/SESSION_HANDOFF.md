@@ -28,8 +28,11 @@
   Back and left 0 services / 0 sessions. Stop has no notification button and the service is
   not exported, so `adb` could not trigger `ACTION_STOP`.
 - Not done: T-113 device run, corpus restore (T-111), P2 defects T-114…T-117.
-- Nothing committed/staged. Next action: T-114 (author override) is the smallest P2, then
-  T-116; T-110/T-115 and T-113 pair up.
+- Cleanup: deleted the dead `ui/SearchScreen.kt` (no caller; `SearchSheet` is the live search
+  surface) and the `.DS_Store` files; A-OPT-01 is closed. Gate re-run after the deletion.
+- Committed on branch `android`: `e7f83f7` (code) and `53248ba` (docs move + sync), plus the
+  cleanup commit that follows them. Nothing pushed (no remote). Next action: T-114 (author
+  override) is the smallest P2, then T-116; T-110/T-115 and T-113 pair up.
 
 ## Review checkpoint — 2026-10-29 (code không đổi)
 

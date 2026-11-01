@@ -31,6 +31,9 @@
   button; it cannot be triggered from `adb` because the service is not exported.
 - Not done: no device run of T-113 (position saved while narrating in the background), no
   corpus (T-111), and the P2 defects T-114…T-117 remain.
+- Cleanup after the gate: the dead `ui/SearchScreen.kt` (240 lines, no caller since search moved
+  to `SearchSheet`) and the stray `.DS_Store` files were deleted; nothing else in the source
+  tree was unused.
 
 ## Review checkpoint — 2026-10-29 (code không đổi)
 
