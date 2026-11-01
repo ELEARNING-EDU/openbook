@@ -161,6 +161,71 @@ final class ReadingStatsStoreTests: XCTestCase {
         XCTAssertEqual(reopened.minutes(on: date(2026, 10, 25)), 7, accuracy: 0.001)
     }
 
+    func testWeekStartsMondayAndFlagsToday() {
+        store.add(seconds: 600, listening: false, endingAt: date(2026, 10, 28, 9, 0))
+
+        let week = store.week(now: date(2026, 10, 28, 12, 0), calendar: calendar)
+
+        XCTAssertEqual(week.count, 7)
+        XCTAssertEqual(week.first?.date, date(2026, 10, 26))
+        XCTAssertEqual(week.last?.date, date(2026, 11, 1))
+        XCTAssertEqual(week.filter(\.isToday).count, 1)
+        XCTAssertEqual(week.first { $0.isToday }?.minutes ?? 0, 10, accuracy: 0.001)
+        XCTAssertEqual(week.filter { !$0.isToday }.map(\.minutes).reduce(0, +), 0, accuracy: 0.001)
+    }
+
+    func testWeekWithNoDataIsAllZero() {
+        let week = store.week(now: date(2026, 10, 28, 12, 0), calendar: calendar)
+
+        XCTAssertEqual(week.count, 7)
+        XCTAssertTrue(week.allSatisfy { $0.minutes == 0 })
+    }
+
+    /// T23: a phone whose calendar starts the week on Sunday must not make the
+    /// summary count Sunday 25 Oct while the seven bars start on Monday 26 Oct.
+    func testSundayStartCalendarUsesTheSameWeekForSummaryAndChart() {
+        var sunday = calendar!
+        sunday.firstWeekday = 1
+        let sundayStore = ReadingStatsStore(defaults: defaults, calendar: sunday)
+
+        // Sunday 25 Oct belongs to the previous week when the week starts Monday.
+        sundayStore.add(seconds: 600, listening: false, endingAt: date(2026, 10, 25, 10, 0))
+        // Monday 26 Oct opens the current week.
+        sundayStore.add(seconds: 300, listening: false, endingAt: date(2026, 10, 26, 10, 0))
+
+        let now = date(2026, 10, 26, 12, 0)
+        let summary = sundayStore.summary(now: now, goalMinutes: 5)
+        let week = sundayStore.week(now: now, calendar: sunday)
+
+        XCTAssertEqual(week.count, 7)
+        XCTAssertEqual(week.first?.date, date(2026, 10, 26))
+        XCTAssertEqual(week.last?.date, date(2026, 11, 1))
+        XCTAssertEqual(summary.weekMinutes, 5)
+        XCTAssertEqual(
+            summary.weekMinutes,
+            Int(week.map(\.minutes).reduce(0, +).rounded())
+        )
+    }
+
+    /// The same rule must hold across a year boundary: the week of 29 Dec 2025
+    /// runs into 1–4 Jan 2026 and both views count the same seven days.
+    func testSummaryWeekMatchesChartAcrossTheYearBoundary() {
+        store.add(seconds: 600, listening: false, endingAt: date(2025, 12, 31, 10, 0))
+        store.add(seconds: 300, listening: false, endingAt: date(2026, 1, 1, 10, 0))
+
+        let now = date(2026, 1, 1, 12, 0)
+        let summary = store.summary(now: now, goalMinutes: 5)
+        let week = store.week(now: now, calendar: calendar)
+
+        XCTAssertEqual(week.first?.date, date(2025, 12, 29))
+        XCTAssertEqual(week.last?.date, date(2026, 1, 4))
+        XCTAssertEqual(summary.weekMinutes, 15)
+        XCTAssertEqual(
+            summary.weekMinutes,
+            Int(week.map(\.minutes).reduce(0, +).rounded())
+        )
+    }
+
     func testSessionCountsFromStartToEnd() {
         store.startSession(at: date(2026, 10, 25, 10, 0))
         store.noteActivity(at: date(2026, 10, 25, 10, 2))

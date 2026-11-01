@@ -238,7 +238,42 @@ struct ReadingSummary: Equatable {
     let bestDayMinutes: Int
 }
 
+/// One column of Home's week strip.
+struct ReadingWeekPoint: Equatable {
+    let date: Date
+    let minutes: Double
+    let isToday: Bool
+}
+
 extension ReadingStatsStore {
+
+    /// The week the totals and the chart both mean: Monday to Sunday, in the
+    /// calendar supplied (which still decides the time zone and the year).
+    ///
+    /// Both callers go through here so a phone whose calendar starts the week on
+    /// Sunday cannot make the summary and the seven bars cover different days.
+    func weekInterval(now: Date, calendar: Calendar = .current) -> DateInterval? {
+        var week = calendar
+        week.firstWeekday = 2
+        return week.dateInterval(of: .weekOfYear, for: now)
+    }
+
+    /// Monday-to-Sunday of the week containing `now`, in the calendar given (the
+    /// app passes its own; tests pass a fixed one).
+    func week(now: Date, calendar: Calendar = .current) -> [ReadingWeekPoint] {
+        guard let interval = weekInterval(now: now, calendar: calendar) else { return [] }
+
+        return (0..<7).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: interval.start) else {
+                return nil
+            }
+            return ReadingWeekPoint(
+                date: date,
+                minutes: minutes(on: date),
+                isToday: calendar.isDate(date, inSameDayAs: now)
+            )
+        }
+    }
 
     func streak(now: Date, goalMinutes: Int) -> ReadingStreak {
         let threshold = TimeInterval(goalMinutes * 60)
@@ -298,7 +333,7 @@ extension ReadingStatsStore {
         return ReadingSummary(
             todaySeconds: todaySeconds,
             todayMinutes: Int((todaySeconds / 60).rounded()),
-            weekMinutes: minutes(in: calendar.dateInterval(of: .weekOfYear, for: now)),
+            weekMinutes: minutes(in: weekInterval(now: now, calendar: calendar)),
             monthMinutes: minutes(in: calendar.dateInterval(of: .month, for: now)),
             yearMinutes: minutes(in: calendar.dateInterval(of: .year, for: now)),
             goalMinutes: goalMinutes,
