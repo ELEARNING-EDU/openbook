@@ -97,6 +97,19 @@ class SpeechReader(private val context: Context) {
 
     val isPlaying: Boolean get() = stateInternal == SpeechState.PLAYING
 
+    /**
+     * The sentence the voice is on, or -1 when it is silent.
+     *
+     * Read outside the reader (the notification's chapter skips) so the engine, not a
+     * composition, decides where the voice is.
+     */
+    val currentSentence: Int
+        get() = when (stateInternal) {
+            SpeechState.PAUSED -> pausedAt
+            SpeechState.PLAYING -> if (lastStarted >= 0) lastStarted else pausedAt
+            SpeechState.IDLE -> -1
+        }
+
     val rateLabel: String get() = "${ReaderSettings.trimNumber(rateFactor)}×"
     val canSlowDown: Boolean get() = rateFactor > rateOptions.first()
     val canSpeedUp: Boolean get() = rateFactor < rateOptions.last()
@@ -465,8 +478,25 @@ class SpeechReader(private val context: Context) {
     private fun setState(next: SpeechState) {
         if (stateInternal == next) return
         stateInternal = next
-        if (!disposed) onStateChanged(next)
+        if (!disposed) {
+            onStateChanged(next)
+            stateHooks.forEach { hook -> hook(next) }
+        }
     }
+
+    /**
+     * Process-lifetime observers, called in addition to [onStateChanged].
+     *
+     * The reader's own callback belongs to a composition and is cleared when it goes
+     * away; the notification and the sleep timer must keep following the voice after
+     * Back, so they subscribe here instead.
+     */
+    fun addStateHook(hook: (SpeechState) -> Unit) {
+        stateHooks += hook
+    }
+
+    private val stateHooks =
+        java.util.concurrent.CopyOnWriteArrayList<(SpeechState) -> Unit>()
 
     private fun beginSpeaking(from: Int) {
         val engine = tts ?: return

@@ -92,6 +92,7 @@
     <string name="epub_error_empty_spine">This book has no readable chapters.</string>
     <string name="epub_error_generic">This book could not be opened.</string>
     <string name="epub_error_drm">This book is protected by DRM, so it cannot be read here. Remove the DRM or open it in the app that sold it.</string>
+    <string name="epub_error_too_large">This EPUB expands to more than the reader allows, so it was refused.</string>
 
     <!-- Library -->
     <string name="library_view_grid">Grid</string>

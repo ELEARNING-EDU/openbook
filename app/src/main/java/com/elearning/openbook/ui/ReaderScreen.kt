@@ -282,9 +282,10 @@ fun ReaderScreen(
     /** A saved highlight opened for edit/delete by a long-press. */
     var editing by remember { mutableStateOf<com.elearning.openbook.reader.Highlight?>(null) }
     var editColourOpen by remember { mutableStateOf(false) }
-    /** Minutes the sleep timer was set for; 0 when it is off. */
-    var sleepMinutes by remember { mutableIntStateOf(0) }
-    var sleepLeft by remember { mutableIntStateOf(0) }
+    // The sleep timer lives with the playback, not with this composition: Back disposes
+    // the screen but must not cancel a deadline the reading voice still owes.
+    val sleepMinutes = com.elearning.openbook.playback.SleepTimer.minutes
+    val sleepLeft = com.elearning.openbook.playback.SleepTimer.leftSeconds
     var chrome by remember { mutableStateOf(ChromeMode.FULL) }
     var autoHideToken by remember { mutableIntStateOf(0) }
     var currentSentence by remember { mutableIntStateOf(-1) }
@@ -480,6 +481,11 @@ fun ReaderScreen(
         speech.source = ready
         ready?.let { speech.useLanguage(it.bookLanguage) }
     }
+    // The notification's chapter skips read the engine from the process-wide controller,
+    // which must have the current book even after this screen goes away.
+    LaunchedEffect(ready, book) {
+        com.elearning.openbook.playback.Narration.attach(book, ready)
+    }
 
     val speechState = speech.state
     val chromeVisible = chrome.visible
@@ -600,25 +606,23 @@ fun ReaderScreen(
         )
     }
 
-    // Background narration: a foreground service keeps the voice alive when the app is
-    // not on screen and shows a media notification; its buttons come back here.
-    DisposableEffect(Unit) {
-        com.elearning.openbook.playback.PlaybackBridge.onToggle = { speech.togglePlayPause() }
-        com.elearning.openbook.playback.PlaybackBridge.onStop = { speech.stop() }
-        com.elearning.openbook.playback.PlaybackBridge.onNext = { skipChapter(1) }
-        com.elearning.openbook.playback.PlaybackBridge.onPrevious = { skipChapter(-1) }
-        onDispose {
-            com.elearning.openbook.playback.PlaybackBridge.onToggle = null
-            com.elearning.openbook.playback.PlaybackBridge.onStop = null
-            com.elearning.openbook.playback.PlaybackBridge.onNext = null
-            com.elearning.openbook.playback.PlaybackBridge.onPrevious = null
+    // The notification's controls belong to the process-wide engine (see Narration), so
+    // they keep working after Back. While this screen is on screen a chapter skip also
+    // moves the leaf, through the same page sync the sheet's buttons use.
+    val voiceMoved = androidx.compose.runtime.rememberUpdatedState<(Int) -> Unit> { from ->
+        val source = ready
+        if (source != null) {
+            val page = source.sentencePage(from)
+            if (page >= 0 && page != (holder.view?.pageIndex ?: pageIndex)) {
+                reader.setPage(page)
+                jumpTarget = -1
+                holder.view?.setPageIndex(page)
+            }
         }
     }
-    LaunchedEffect(speechState, book) {
-        com.elearning.openbook.playback.NowPlaying.book =
-            if (speechState == SpeechState.IDLE) null else book
-        com.elearning.openbook.playback.NowPlaying.playing =
-            speechState == SpeechState.PLAYING
+    DisposableEffect(Unit) {
+        com.elearning.openbook.playback.Narration.onVoiceMoved = { from -> voiceMoved.value(from) }
+        onDispose { com.elearning.openbook.playback.Narration.detachReader() }
     }
     LaunchedEffect(speechState, voiceChapter, book.title) {
         if (speechState == SpeechState.IDLE) {
@@ -634,22 +638,13 @@ fun ReaderScreen(
         }
     }
 
-    // The sleep timer runs from the moment it is chosen, whether or not the sheet is
-    // open, and its only job is to stop the voice: a reader who falls asleep does not
-    // need the book to carry on without them.
-    LaunchedEffect(sleepMinutes) {
-        if (sleepMinutes <= 0) {
-            sleepLeft = 0
-            return@LaunchedEffect
+    // The deadline itself lives in SleepTimer, outside this composition: its only job is
+    // to stop the voice, and Back must not cancel a timer the narration still owes.
+    LaunchedEffect(com.elearning.openbook.playback.SleepTimer.justFinished) {
+        if (com.elearning.openbook.playback.SleepTimer.justFinished) {
+            speechNote = sleepDoneNote
+            com.elearning.openbook.playback.SleepTimer.acknowledge()
         }
-        sleepLeft = sleepMinutes * 60
-        while (sleepLeft > 0) {
-            delay(1000)
-            sleepLeft--
-        }
-        Log.i(TAG, "sleep timer: ${sleepMinutes}min up -> stopping the voice")
-        speech.stop()
-        speechNote = sleepDoneNote
     }
 
     // Whether the voice was running a moment ago, so stopping it can be told apart from
@@ -829,7 +824,7 @@ fun ReaderScreen(
             showPlayerSheet = false
             // A sleep timer belongs to the voice that was running; one set before the
             // voice started again must not stop the next one at a stale hour.
-            sleepMinutes = 0
+            com.elearning.openbook.playback.SleepTimer.cancel()
             if (wasReading) {
                 wasReading = false
                 revealChrome()
@@ -1028,7 +1023,9 @@ fun ReaderScreen(
             }
         }
         if (staged.player) showPlayer = true
-        if (staged.sleepTimer > 0) sleepMinutes = staged.sleepTimer
+        if (staged.sleepTimer > 0) {
+            com.elearning.openbook.playback.SleepTimer.set(staged.sleepTimer)
+        }
         if (staged.settings) showSettings = true
         if (staged.customize || staged.fontList) showCustomize = true
         if (staged.bookmark) toggleBookmark()
@@ -1684,7 +1681,7 @@ fun ReaderScreen(
                 onSlower = { speech.slower() },
                 onFaster = { speech.faster() },
                 onSleep = { minutes ->
-                    sleepMinutes = minutes
+                    com.elearning.openbook.playback.SleepTimer.set(minutes)
                     Log.i(TAG, "sleep timer: ${if (minutes == 0) "off" else "$minutes min"}")
                 },
                 onVoicePickerOpen = { speech.refreshVoices() },

@@ -52,4 +52,47 @@ class ZipExtractTest {
         }
         assertEquals(com.elearning.openbook.model.EpubProblem.NOT_ZIP, error.problem)
     }
+
+    @Test
+    fun anEntryOverTheBudgetIsRefusedBeforeItIsBuffered() {
+        val archive = archiveWith("OEBPS/ch01.xhtml" to "<html/>".toByteArray())
+
+        val error = assertThrows(com.elearning.openbook.model.EpubException::class.java) {
+            ZipExtract.readAll(archive, maxEntryBytes = 4)
+        }
+        assertEquals(com.elearning.openbook.model.EpubProblem.TOO_LARGE, error.problem)
+    }
+
+    @Test
+    fun entriesTogetherOverTheBudgetAreRefused() {
+        val archive = archiveWith(
+            "a.bin" to byteArrayOf(1, 2, 3),
+            "b.bin" to byteArrayOf(4, 5, 6),
+        )
+
+        val error = assertThrows(com.elearning.openbook.model.EpubException::class.java) {
+            ZipExtract.readAll(archive, maxEntryBytes = 4, maxTotalBytes = 5)
+        }
+        assertEquals(com.elearning.openbook.model.EpubProblem.TOO_LARGE, error.problem)
+    }
+
+    @Test
+    fun aStreamThatLiesAboutItsLengthIsStillCounted() {
+        val error = assertThrows(com.elearning.openbook.model.EpubException::class.java) {
+            ZipExtract.readLimited(java.io.ByteArrayInputStream(ByteArray(10)), 4, "entry")
+        }
+        assertEquals(com.elearning.openbook.model.EpubProblem.TOO_LARGE, error.problem)
+    }
+
+    private fun archiveWith(vararg entries: Pair<String, ByteArray>): File {
+        val archive = File.createTempFile("bounded", ".zip").apply { deleteOnExit() }
+        ZipOutputStream(archive.outputStream()).use { zip ->
+            for ((name, bytes) in entries) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+        return archive
+    }
 }

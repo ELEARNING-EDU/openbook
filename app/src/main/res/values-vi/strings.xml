@@ -91,6 +91,7 @@
     <string name="epub_error_empty_spine">Sách không có chương nào đọc được.</string>
     <string name="epub_error_generic">Không mở được sách này.</string>
     <string name="epub_error_drm">Sách có bảo vệ bản quyền (DRM) nên không đọc được ở đây. Hãy gỡ DRM hoặc mở bằng ứng dụng đã bán sách.</string>
+    <string name="epub_error_too_large">Tệp EPUB giải nén vượt quá giới hạn của trình đọc nên đã bị từ chối.</string>
 
     <string name="library_view_grid">Lưới</string>
     <string name="library_view_list">Danh sách</string>

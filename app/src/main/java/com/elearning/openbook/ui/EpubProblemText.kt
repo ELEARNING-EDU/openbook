@@ -14,6 +14,7 @@ fun epubProblemText(problem: EpubProblem): String = stringResource(
         EpubProblem.NO_OPF -> R.string.epub_error_no_opf
         EpubProblem.EMPTY_SPINE -> R.string.epub_error_empty_spine
         EpubProblem.DRM -> R.string.epub_error_drm
+        EpubProblem.TOO_LARGE -> R.string.epub_error_too_large
         EpubProblem.GENERIC -> R.string.epub_error_generic
     },
 )

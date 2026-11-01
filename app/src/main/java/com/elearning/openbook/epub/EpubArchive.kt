@@ -198,8 +198,11 @@ object EpubArchive {
             return names.entries.firstOrNull { it.key.equals(wanted, ignoreCase = true) }?.value
         }
 
-        fun bytes(path: String): ByteArray? =
-            find(path)?.let { entry -> zip.getInputStream(entry).use { it.readBytes() } }
+        fun bytes(path: String): ByteArray? = find(path)?.let { entry ->
+            // The metadata path reads single entries; the same budget keeps a crafted
+            // container/OPF/cover from exhausting the heap before validation.
+            zip.getInputStream(entry).use { ZipExtract.readLimited(it, ZipExtract.MAX_ENTRY_BYTES, path) }
+        }
 
         override fun close() = zip.close()
     }
