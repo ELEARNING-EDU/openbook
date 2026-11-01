@@ -1,13 +1,19 @@
-# docs/ — Hướng dẫn sử dụng ứng dụng Sách
+# docs/ — tài liệu dự án Sách (Android EPUB reader)
 
-Thư mục này **chỉ** dành cho tài liệu dành cho người dùng ứng dụng. Nó không chứa trạng thái
-dự án, task, quyết định kỹ thuật hay lịch sử — những thứ đó nằm ở gốc repo:
+Cập nhật 2026-11-01. Toàn bộ tài liệu trạng thái, task và bàn giao đã chuyển từ gốc repo
+vào thư mục này; không tạo lại bản ở root.
 
 | Cần gì | Đọc ở đâu |
 | --- | --- |
-| Trạng thái dự án, kiến trúc, Git, điều đã kiểm chứng | `../PROJECT_STATE.md` |
-| Danh sách task (đang mở và đã xong, kèm bằng chứng) | `../TASKS.md` |
-| Bàn giao phiên làm việc, việc tiếp theo | `../SESSION_HANDOFF.md` |
+| Trạng thái dự án, kiến trúc, Git, điều đã kiểm chứng | `PROJECT_STATE.md` |
+| Danh sách task (đang mở và đã xong, kèm bằng chứng) | `TASKS.md` |
+| Bàn giao phiên làm việc, việc tiếp theo | `SESSION_HANDOFF.md` |
+| Việc chưa làm, đã xếp ưu tiên | `TODO.md` |
+| Spec QA độ bền EPUB + benchmark + mini player | `epub-robustness-player-qa.md` |
+| Bằng chứng test/QA theo ngày | `qa/<YYYY-MM-DD>/` |
+
+Spec Home parity (`home-ui-parity.md`) và full player parity (`full-player-parity.md`) đã bị
+xoá khỏi cây làm việc; nội dung còn lại được ghi trong `PROJECT_STATE.md` (các pass 4–7).
 
 ## Nội dung dự kiến
 

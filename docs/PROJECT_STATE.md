@@ -1,8 +1,70 @@
 # Project state — Sách (Android EPUB reader)
 
-Updated: 2026-10-25T10:55+07:00 (Asia/Saigon)
-Canonical. Everything about this project lives in this file; `docs/` holds the app's user
-guide and `docs/qa/` holds test/QA evidence. Read "Facts at a glance" and "Verified current
+## Session — 2026-11-01 (bounded ZIP, process-scoped playback)
+
+- Docs first: `docs/README.md` was still pointing at the repo root for state/tasks, and this
+  file's facts had drifted (file count, HEAD, test totals, release signing). Both are corrected
+  in this pass; `TASKS.md`, `SESSION_HANDOFF.md` and `TODO.md` were synced with it.
+- **T-112 (P1) fixed** — `ZipExtract` now refuses an archive before buffering it: 64 MiB per
+  entry, 256 MiB per archive, checked against both the central directory's declared size and
+  the bytes actually streamed; `EpubArchive`'s metadata reads use the same per-entry budget.
+  New `EpubProblem.TOO_LARGE` + `epub_error_too_large` (EN/VI) so the refusal is not "not a
+  valid EPUB". Four `ZipExtractTest` cases cover entry, aggregate, a lying stream and the
+  normal path.
+- **T-108/T-109 (P1) fixed** — the notification's buttons and the sleep timer no longer belong
+  to the reader composition. `playback/Narration` installs the bridge callbacks once, with the
+  process-wide `SpeechReader`, and keeps the last book's `ReaderEngine` for notification chapter
+  skips; `playback/SleepTimer` holds an absolute deadline, exposes `minutes`/`leftSeconds` as
+  Compose state and stops the voice on expiry; a process-level `addStateHook` in `SpeechReader`
+  updates `NowPlaying` and clears the notification when the voice goes idle. Back no longer
+  nulls the controls; reopening the reader re-attaches only the page sync.
+- **Verified**: `:app:testDebugUnitTest :app:lintDebug :app:assembleDebug` exit 0 —
+  115 discovered, 82 pass, 0 failures/errors, 33 skip (corpus absent, T-111); lint PASS;
+  APK `19,887,772 bytes`, sha256 `fe035903…e506`. Device (`emulator-5554`/E2, shared):
+  after Back the notification's Pause moved the session to `PAUSED`, Previous logged
+  `Narration: notification chapter skip -1 -> sentence #53` and the metadata moved to
+  `5. Bức thư trong chai`, Play returned `PLAYING`; a finished narration removed the
+  notification with no reader on screen; a 1-minute timer logged
+  `SleepTimer: sleep timer: 1min up -> stopping the voice` 30 s after Back, with 0
+  `PlaybackService` and 0 media sessions afterwards, and a repeat run showed `PLAYING` at
+  Back+20 s and no session by Back+70 s. Stop (`ACTION_STOP`) is wired but has no notification
+  button; it cannot be triggered from `adb` because the service is not exported.
+- Not done: no device run of T-113 (position saved while narrating in the background), no
+  corpus (T-111), and the P2 defects T-114…T-117 remain.
+
+## Review checkpoint — 2026-10-29 (code không đổi)
+
+- Đã hoàn tất review luồng chức năng và code quan trọng; thêm 4 lỗi Pending (T-114–T-117) trong TASKS.md và TODO.md riêng cho ưu tiên sửa/tối ưu/QA. Chi tiết tình huống, vị trí code, mức bằng chứng và nghiệm thu ở TASKS.md.
+- Chỉ cập nhật tài liệu. Không stage/commit, không sửa app/test/config, không cài app hoặc thay dữ liệu người dùng. Git root `master`, HEAD `c6633fb`; android/ios/design và các file untracked có sẵn được giữ nguyên; khi tiếp tục xuất hiện thêm web/ từ công việc khác, không đụng tới.
+- Khi tiếp tục, tài liệu Android đã nằm ở android/docs/; giữ vị trí hiện hữu, không tạo lại bản root. Đối chiếu SHA-256 của 135 source/resource/test/config với snapshot review: không khác.
+- Verification mới: probe Kotlin tìm kiếm tái hiện lỗi Đ/NFD; probe Swift/macOS tái hiện lệch tuần, offset Unicode và mất đuôi sau 4.000 cột, đồng thời xác nhận ZIP không chặn expansion 8 MiB. Compile bản cuối/run đều exit 0; đây là tái hiện lỗi, không phải app test pass. Probe tạm ở /tmp/openbook-audit, có thể mất sau reboot; kết quả và cách dựng được ghi trong TASKS.md.
+- Không chạy Gradle/xcodebuild/full test/lint/device QA mới. Corpus chung hiện thiếu manifest; kết quả QA trước là lịch sử.
+- Bước tiếp theo: đọc TASKS.md phần Review codebase và TODO.md, chọn nhóm P1 để xử lý khi có yêu cầu sửa. Trước sửa đối chiếu lại source/Git; hiện phạm vi được giao chỉ review, nên tất cả defect vẫn Pending.
+
+
+## QA continuation — 2026-10-29
+
+- Review/test only; app source unchanged. Current root Git remains `master` / `c6633fb`, with Android/iOS/design untracked; previous work preserved.
+- Added pending T-112 (P1 unbounded EPUB expansion, reproduced using actual release Kotlin classes in a 32 MiB JVM) and T-113 (P2 background narration position not saved, code review; device check pending). Details: `docs/qa/2026-10-29/report.md`.
+- `:app:compileReleaseKotlin` exit 0 (17 up-to-date tasks). `reproduce.py` exit 0 confirms control succeeds and 75,071-byte compressed EPUB exhausts bounded JVM heap. This is defect reproduction, not a passing safety gate or an Android crash observation.
+- `adb devices -l` exit 0, no devices attached. No new device run or repeat unit/lint run; prior 79 pass/33 skip results remain historical. Foreground-only listening stats match spec, not filed as bug.
+- Written: this checkpoint, TASKS.md, and `docs/qa/2026-10-29/` report/probe/evidence. No commit/stage, no app code edits.
+- Exact next QA action: attach test device, reproduce T-113 (narrate → Back → advance chapters → cold reopen) and verify bounded-resource EPUB behavior. Fixes remain outside review-only scope; see T-108/T-109/T-112 priorities.
+
+
+## QA checkpoint — 2026-10-28 20:30 +07:00
+
+- Current workspace is `/Users/cuong/Workspace/Projects/OpenBook`, root branch `master`, HEAD `c6633fb`; root sees Android/iOS/design as untracked. Older branch/commit paths below are historical.
+- Review-only session: no app source changed. New pending defects T-108/T-109 (P1 playback controls/timer after Back), T-110 (P2 highlight deletion), T-111 (P2 missing corpus QA). Detailed evidence: `docs/qa/2026-10-28/report.md`.
+- Gradle unit/lint/assembleDebug/koverXmlReportDebug exit 0: 79 PASS, 33 SKIP, 0 failures; lint 0 errors/111 warnings; branch coverage 428/2330 (18.37%, existing W-001). No instrumentation suite.
+- Runtime QA on existing release version 20261028.00, emulator-5554/API36; not the new debug APK. Confirmed notification Pause failure after Back and 1-minute timer still PLAYING after 2 minutes. No install, clear-data or deletion; sample progress/stats advanced; app stopped afterward.
+- Files written: TASKS.md, PROJECT_STATE.md, SESSION_HANDOFF.md and `docs/qa/2026-10-28/` evidence. Nothing committed/staged; pre-existing untracked work preserved.
+- Exact next action after fix authorization: inspect `ui/ReaderScreen.kt:605–652`, `reader/SpeechHolder.kt`, `playback/PlaybackService.kt`; move control/timer ownership to playback lifetime for T-108/T-109, then run the Gradle command and Back/notification/deadline reproduction in the report. Restore corpus before claiming full EPUB QA.
+
+
+Updated: 2026-11-01T15:20+07:00 (Asia/Saigon)
+Canonical. Everything about this project lives in this file; the rest of `docs/` holds the task
+list, the handoff, the specs and the QA evidence. Read "Facts at a glance" and "Verified current
 state" first, then the Part sections for the reasoning and the measurements behind any number.
 
 ## Facts at a glance
@@ -10,18 +72,18 @@ state" first, then the Part sections for the reasoning and the measurements behi
 | Fact | Value |
 | --- | --- |
 | App / package | **Sách** · `com.elearning.openbook` (applicationId = namespace; renamed from `com.example.epubreader` on 2026-10-28) |
-| Module / size | `:app` only · 37 Kotlin files · **12,191 lines** under `app/src/main/java` |
+| Module / size | `:app` only · 53 Kotlin files · **15,809 lines** under `app/src/main/java` |
 | Toolchain | Gradle 9.8.0 · AGP 9.4.1 · Kotlin 2.4.20 · JDK 17 (jbr-17.0.14) |
 | SDK | compileSdk 37 · targetSdk 36 · minSdk 26 |
 | Compose | BOM 2026.09.00 (ui, foundation, material3) · every icon drawn with `Canvas` |
 | State / DI | Compose state + `SharedPreferences` + `filesDir/Books`; **Hilt** graph (`ReaderApplication`, `@AndroidEntryPoint MainActivity`); shell state in `AppViewModel` (`StateFlow<AppUiState>`); reader page/failure/saved place in `ReaderViewModel` (`StateFlow<ReaderUiState>`); stores in `ReaderStoresViewModel`; chrome/speech state still local; no Nav, no Room |
-| Tests | **110 JVM unit tests** (JUnit 4.13.2) in `app/src/test/java` — `Sentences`, `ReadingPosition`, `EpubArchive`, `ZipExtract`, `EpubCorpusTest` (32 real corpus files: compatibility, DRM, refusal), `HomeSections` (rows, suggestions, finished window), `ReadingLog` (day split, streak, week, codec), `LibraryIteration` (sorting, metadata codec, selection, file safety, Home shelf, language), `VoiceCatalog` (book language, voice filtering and order, grouping, search); `./gradlew :app:testDebugUnitTest` |
+| Tests | **115 JVM tests discovered** (JUnit 4.13.2) in `app/src/test/java` — 82 pass, **33 skip** because the EPUB corpus is absent (T-111); 0 failures/errors. `Sentences`, `ReadingPosition`, `EpubArchive`, `ZipExtract` (bounded decompression), `EpubCorpusTest`, `HomeSections`, `ReadingLog`, `LibraryIteration`, `VoiceCatalog`, `ReaderViewModel`; `./gradlew :app:testDebugUnitTest` |
 | Sample book | `app/src/main/assets/sample.epub`, 9,720 bytes, seeded into `filesDir/Books` |
-| APK | debug `13,304,150 bytes` · sha256 `541d5b8125365aa6a2f2a62a4d91f8bdea983e552ce056d404df8d02c36660aa`; installed on emulator `E2` (session 5558/5554) |
-| Device | AVD `Pixel_9_Pro_XL` · Android 16 / API 36 · 1344x2992 · density 480. It is shared with other work (CleanStorage, WordQuest) and gets its foreground stolen, so this pass also used a second AVD `OpenBookReview` (same image/config, fresh userdata, `emulator-5558`) |
-| Git | branch `android`, **4 commits**, **no remote**. `694069c` is the checkpoint with all app work; the working tree now only carries environment-removed skill files (`.agents/`, `.ai-toolkit/`, `.claude/`, `CLAUDE.md`) and the untracked 16 MB `docs/qa/` evidence folder, both deliberately left out of this commit |
-| Tasks | 104 IDs; T-095/T-096/T-097 (UI polish), T-098 (full-player parity), T-099 (mini/full player layout), T-100 (robustness/benchmark/player motion) T-101 (Home parity) T-102 (Hilt/DI) and T-103 (ViewModel/StateFlow + quality gates) and T-104 (reader ViewModel slice) verified; see `TASKS.md`; handoff in `SESSION_HANDOFF.md` |
-| Next action | The mini/full player UI pass is finished, device-verified and uncommitted; header is cover-left/text-right per the owner's final choice. T-085 (reading-bar headline at 360dp) and the vertical-swipe decision remain as older backlog |
+| APK | debug `19,887,772 bytes` · sha256 `fe035903a519fae6e3af11c620b0da4f70a13d3ac2cb7f156f2c5f132feae506` (2026-11-01) |
+| Device | Android 16 / API 36 · 1344x2992 · density 480. `emulator-5554` (AVD `E2`) is the main device and is shared with other work: other sessions force-stop the app and steal input, so every device result must be read together with its logcat. `emulator-5556` (AVD `E3`) also belongs to other work |
+| Git | branch `android`, **41 commits**, **no remote**, HEAD `5714072` (`refactor(app): ship as com.elearning.openbook`). The working tree is dirty: this session's docs move into `docs/`, the removed `.agents/`/`.ai-toolkit/`/`.claude/`/`CLAUDE.md`/root state files, and the untracked `docs/qa/` evidence |
+| Tasks | 117 IDs; T-095…T-104 verified earlier, T-108/T-109/T-112 closed on 2026-11-01; see `TASKS.md`; handoff in `SESSION_HANDOFF.md` |
+| Next action | No open P1. Remaining work is T-114…T-117 (P2), the T-110/T-113 pair, the T-111 corpus restore, and the owner-blocked decisions T-064/T-066…T-079 (see `TODO.md`) |
 
 ## Component map
 
@@ -61,7 +123,7 @@ state" first, then the Part sections for the reasoning and the measurements behi
     gradient, drop shadow, commit at 35% width or a fling.
   - Reader chrome: floating circular buttons, thin top progress line, TOC as a
     `ModalBottomSheet`.
-  - `applicationId`/`namespace` = `com.example.epubreader`, app name "Sách".
+  - `applicationId`/`namespace` = `com.elearning.openbook`, app name "Sách".
   - No network permission, launcher activity only.
   - Read-aloud: reads from the first sentence of the open page, continues across pages
     and chapters; tapping a sentence starts there; the sentence being read is highlighted
@@ -123,12 +185,10 @@ state" first, then the Part sections for the reasoning and the measurements behi
 
 ## Verified current state
 - Current branch / worktree: Git repository at
-  `/Users/cuong/Workspace/CODE/AI/OpenCode/epub-reader-android`, branch `master`, two commits:
-  `9e1cdf2` (2026-10-20 14:15 — the Part 7 baseline) and `fa27d98` (2026-10-21 — Parts 8–11
-  with that checkpoint set and the AI Development Toolkit). The working tree is **dirty and
-  nothing is staged** (Part 12 plus the earlier image/`SearchSheet` work); there is no remote.
-  Checked 2026-10-22; the authoritative Git block is "Facts at a glance" at the top of this
-  file.
+  `/Users/cuong/Workspace/Projects/openbook/android`, branch `android`, HEAD `5714072`.
+  The working tree is **dirty and nothing is staged** (docs moved into `docs/`, environment
+  removals, untracked QA evidence); there is no remote. Checked 2026-11-01; the authoritative
+  Git block is "Facts at a glance" at the top of this file.
 - Verified working features:
   - `:app:assembleDebug` succeeds (JDK 17, Gradle 9.8, AGP/Kotlin from the version
     catalog). APK = `app/build/outputs/apk/debug/app-debug.apk`.
@@ -412,8 +472,10 @@ T-059 superseded), the index wins.
    150–400 ms commit animation is evidenced by end state only — no film (T-074).
 8. Not re-verified after Part 11: dark-mode fold shading, >=3 queued taps, the harness
    search/marks/customizer/`lateCursor` paths, a committing harness fold (T-077).
-9. No automated tests, no CI: every guarantee rests on emulator runs. The build is debug-only
-   (`versionCode 1`, minify off) and has no release signing.
+9. Tests are JVM-only (`app/src/test/java`, 115 discovered) and there is no CI: reader, TTS and
+   player guarantees still rest on emulator runs. The debug build has minify off; the release
+   build is signed with a real key (`keystore/openbook-release.jks`, certificate SHA-256
+   `4bd1456e…d97f3`), `versionCode 2026102800`.
 10. Print-through on the cream back is ~8.6% (a chosen value); a tail-only page (page 5,
     sentence #28) is voiced with no amber band.
 11. The full player is content-sized, not the half-screen sheet that was asked for: ~60% of the
@@ -428,19 +490,19 @@ T-059 superseded), the index wins.
 ## Verification — how to re-check this file
 
 ```bash
-cd /Users/cuong/Workspace/CODE/AI/OpenCode/epub-reader-android
-JAVA_HOME=/Users/cuong/Library/Java/JavaVirtualMachines/jbr-17.0.14/Contents/Home ./gradlew :app:assembleDebug
+cd /Users/cuong/Workspace/Projects/openbook/android
+JAVA_HOME=/Users/cuong/Library/Java/JavaVirtualMachines/jbr-17.0.14/Contents/Home ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.example.epubreader/.MainActivity --ez demoOpenBook true
-adb logcat -s ReaderScreen
+adb shell am start -n com.elearning.openbook/.MainActivity --ez demoOpenBook true
+adb logcat -s ReaderScreen SleepTimer Narration
 ```
 
 - Expect `BUILD SUCCESSFUL`; the APK hash must equal the one in "Facts at a glance" unless the
   sources changed. `find app/src -newer app-debug.apk` must be empty.
 - Signals in logcat: `typeset …; resumed at page N`, `chrome=full|player_only|hidden`,
   `curl pull: … -> turn|fall back`, `crease border (…%, …%) -> (…%, …%); fold lean=…deg`.
-- Reading position: `adb shell run-as com.example.epubreader cat
-  /data/data/com.example.epubreader/shared_prefs/reading_positions.xml` (0-based page).
+- Reading position: `adb shell run-as com.elearning.openbook cat
+  /data/data/com.elearning.openbook/shared_prefs/reading_positions.xml` (0-based page).
 - Harness: any of the 24 `demo*` extras, e.g. `--ef demoCurl 0.7 --ef demoCurlAngle -32.7`;
   states fire once per launch and the fold appears ~14-15 s after start.
 
@@ -531,16 +593,21 @@ adb logcat -s ReaderScreen
   composition. This bit once already (`report.md` §32: the toolbar and its back button hid
   themselves while the voice was reading) and a still screenshot cannot show it.
 
-## Next milestone (rewritten 2026-10-22, Part 12)
-- Part 12 is built, installed and verified by hand, including T-084's small-phone and landscape
-  check. The next action is **T-085**: on a 360dp screen the reading bar's headline collapses to
-  "Hải Đ" because the rate label and five 48dp controls take the row.
-- Then the two Part 11 questions still open: the owner's curl picture (T-075) and whether a
-  nearly vertical swipe should turn the page (T-076, `DRAG_AXIS_FRACTION = 0.35`).
-- The rest of the open work is IDs **T-061…T-079** plus T-085 in `TASKS.md` — parked gaps,
-  tablet, two columns, `<img>`, CSS, bookmarks, audio, film.
-- Nothing in the tree is committed: this session's Part 12 files, the earlier image/`SearchSheet`
-  work, and the docs share one dirty working tree.
+## Next milestone (rewritten 2026-11-01)
+- The P1 defects are fixed: ZIP decompression is bounded (T-112) and playback controls plus the
+  sleep timer belong to the process, not the reader composition (T-108/T-109). Gate:
+  **115 tests discovered / 82 pass / 33 skip**, `lintDebug` PASS, `assembleDebug` PASS
+  (APK `19,887,772 bytes`, sha256 `fe035903…e506`). See the "2026-11-01" section above.
+- Next are the P2 defects in `TODO.md`: T-114 (author override), T-115/T-110 (cover and
+  highlight cleanup on delete), T-116 (search with Đ/NFD), T-117 (pending TTS start on stop),
+  T-113 (narration position after Back), and T-111 (restore the EPUB corpus so the 33 skips
+  become real passes).
+- Owner decisions still parked: T-064 (swipe to delete a mark), T-066/T-067 (tablet, two-column),
+  T-068 (long title), T-070/T-071 (book CSS, blockquote), T-072 (word-anchored bookmarks),
+  T-073 (real audio hardware), T-074 (`ffmpeg` film), T-075/T-076/T-078/T-079 (curl picture,
+  vertical swipe, `*` rule, back at level b).
+- Nothing is committed; the working tree carries this session's code, the docs move and the
+  older uncommitted work.
 - History — Part 11 answered three reports: the fold finishes head-to-tail (`leanScale`), the
   progress line sits flush on the capsule's floor, and the page's thirds turn while the player
   is closed. Evidence in `report.md` §85–§90 and `screenshots-part11/`.
@@ -970,7 +1037,8 @@ The owner asked for four surface changes; no reader, import, edit or delete logi
 
 ### Fourth pass — 2026-10-25 (full player + voice picker brought to the iOS parity spec)
 
-Source of truth: `docs/full-player-parity.md` (iOS `9da6500`, the owner's decisions). Only
+Source of truth: the full-player parity spec (`full-player-parity.md`; the file is no longer in
+the tree, this section is the record), iOS `9da6500`, the owner's decisions. Only
 deviations inside the full player and the voice picker were changed; nothing else was
 rewritten and no iOS file was touched.
 
@@ -1120,7 +1188,8 @@ path, the player, and both string sets; no reader rewrite, no new dependency.
 
 ### Seventh pass — 2026-10-26 (Home parity: stats, shelves, week chart)
 
-Spec: `docs/home-ui-parity.md` (iOS `120aed3`, uncommitted there). Scope kept to Home,
+Spec: the Home parity spec (`home-ui-parity.md`; removed from the tree, this section is the
+record) — iOS `120aed3`, uncommitted there. Scope kept to Home,
 Library's labels/menu, the reading ledger and settings; the reader, TTS, import and player
 were not touched.
 
@@ -1235,8 +1304,9 @@ Triggered by the skill audit (`android-development-toolkit`: catalog ✅, DI ❌
   seam; `AppModule` provides the binding.
 - `ReaderViewModelTest` (4 tests) covers begin/saved place, no saved place, immutable page
   updates and failure set/clear.
-- Still view-local: chrome mode, sheets, sleep timer and the speech surface (transient UI/engine
-  state, not durable screen state).
+- Still view-local: chrome mode, sheets and the speech surface (transient UI/engine state, not
+  durable screen state). The sleep timer was view-local in this pass; it moved to
+  `playback/SleepTimer` on 2026-11-01 (T-109).
 - Verified: **110/110** tests, `lintDebug` PASS, `assembleDebug` PASS; emulator: open book,
   turn pages, TTS follows to page 3, Back/reopen resumes page 3. `koverVerifyDebug` still fails
   at **22.62%** branch under waiver W-001.
