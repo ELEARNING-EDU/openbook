@@ -27,12 +27,63 @@ struct HomeView: View {
     @State private var openSettingsAfterStats = false
     @State private var seededDemoStats = false
     @State private var openedDemoSheet = false
+    @State private var isAtTop = true
 
     private var palette: ReaderPalette { .shell(dark: colorScheme == .dark) }
 
     private var readerScheme: ColorScheme? {
         guard !path.isEmpty else { return nil }
         return readerSettings.palette.isDark ? .dark : .light
+    }
+
+    private var newlyAddedBooks: [BookItem] {
+        HomeSections.newlyAdded(
+            books: library.books,
+            positions: progress.positions,
+            metadata: library.allMetadata,
+            finished: library.finishedIDs
+        )
+    }
+
+    private var recentlyFinishedBooks: [BookItem] {
+        HomeSections.recentlyFinished(
+            books: library.books,
+            metadata: library.allMetadata,
+            now: Date()
+        )
+    }
+
+    private var suggestionBooks: [BookItem] {
+        HomeSections.suggestions(
+            books: library.books,
+            positions: progress.positions,
+            metadata: library.allMetadata,
+            finished: library.finishedIDs,
+            excluding: Set(newlyAddedBooks.map(\.id)),
+            now: Date()
+        )
+    }
+
+    private var weekPoints: [ReadingWeekPoint] {
+        stats.week(now: Date())
+    }
+
+    private var weekHasReading: Bool {
+        weekPoints.contains { $0.minutes >= 1 }
+    }
+
+    private func monthText(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = L10n.locale
+        let sameYear = Calendar.current.component(.year, from: date)
+            == Calendar.current.component(.year, from: Date())
+        formatter.setLocalizedDateFormatFromTemplate(sameYear ? "LLL" : "LLL yyyy")
+        let name = formatter.string(from: date)
+        // Vietnamese writes "thg 10" mid-sentence; English keeps "Oct".
+        guard L10n.locale.identifier.hasPrefix("vi"), let first = name.first else {
+            return name
+        }
+        return first.lowercased() + name.dropFirst()
     }
 
     private var items: [ContinueReadingItem] {
@@ -46,7 +97,11 @@ struct HomeView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 24) {
+                    Text("home.title")
+                        .font(.system(size: 30, weight: .semibold, design: .serif))
+                        .foregroundStyle(palette.swiftInk)
+                        .padding(.horizontal, 20)
                     if !library.books.isEmpty {
                         // A minute is fine for a minute-based card: the summary
                         // crosses midnight without needing a relaunch.
@@ -60,11 +115,58 @@ struct HomeView: View {
                         sectionHeading
                         carousel
                     }
+                    if HomeSections.showsExtraRows(bookCount: library.books.count) {
+                        if !newlyAddedBooks.isEmpty {
+                            HomeBookRow(
+                                titleKey: "home.new.title",
+                                books: newlyAddedBooks,
+                                palette: palette
+                            ) { book in
+                                L10n.format(
+                                    "home.added.month",
+                                    monthText(library.metadata(for: book.id)?.importedAt ?? Date())
+                                )
+                            }
+                        }
+                        if !suggestionBooks.isEmpty {
+                            HomeBookRow(
+                                titleKey: "home.suggestions.title",
+                                books: suggestionBooks,
+                                palette: palette
+                            ) { _ in
+                                L10n.string("home.suggestions.reason")
+                            }
+                        }
+                        if !recentlyFinishedBooks.isEmpty {
+                            HomeBookRow(
+                                titleKey: "home.finished.title",
+                                books: recentlyFinishedBooks,
+                                palette: palette
+                            ) { book in
+                                let date = library.metadata(for: book.id)?.finishedAt ?? Date()
+                                return L10n.format("home.finished.month", monthText(date))
+                            }
+                        }
+                        if weekHasReading {
+                            WeeklyReadingChart(
+                                points: weekPoints,
+                                goalMinutes: goalMinutes,
+                                palette: palette
+                            )
+                            .padding(.horizontal, 20)
+                        }
+                    }
                 }
-                .padding(.top, 56)
+                .padding(.top, 8)
                 .padding(.bottom, MainTabBarMetrics.contentReserve + playerInset)
             }
             .background(palette.swiftPaper.ignoresSafeArea())
+            .scrollIndicators(.hidden)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y <= 1
+            } action: { _, atTop in
+                isAtTop = atTop
+            }
             .onAppear {
                 seedDemoStatsIfAsked()
                 openStatsSheetIfAsked()
@@ -78,9 +180,10 @@ struct HomeView: View {
             // system's white chip.
             .toolbar(.hidden, for: .navigationBar)
             .overlay(alignment: .topTrailing) {
-                Button {
-                    showSettings = true
-                } label: {
+                if isAtTop {
+                    Button {
+                        showSettings = true
+                    } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: ReaderMetrics.buttonIconSize, weight: .semibold))
                         .foregroundStyle(palette.swiftInk)
@@ -92,8 +195,11 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 .padding(.trailing, 20)
                 .padding(.top, 4)
-                .accessibilityLabel(Text("settings.title"))
+                    .accessibilityLabel(Text("settings.title"))
+                    .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.2), value: isAtTop)
             .sheet(isPresented: $showSettings) {
                 AppSettingsView()
             }
@@ -130,7 +236,7 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(
-                        Text(verbatim: L10n.format("home.continue.a11y", item.book.title, item.percent))
+                        Text(verbatim: L10n.format("home.book.a11y", item.book.title, item.book.author))
                     )
                 }
             }
@@ -146,8 +252,8 @@ struct HomeView: View {
     private func statsSection(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("home.stats.title")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .tracking(0.9)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .tracking(1.0)
                 .textCase(.uppercase)
                 .foregroundStyle(palette.swiftInkSoft)
             ReadingStatsCard(
@@ -191,11 +297,10 @@ struct HomeView: View {
 
     private var sectionHeading: some View {
         Text("home.reading")
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
-            .tracking(0.9)
+            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .tracking(1.0)
             .textCase(.uppercase)
             .foregroundStyle(palette.swiftInkSoft)
-            .padding(.top, 4)
             .padding(.horizontal, 20)
     }
 

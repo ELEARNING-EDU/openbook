@@ -93,6 +93,9 @@ final class LibraryStore: ObservableObject {
 
     func metadata(for id: String) -> LibraryMetadata? { metadata[id] }
 
+    /// Read-only copy for the screens that rank books themselves (Home's rows).
+    var allMetadata: [String: LibraryMetadata] { metadata }
+
     // MARK: - Importing
 
     func importBook(from source: URL) {

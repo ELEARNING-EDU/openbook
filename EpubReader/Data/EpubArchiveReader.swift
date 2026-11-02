@@ -102,9 +102,28 @@ enum EpubArchiveReader {
         var spine: [String] = []
         var navHref: String?
         var ncxHref: String?
+        /// `<meta name="cover" content="…">` names a manifest item, resolved
+        /// after parsing; EPUB 3 can also mark the image itself.
+        var coverID: String?
+        var coverHref: String?
         /// The `toc` attribute on <spine> is a manifest id, resolved after parsing.
         var ncxIdOverride: String?
         var opfDirectory = ""
+    }
+
+    /// The cover image a package points at, read straight from the zip. A book
+    /// with no declared cover, or one whose declared file is missing, simply has
+    /// no image and falls back to the generated cover.
+    static func coverData(url: URL) throws -> Data? {
+        let archive = try ZipArchive(url: url)
+        let index = entryIndex(archive)
+        let info = try packageInfo(in: archive, index: index)
+        guard let href = info.coverHref else { return nil }
+        let path = resolve(href, relativeTo: info.opfDirectory)
+        guard let data = data(for: path, in: archive, index: index),
+              data.count <= maxImageBytes
+        else { return nil }
+        return data
     }
 
     private static func packageInfo(in archive: ZipArchive, index: [String: String]) throws -> PackageInfo {
@@ -122,6 +141,18 @@ enum EpubArchiveReader {
         // `toc` on <spine> is a manifest id, not a path.
         if let ncxId = info.ncxIdOverride, let item = info.manifest[ncxId] {
             info.ncxHref = item.href
+        }
+        // `<meta name="cover">` points at a manifest id rather than a path.
+        if info.coverHref == nil, let coverID = info.coverID,
+           let item = info.manifest[coverID], item.mediaType.hasPrefix("image/") {
+            info.coverHref = item.href
+        }
+        // EPUB 2 books sometimes only mark the image by its id or name.
+        if info.coverHref == nil,
+           let item = info.manifest.values.first(where: {
+               $0.mediaType.hasPrefix("image/") && $0.href.lowercased().contains("cover")
+           }) {
+            info.coverHref = item.href
         }
         return info
     }
@@ -314,6 +345,10 @@ final class PackageParser: NSObject, XMLParserDelegate {
             capture = "creator"
         case "dc:language", "language":
             capture = "language"
+        case "meta":
+            if attributeDict["name"] == "cover", let id = attributeDict["content"] {
+                info.coverID = id
+            }
         case "item":
             if let id = attributeDict["id"], let href = attributeDict["href"] {
                 let item = EpubArchiveReader.ManifestItem(
@@ -323,6 +358,9 @@ final class PackageParser: NSObject, XMLParserDelegate {
                 )
                 info.manifest[id] = item
                 if item.properties.contains("nav") { info.navHref = href }
+                if item.properties.contains("cover-image"), info.coverHref == nil {
+                    info.coverHref = href
+                }
             }
         case "spine":
             if let toc = attributeDict["toc"] { info.ncxIdOverride = toc }

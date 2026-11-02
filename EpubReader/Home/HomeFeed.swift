@@ -18,7 +18,8 @@ enum HomeFeed {
     static func continueReading(
         books: [BookItem],
         positions: [String: BookProgress],
-        finished: Set<String> = []
+        finished: Set<String> = [],
+        limit: Int = 5
     ) -> [ContinueReadingItem] {
         books.compactMap { book in
             guard !finished.contains(book.id),
@@ -34,5 +35,7 @@ enum HomeFeed {
             }
             return left.book.id < right.book.id
         }
+        .prefix(limit)
+        .map { $0 }
     }
 }

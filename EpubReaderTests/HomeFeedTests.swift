@@ -80,6 +80,15 @@ final class HomeFeedTests: XCTestCase {
         XCTAssertTrue(items.isEmpty)
     }
 
+    func testContinueReadingShowsAtMostFiveBooks() {
+        let books = (1...7).map { book("b\($0)") }
+        let positions = Dictionary(uniqueKeysWithValues: books.map { ($0.id, progress(0.4)) })
+
+        let items = HomeFeed.continueReading(books: books, positions: positions)
+
+        XCTAssertEqual(items.count, 5)
+    }
+
     func testFinishedBooksLeaveTheContinueCarousel() {
         let books = [book("a"), book("b")]
         let positions = [

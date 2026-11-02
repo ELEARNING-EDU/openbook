@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 /// How the shelf lists its books, kept between launches.
@@ -30,6 +31,8 @@ struct LibraryView: View {
     @State private var selected: Set<String> = []
     @State private var editing: BookItem?
     @State private var deleteRequest: DeleteRequest?
+    /// The harness opens the demo book once, not every time the shelf reappears.
+    private static var demoOpenedBook = false
 
     private var palette: ReaderPalette { .shell(dark: colorScheme == .dark) }
 
@@ -45,16 +48,25 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                if library.books.isEmpty {
-                    emptyState
-                } else {
-                    shelf
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("library.title")
+                        .font(.system(size: 30, weight: .semibold, design: .serif))
+                        .foregroundStyle(palette.swiftInk)
                         .padding(.horizontal, 20)
-                        .padding(.top, 58)
-                        .padding(.bottom, MainTabBarMetrics.contentReserve + playerInset)
+
+                    if library.books.isEmpty {
+                        emptyState
+                    } else {
+                        shelf
+                            .padding(.horizontal, 20)
+                            .padding(.top, 4)
+                    }
                 }
+                .padding(.top, 8)
+                .padding(.bottom, MainTabBarMetrics.contentReserve + playerInset)
             }
             .background(palette.swiftPaper.ignoresSafeArea())
+            .scrollIndicators(.hidden)
             .navigationDestination(for: BookItem.self) { book in
                 ReaderView(book: book)
             }
@@ -121,8 +133,10 @@ struct LibraryView: View {
             // opens the first book without needing a touch event.
             .onAppear {
                 applyLibraryDemoHooks()
+                guard !Self.demoOpenedBook else { return }
                 let index = UserDefaults.standard.integer(forKey: "demoOpenBook")
                 guard index > 0, library.books.count >= index else { return }
+                Self.demoOpenedBook = true
                 path = [library.books[index - 1]]
             }
         }
@@ -324,7 +338,7 @@ struct LibraryView: View {
     private func listRow(_ book: BookItem) -> some View {
         HStack(alignment: .center, spacing: 14) {
             BookCover(book: book)
-                .frame(width: 58)
+                .frame(width: 64)
             VStack(alignment: .leading, spacing: 6) {
                 Text(verbatim: book.title)
                     .font(.system(size: 16, weight: .semibold, design: .serif))
@@ -387,7 +401,9 @@ struct LibraryView: View {
         if isFinished(book) {
             return Text(verbatim: L10n.format("library.book.finished.a11y", book.title, book.author))
         }
-        return Text(verbatim: L10n.format("library.book.a11y", book.title, book.author, percent(for: book.id)))
+        // The cover prints the title for a generated cover; the item reads the
+        // title and author once, not once per place they are drawn.
+        return Text(verbatim: L10n.format("home.book.a11y", book.title, book.author))
     }
 
     private func isFinished(_ book: BookItem) -> Bool {
@@ -404,10 +420,6 @@ struct LibraryView: View {
         } else {
             ReadPercentLabel(fraction: progress.fraction(for: book.id), palette: palette)
         }
-    }
-
-    private func percent(for id: String) -> Int {
-        Int((min(max(progress.fraction(for: id), 0), 1) * 100).rounded())
     }
 
     // MARK: - Selection and deletion
@@ -493,6 +505,16 @@ struct LibraryView: View {
             selecting = true
             selected = Set(library.books.map(\.id))
         }
+        // Capture hook for the title-on-cover check: rename one book and watch
+        // its generated gradient and printed title follow the metadata.
+        let rename = defaults.integer(forKey: "demoRenameBook")
+        if rename > 0,
+           library.books.count >= rename,
+           let title = defaults.string(forKey: "demoRenameTitle"),
+           !title.isEmpty {
+            let book = library.books[rename - 1]
+            library.updateMetadata(id: book.id, title: title, author: book.author)
+        }
     }
 
     private static var epubType: UTType {
@@ -527,10 +549,15 @@ struct ReadPercentLabel: View {
     }
 }
 
-/// Covers are generated from the title, so the demo ships no image assets.
+/// The one cover every screen shares: the book's own image when it has a usable
+/// one, otherwise the title-driven gradient with the title and author printed
+/// inside it.
 struct BookCover: View {
 
     let book: BookItem
+
+    @ObservedObject private var covers = BookCoverStore.shared
+    @State private var image: UIImage?
 
     /// The same colours the mini vinyl uses in the reader, so the spinning disc
     /// reads as "this book".
@@ -547,9 +574,20 @@ struct BookCover: View {
     }
 
     var body: some View {
-        // Covers carry no title or author: the card and the shelf already name
-        // the book beside them, so the art stays a clean gradient.
-        LinearGradient(colors: palette, startPoint: .topLeading, endPoint: .bottomTrailing)
+        ZStack {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                LinearGradient(
+                    colors: palette,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                generatedText
+            }
+        }
         .aspectRatio(0.68, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
@@ -564,6 +602,49 @@ struct BookCover: View {
                 .padding(.vertical, 1)
         }
         .shadow(color: .black.opacity(0.28), radius: 9, x: 0, y: 5)
+        // The item around the cover carries the title and author for VoiceOver;
+        // reading the printed cover as well would say them twice.
+        .accessibilityHidden(true)
+        .task(id: book.coverKey) {
+            image = nil
+            image = await covers.image(for: book)
+        }
+    }
+
+    /// The title and author printed on a generated cover. Their size follows the
+    /// cover so a 58 pt shelf thumbnail and a 96 pt shelf cover both read.
+    private var generatedText: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let titleSize = max(9, min(14, width * 0.13))
+            let authorSize = max(7, min(10, width * 0.095))
+
+            VStack(spacing: 4) {
+                Text(verbatim: book.title)
+                    .font(.system(size: titleSize, weight: .bold))
+                    .lineLimit(4)
+                    .truncationMode(.tail)
+
+                if !book.author.isEmpty {
+                    Text(verbatim: book.author)
+                        .font(.system(size: authorSize))
+                        .opacity(0.78)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                }
+            }
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+            // Clear of the spine strip on the left and the hairline all round.
+            .padding(.leading, 10)
+            .padding(.trailing, 8)
+            .padding(.vertical, 10)
+            .frame(
+                width: geometry.size.width,
+                height: geometry.size.height,
+                alignment: .center
+            )
+        }
     }
 
     private var palette: [Color] { Self.palette(for: book.title) }
