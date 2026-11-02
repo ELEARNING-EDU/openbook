@@ -15,12 +15,20 @@ object VietnameseWords {
     private var cached: Set<String>? = null
 
     fun load(context: Context): Set<String> = cached ?: runCatching {
-        context.assets.open(ASSET).bufferedReader().useLines { lines ->
-            lines.map { it.trim().lowercase() }
-                .filter { it.isNotEmpty() && !it.startsWith("#") }
-                .toHashSet()
+        val words = HashSet<String>(10_000)
+        for (asset in ASSETS) {
+            context.assets.open(asset).bufferedReader().useLines { lines ->
+                for (line in lines) {
+                    val word = line.trim().lowercase()
+                    if (word.isNotEmpty() && !word.startsWith("#")) words += word
+                }
+            }
         }
+        words
     }.getOrDefault(emptySet()).also { cached = it }
 
     private const val ASSET = "vi-words.txt"
+
+    /** The hand-written repair list, then the broader lexicon used to judge a word. */
+    private val ASSETS = listOf(ASSET, "vi-lexicon.txt")
 }

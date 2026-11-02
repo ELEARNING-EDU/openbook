@@ -1,0 +1,19 @@
+vi-lexicon.txt — Vietnamese single-word list, derived from Viet74K
+=================================================================
+
+Source: the Vietnamese word list compiled by Ho Ngoc Duc
+        http://www.informatik.uni-leipzig.de/~duc/software/misc/wordlist.html
+        republished at https://github.com/duyet/vietnamese-wordlist
+
+The source list is distributed under the GNU General Public License (GPL).
+This derived file is therefore covered by the same licence:
+https://www.gnu.org/licenses/gpl-3.0.html
+
+Changes made for this app:
+- kept single words only (the source also lists phrases),
+- normalised to Unicode NFC and lowercased,
+- removed duplicates and entries that are not plain Vietnamese letters.
+
+If this app is distributed without the GPL-compatible source, this file must be
+removed from the build; the importer then falls back to assets/vi-words.txt, the
+hand-written list.
