@@ -544,17 +544,26 @@ object EpubArchive {
             name == "copyright" || name == "nav"
     }
 
-    private fun documentTitle(html: String): String {
-        Regex("(?is)<title[^>]*>(.*?)</title>").find(html)?.let {
-            val value = stripTags(it.groupValues[1])
-            if (value.isNotBlank()) return value
-        }
+    /**
+     * The chapter's own name. A conversion often writes `index` into every document's
+     * `<title>`, so a generic one is ignored and the first heading is used instead.
+     */
+    internal fun documentTitle(html: String): String {
+        val title = Regex("(?is)<title[^>]*>(.*?)</title>").find(html)
+            ?.let { stripTags(it.groupValues[1]).trim() }
+            .orEmpty()
+        if (title.isNotBlank() && title.lowercase() !in GENERIC_TITLES) return title
         Regex("(?is)<h[1-3][^>]*>(.*?)</h[1-3]>").find(html)?.let {
-            val value = stripTags(it.groupValues[1])
+            val value = stripTags(it.groupValues[1]).trim()
             if (value.isNotBlank()) return value
         }
         return ""
     }
+
+    private val GENERIC_TITLES = setOf(
+        "index", "untitled", "document", "no title", "contents",
+        "table of contents", "start", "unknown",
+    )
 
     private fun decodeText(bytes: ByteArray): String {
         if (bytes.size >= 3 &&

@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Sửa 2026-11-02: tiêu đề chương hiện "INDEX" với sách convert bằng Calibre — mọi file XHTML đều có `<title>index</title>` và toc.ncx chỉ có một mục "Start". `EpubArchive.documentTitle` giờ bỏ qua title chung chung (index, untitled, document, contents, start…) và lấy heading đầu tiên. E3: header đổi thành "HỒI TƯỞNG"; test `DocumentTitleTest` 3 ca.
+
 Setting 2026-11-02: thêm tùy chọn "Tự sửa lỗi chính tả khi nhập sách" trong App settings (`settings/TextRepairStore`, mặc định bật). Bật: import + quét sách cũ đều sửa; tắt: bản sao giữ nguyên như bản gốc. Đã kiểm trên E3: tắt → bản nhập chỉ còn 5 chữ `đ` như file gốc; bật → 8.397.
 
 Sửa 2026-11-02: sách đã có trong thư viện (copy tay hoặc nhập bằng bản cũ) trước đây chưa từng qua bước sửa. Thêm `LibraryStore.cleanLibrary()` chạy lúc khởi động, mỗi file một lần (cờ `clean.<id>` trong prefs). Trên E3, bản `33-thuc…vn.epub` copy tay đã được sửa: 8.397 chữ `đ`, `được` 1.126 lần.
