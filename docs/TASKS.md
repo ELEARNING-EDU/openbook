@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Settings 2026-11-02: cửa sổ App settings chia nhóm LANGUAGE / READING / AUDIO, mỗi lựa chọn là một hàng mở popover (DropdownMenu) thay cho radio/chips. Thêm mục AUDIO → Hẹn giờ tắt (Off, 5, 15, 30, 45, 60 phút) gọi thẳng `SleepTimer` của trình đọc; hiển thị "còn N phút" khi đang chạy. Đổi ModalBottomSheet sang Dialog vì popover trong sheet bị đặt sai vị trí. E3: đặt 5 phút → hàng hiện "5 min left".
+
 Sửa 2026-11-02: tiêu đề chương hiện "INDEX" với sách convert bằng Calibre — mọi file XHTML đều có `<title>index</title>` và toc.ncx chỉ có một mục "Start". `EpubArchive.documentTitle` giờ bỏ qua title chung chung (index, untitled, document, contents, start…) và lấy heading đầu tiên. E3: header đổi thành "HỒI TƯỞNG"; test `DocumentTitleTest` 3 ca.
 
 Setting 2026-11-02: thêm tùy chọn "Tự sửa lỗi chính tả khi nhập sách" trong App settings (`settings/TextRepairStore`, mặc định bật). Bật: import + quét sách cũ đều sửa; tắt: bản sao giữ nguyên như bản gốc. Đã kiểm trên E3: tắt → bản nhập chỉ còn 5 chữ `đ` như file gốc; bật → 8.397.

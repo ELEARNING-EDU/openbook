@@ -2,6 +2,8 @@ package com.elearning.openbook.ui
 
 import android.app.Activity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -233,8 +235,7 @@ fun EpubReaderApp(
     }
 }
 
-/** App language and the daily reading goal: both belong to the reader, not the phone. */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+/** The reader's own settings: language, reading, and the sleep timer. */
 @Composable
 private fun AppSettingsDialog(
     language: AppLanguage,
@@ -246,16 +247,16 @@ private fun AppSettingsDialog(
     onRepair: (Boolean) -> Unit,
 ) {
     val colors = shellColors()
-    androidx.compose.material3.ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colors.raised,
-        contentColor = colors.ink,
-        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = colors.inkSoft) },
-    ) {
+    val sleepMinutes = com.elearning.openbook.playback.SleepTimer.minutes
+    val sleepLeft = com.elearning.openbook.playback.SleepTimer.leftSeconds
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
+                .clip(RoundedCornerShape(18.dp))
+                .background(colors.raised)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 22.dp),
         ) {
             Text(
                 text = stringResource(R.string.app_settings),
@@ -264,48 +265,27 @@ private fun AppSettingsDialog(
                 fontSize = 20.sp,
                 color = colors.ink,
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = stringResource(R.string.app_language),
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                color = colors.inkSoft,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            for (option in AppLanguage.entries) {
-                val selected = option == language
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .selectable(selected = selected, onClick = { onSelect(option) })
-                        .padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = selected,
-                        onClick = null,
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = colors.accent,
-                            unselectedColor = colors.inkSoft,
-                        ),
-                    )
-                    Text(
-                        text = stringResource(
-                            when (option) {
-                                AppLanguage.SYSTEM -> R.string.language_system
-                                AppLanguage.VIETNAMESE -> R.string.language_vietnamese
-                                AppLanguage.ENGLISH -> R.string.language_english
-                            },
-                        ),
-                        fontFamily = FontFamily.Serif,
-                        fontSize = 15.sp,
-                        color = colors.ink,
-                    )
-                }
-            }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            SettingsGroupLabel(stringResource(R.string.settings_group_language))
+            SettingsPick(
+                label = stringResource(R.string.app_language),
+                value = stringResource(language.labelRes()),
+                options = AppLanguage.entries.map { option ->
+                    stringResource(option.labelRes()) to { onSelect(option) }
+                },
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            SettingsGroupLabel(stringResource(R.string.settings_group_reading))
+            SettingsPick(
+                label = stringResource(R.string.settings_reading_goal),
+                value = stringResource(R.string.settings_reading_goal_minutes, goalMinutes),
+                options = ReadingLogStore.GOAL_CHOICES.map { minutes ->
+                    stringResource(R.string.settings_reading_goal_minutes, minutes) to { onGoal(minutes) }
+                },
+            )
+            Spacer(modifier = Modifier.height(6.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -314,9 +294,8 @@ private fun AppSettingsDialog(
                     Text(
                         text = stringResource(R.string.settings_repair_text),
                         fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        color = colors.inkSoft,
+                        fontSize = 15.sp,
+                        color = colors.ink,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -326,50 +305,108 @@ private fun AppSettingsDialog(
                         color = colors.inkSoft.copy(alpha = 0.8f),
                     )
                 }
-                androidx.compose.material3.Switch(
-                    checked = repairText,
-                    onCheckedChange = onRepair,
-                )
+                androidx.compose.material3.Switch(checked = repairText, onCheckedChange = onRepair)
             }
-            Spacer(modifier = Modifier.height(14.dp))
+
+            Spacer(modifier = Modifier.height(16.dp))
+            SettingsGroupLabel(stringResource(R.string.settings_group_audio))
+            SettingsPick(
+                label = stringResource(R.string.settings_sleep_timer),
+                value = when {
+                    sleepMinutes == 0 -> stringResource(R.string.settings_sleep_off)
+                    sleepLeft > 0 -> stringResource(
+                        R.string.settings_sleep_left,
+                        (sleepLeft + 59) / 60,
+                    )
+                    else -> stringResource(R.string.settings_reading_goal_minutes, sleepMinutes)
+                },
+                options = SLEEP_CHOICES.map { minutes ->
+                    val label = if (minutes == 0) {
+                        stringResource(R.string.settings_sleep_off)
+                    } else {
+                        stringResource(R.string.settings_reading_goal_minutes, minutes)
+                    }
+                    label to { com.elearning.openbook.playback.SleepTimer.set(minutes) }
+                },
+            )
+        }
+    }
+}
+
+/** One setting row: the current value on the right, the choices in a popover. */
+@Composable
+private fun SettingsPick(
+    label: String,
+    value: String,
+    options: List<Pair<String, () -> Unit>>,
+) {
+    val colors = shellColors()
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .clickable { open = true }
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
-                text = stringResource(R.string.settings_reading_goal),
+                text = label,
+                modifier = Modifier.weight(1f),
                 fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
+                fontSize = 15.sp,
+                color = colors.ink,
+            )
+            Text(
+                text = value,
+                fontFamily = FontFamily.Serif,
+                fontSize = 14.sp,
+                color = colors.accent,
+            )
+            Text(
+                text = "⌄",
+                modifier = Modifier.padding(start = 8.dp),
+                fontFamily = FontFamily.Serif,
+                fontSize = 14.sp,
                 color = colors.inkSoft,
             )
-            Spacer(modifier = Modifier.height(6.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                for (minutes in ReadingLogStore.GOAL_CHOICES) {
-                    val selected = minutes == goalMinutes
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                if (selected) colors.accent.copy(alpha = 0.16f)
-                                else colors.raised,
-                            )
-                            .border(
-                                1.dp,
-                                if (selected) colors.accent else colors.hairline,
-                                RoundedCornerShape(14.dp),
-                            )
-                            .clickable { onGoal(minutes) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_reading_goal_minutes, minutes),
-                            fontFamily = FontFamily.Serif,
-                            fontSize = 13.sp,
-                            color = if (selected) colors.accent else colors.ink,
-                        )
-                    }
-                }
+        }
+        androidx.compose.material3.DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            containerColor = colors.raised,
+        ) {
+            for ((text, action) in options) {
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(text, fontFamily = FontFamily.Serif, fontSize = 15.sp) },
+                    onClick = {
+                        open = false
+                        action()
+                    },
+                )
             }
         }
     }
+}
+
+@Composable
+private fun SettingsGroupLabel(text: String) {
+    Text(
+        text = text.uppercase(),
+        modifier = Modifier.padding(bottom = 2.dp),
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 11.sp,
+        letterSpacing = 1.sp,
+        color = shellColors().inkSoft,
+    )
+}
+
+private val SLEEP_CHOICES = listOf(0, 5, 15, 30, 45, 60)
+
+private fun AppLanguage.labelRes(): Int = when (this) {
+    AppLanguage.SYSTEM -> R.string.language_system
+    AppLanguage.VIETNAMESE -> R.string.language_vietnamese
+    AppLanguage.ENGLISH -> R.string.language_english
 }
