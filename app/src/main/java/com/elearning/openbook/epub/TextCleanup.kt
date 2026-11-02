@@ -6,9 +6,13 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
-/** What a text pass over an imported copy changed; nothing changed when both are zero. */
-data class TextCleanupReport(val passages: Int = 0, val files: Int = 0) {
-    val changed: Boolean get() = passages > 0
+/** What a text pass over an imported copy changed; nothing changed when all are zero. */
+data class TextCleanupReport(
+    val passages: Int = 0,
+    val words: Int = 0,
+    val files: Int = 0,
+) {
+    val changed: Boolean get() = passages > 0 || words > 0
 }
 
 /**
@@ -27,6 +31,7 @@ object TextCleanup {
 
     private val document = Regex("\\.(x?html?|htm)$", RegexOption.IGNORE_CASE)
     private val tag = Regex("<[^>]*>")
+    private val word = Regex("\\p{L}+")
     private val junk = charArrayOf(
         '\u00AD', // soft hyphen
         '\u200B', '\u200C', '\u200D', '\u200E', '\u200F',
@@ -34,7 +39,7 @@ object TextCleanup {
     )
 
     /** Rewrites [file], or leaves it alone when there is nothing to fix or the pass fails. */
-    fun clean(file: File): TextCleanupReport {
+    fun clean(file: File, words: Set<String> = emptySet()): TextCleanupReport {
         val temp = File(file.parentFile, file.name + ".clean")
         var report = TextCleanupReport()
         try {
@@ -47,22 +52,25 @@ object TextCleanup {
                         else zip.getInputStream(entry).use { it.readBytes() }
                         var payload = bytes
                         var changed = 0
+                        var repaired = 0
                         if (bytes != null && document.containsMatchIn(entry.name)) {
                             val text = runCatching { bytes.decodeToString(throwOnInvalidSequence = true) }
                                 .getOrNull()
                             if (text != null) {
-                                val (cleaned, count) = cleanMarkup(text)
-                                if (count > 0) {
+                                val (cleaned, count, fixed) = cleanMarkup(text, words)
+                                if (count > 0 || fixed > 0) {
                                     payload = cleaned.encodeToByteArray()
                                     changed = count
+                                    repaired = fixed
                                 }
                             }
                         }
                         out.putNextEntry(entryFor(entry, payload))
                         if (payload != null && !entry.isDirectory) out.write(payload)
                         out.closeEntry()
-                        if (changed > 0) report = report.copy(
+                        if (changed > 0 || repaired > 0) report = report.copy(
                             passages = report.passages + changed,
+                            words = report.words + repaired,
                             files = report.files + 1,
                         )
                     }
@@ -104,28 +112,68 @@ object TextCleanup {
     }
 
     /** Cleans only the runs between tags; the tags themselves are copied verbatim. */
-    private fun cleanMarkup(html: String): Pair<String, Int> {
+    private fun cleanMarkup(
+        html: String,
+        words: Set<String>,
+    ): Triple<String, Int, Int> {
         val out = StringBuilder(html.length)
         var changed = 0
+        var repaired = 0
         var at = 0
         for (match in tag.findAll(html)) {
             val text = html.substring(at, match.range.first)
-            val cleaned = cleanText(text)
-            if (cleaned != text) changed++
+            val (cleaned, count, fixed) = cleanText(text, words)
+            if (count > 0) changed++
+            repaired += fixed
             out.append(cleaned).append(match.value)
             at = match.range.last + 1
         }
         val tail = html.substring(at)
-        val cleaned = cleanText(tail)
-        if (cleaned != tail) changed++
+        val (cleaned, count, fixed) = cleanText(tail, words)
+        if (count > 0) changed++
+        repaired += fixed
         out.append(cleaned)
-        return out.toString() to changed
+        return Triple(out.toString(), changed, repaired)
     }
 
-    private fun cleanText(value: String): String {
-        if (value.isEmpty()) return value
+    private fun cleanText(value: String, words: Set<String>): Triple<String, Int, Int> {
+        if (value.isEmpty()) return Triple(value, 0, 0)
         var text = Normalizer.normalize(value, Normalizer.Form.NFC)
         if (text.any { it in junk }) text = text.filterNot { it in junk }
-        return text
+        val passage = if (text != value) 1 else 0
+        val (repaired, count) = if (words.isEmpty()) text to 0 else repairWords(text, words)
+        return Triple(repaired, passage, count)
+    }
+
+    /**
+     * Puts back a lost `đ`. Some shop conversions drop the letter, leaving a word that
+     * starts with a vowel and is not in the word list ("ất", "ã", "ó"). Only that one
+     * repair is made, and only when the result is a known word and the original has a
+     * Vietnamese diacritic — which keeps English words in bilingual books untouched.
+     */
+    private fun repairWords(text: String, words: Set<String>): Pair<String, Int> {
+        var rebuilt: StringBuilder? = null
+        var last = 0
+        var count = 0
+        for (match in word.findAll(text)) {
+            val token = match.value
+            val lower = token.lowercase()
+            if (lower in words || lower.startsWith("đ")) continue
+            if (lower.none { it.code > 127 }) continue
+            val candidate = "đ$lower"
+            if (candidate !in words) continue
+            val fixed = when {
+                token.all { it.isUpperCase() } -> candidate.uppercase()
+                token.first().isUpperCase() -> "Đ" + candidate.drop(1)
+                else -> candidate
+            }
+            val out = rebuilt ?: StringBuilder(text.length + 8).also { rebuilt = it }
+            out.append(text, last, match.range.first).append(fixed)
+            last = match.range.last + 1
+            count++
+        }
+        val out = rebuilt ?: return text to 0
+        out.append(text, last, text.length)
+        return out.toString() to count
     }
 }

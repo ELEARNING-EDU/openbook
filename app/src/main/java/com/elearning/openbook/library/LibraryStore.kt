@@ -7,6 +7,7 @@ import com.elearning.openbook.R
 import com.elearning.openbook.epub.EpubArchive
 import com.elearning.openbook.epub.TextCleanup
 import com.elearning.openbook.epub.TextCleanupReport
+import com.elearning.openbook.epub.VietnameseWords
 import com.elearning.openbook.model.BookItem
 import com.elearning.openbook.model.EpubException
 import com.elearning.openbook.model.EpubProblem
@@ -28,6 +29,9 @@ class LibraryStore(context: Context) {
     private val appContext = context.applicationContext
 
     private val metadata = appContext.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
+
+    /** Read once: the words the import may lean on when it puts a lost `đ` back. */
+    private val words by lazy { VietnameseWords.load(appContext) }
 
     private val directory: File
         get() = File(appContext.filesDir, "Books").also { if (!it.exists()) it.mkdirs() }
@@ -168,7 +172,7 @@ class LibraryStore(context: Context) {
             // Composed Unicode and no invisible characters, so the same text searches,
             // highlights and speaks the same way on every device. The original pick is
             // never touched; only this copy is.
-            val cleanup = TextCleanup.clean(target)
+            val cleanup = TextCleanup.clean(target, words)
             return ImportedBook(describe(target), cleanup)
         } catch (t: Throwable) {
             target.delete()

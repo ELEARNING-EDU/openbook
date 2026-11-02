@@ -90,6 +90,40 @@ class TextCleanupTest {
     }
 
     @Test
+    fun restoresALostDWhenTheResultIsAKnownWord() {
+        val file = epub("<p>trái ất ã ó ời</p>")
+
+        val report = TextCleanup.clean(file, setOf("đất", "đã", "đó", "đời", "ăn", "em"))
+
+        assertEquals("<p>trái đất đã đó đời</p>", entry(file, "OEBPS/chapter.xhtml"))
+        assertEquals(4, report.words)
+        assertEquals(1, report.files)
+    }
+
+    @Test
+    fun keepsKnownWordsAndLettersThatAreNotVietnamese() {
+        val file = epub("<p>em ăn ở nhà i a</p>")
+
+        val report = TextCleanup.clean(
+            file,
+            setOf("em", "ăn", "ở", "đem", "đăn", "đở", "đi", "đa"),
+        )
+
+        assertEquals("<p>em ăn ở nhà i a</p>", entry(file, "OEBPS/chapter.xhtml"))
+        assertEquals(0, report.words)
+        assertFalse(report.changed)
+    }
+
+    @Test
+    fun keepsTheCaseOfARestoredLetter() {
+        val file = epub("<p>Ã đã mất</p>")
+
+        TextCleanup.clean(file, setOf("đã"))
+
+        assertEquals("<p>ĐÃ đã mất</p>", entry(file, "OEBPS/chapter.xhtml"))
+    }
+
+    @Test
     fun leavesANonUtf8DocumentUntouched() {
         val file = folder.newFile("binary.epub")
         ZipOutputStream(file.outputStream()).use { out ->

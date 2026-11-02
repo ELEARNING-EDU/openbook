@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Sửa chính tả 2026-11-02: bộ từ điển tự dựng `assets/vi-words.txt` (272 từ, gồm từ có `đ` để khôi phục và từ bắt đầu bằng nguyên âm để không sửa nhầm). Quy tắc: chỉ chèn `đ` khi từ gốc không có trong danh sách, chứa dấu tiếng Việt, và dạng thêm `đ` là từ đã biết; giữ nguyên hoa/thường. Kết quả trên sách "33-thuc-tinh...": 7.411 chữ `đ` được khôi phục trong 72 tệp, đã kiểm tra lại "trái đất", "đời sống", "áp suất" đúng và không còn "đấm lòng"/"ký đức". Từ vựng chưa có trong danh sách chỉ bị bỏ qua, không bị sửa bừa.
+
 Import 2026-11-02: bản sao EPUB khi nhập được chuẩn hóa Unicode một lần (`epub/TextCleanup`): NFC, bỏ soft hyphen/zero-width/BOM trong phần text, giữ nguyên markup và các entry khác, `mimetype` vẫn đầu tiên và không nén. Có hộp thoại báo số đoạn đã sửa. Chỉ lỗi hệ thống, không có từ điển — sách đa ngôn ngữ không bị đoán chữ. Test `TextCleanupTest` (5 ca) + kiểm chứng E3: file NFD-test nhập qua picker, bản sao trong `Books/` thành NFC, `mimetype` đứng đầu.
 
 Fix 2026-11-02: T-110, T-114–T-117 implemented in the working tree (uncommitted). `LibraryStore` ưu tiên author override và xóa cover khi xóa sách; `AppViewModel.deleteBooks` gọi `highlights.erase`; `ReaderEngine` fold trả về offset gốc, `Đ`→`d`; `SpeechReader.stop` hủy `pendingStart`. Test mới `TextFoldTest` (3 ca). Offline test/lint/assembleDebug exit 0 (86 test, 1 skip). Codex `review` PASS; `qa`/`test` bị chặn bởi sandbox Codex (không mở được Gradle lock/socket) nên chưa có evidence độc lập. Chưa commit.

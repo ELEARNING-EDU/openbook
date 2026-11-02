@@ -211,6 +211,7 @@ fun EpubReaderApp(
                         R.plurals.cleanup_body,
                         cleanup.files,
                         cleanup.passages,
+                        cleanup.words,
                         cleanup.files,
                     ),
                     fontFamily = FontFamily.Serif,
