@@ -81,11 +81,6 @@
 
     <string name="import_failed_title">Không nhập được sách</string>
     <string name="import_failed_body">Không đọc được tệp đã chọn dưới dạng EPUB.</string>
-    <string name="cleanup_title">Đã kiểm tra chính tả</string>
-    <plurals name="cleanup_body">
-        <item quantity="one">Bản sao vừa nhập đã được kiểm tra: %1$d đoạn chuẩn hóa, %2$d chữ bị thiếu được khôi phục, trong %3$d tệp. Tệp gốc không bị thay đổi.</item>
-        <item quantity="other">Bản sao vừa nhập đã được kiểm tra: %1$d đoạn chuẩn hóa, %2$d chữ bị thiếu được khôi phục, trong %3$d tệp. Tệp gốc không bị thay đổi.</item>
-    </plurals>
     <string name="import_failed_open">Không mở được tệp đã chọn.</string>
     <string name="import_failed_invalid">Tệp không đọc được như một EPUB hợp lệ.</string>
 

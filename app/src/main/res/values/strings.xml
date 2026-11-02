@@ -82,11 +82,6 @@
 
     <string name="import_failed_title">Could not import book</string>
     <string name="import_failed_body">The selected file could not be read as an EPUB.</string>
-    <string name="cleanup_title">Text checked</string>
-    <plurals name="cleanup_body">
-        <item quantity="one">The imported copy was checked: %1$d passages normalised, %2$d missing letters restored, in %3$d file. The original file was not touched.</item>
-        <item quantity="other">The imported copy was checked: %1$d passages normalised, %2$d missing letters restored, in %3$d files. The original file was not touched.</item>
-    </plurals>
     <string name="import_failed_open">Could not open the selected file.</string>
     <string name="import_failed_invalid">The file is not a valid EPUB.</string>
 

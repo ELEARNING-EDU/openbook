@@ -179,6 +179,21 @@ class TextCleanupTest {
     }
 
     @Test
+    fun collapsesALetterTypedTwice() {
+        val file = epub(
+            "<p>Người ta bảo nhau rằng anh đượcc nghỉ và ngườii ta vvui lắm.</p>",
+        )
+
+        val report = TextCleanup.clean(file, setOf("được", "người", "vui"))
+
+        assertEquals(
+            "<p>Người ta bảo nhau rằng anh được nghỉ và người ta vui lắm.</p>",
+            entry(file, "OEBPS/chapter.xhtml"),
+        )
+        assertEquals(3, report.words)
+    }
+
+    @Test
     fun leavesAChapterInAnotherLanguageAloneEvenWithAWordList() {
         val file = epub(
             "<p>The quick brown fox jumps over the lazy dog and runs away before the hunter comes.</p>",

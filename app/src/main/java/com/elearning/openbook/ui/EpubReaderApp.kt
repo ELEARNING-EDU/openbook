@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -181,39 +180,6 @@ fun EpubReaderApp(
                     text = (failedImport as? com.elearning.openbook.model.EpubException)
                         ?.let { epubProblemText(it.problem) }
                         ?: stringResource(R.string.import_failed_body),
-                    fontFamily = FontFamily.Serif,
-                )
-            },
-            containerColor = colors.raised,
-            titleContentColor = colors.ink,
-            textContentColor = colors.inkSoft,
-        )
-    }
-
-    val cleanup = state.cleanup
-    if (cleanup != null) {
-        AlertDialog(
-            onDismissRequest = app::dismissCleanup,
-            confirmButton = {
-                TextButton(onClick = app::dismissCleanup) {
-                    Text(stringResource(R.string.action_ok))
-                }
-            },
-            title = {
-                Text(
-                    text = stringResource(R.string.cleanup_title),
-                    fontFamily = FontFamily.Serif,
-                )
-            },
-            text = {
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.cleanup_body,
-                        cleanup.files,
-                        cleanup.passages,
-                        cleanup.words,
-                        cleanup.files,
-                    ),
                     fontFamily = FontFamily.Serif,
                 )
             },

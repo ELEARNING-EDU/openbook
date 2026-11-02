@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elearning.openbook.library.LibraryStore
 import com.elearning.openbook.library.ReadingLogStore
-import com.elearning.openbook.epub.TextCleanupReport
 import com.elearning.openbook.model.BookItem
 import com.elearning.openbook.reader.BookmarkStore
 import com.elearning.openbook.reader.HighlightStore
@@ -49,8 +48,6 @@ data class AppUiState(
     val goalMinutes: Int = ReadingLogStore.DEFAULT_GOAL,
     val language: AppLanguage = AppLanguage.SYSTEM,
     val importError: Throwable? = null,
-    /** What the last import's text pass rewrote; cleared when its note is dismissed. */
-    val cleanup: TextCleanupReport? = null,
     val deleteFailure: Int = 0,
     /** True until the harness's staged states have been played once. */
     val demoPending: Boolean = true,
@@ -135,19 +132,10 @@ class AppViewModel @Inject constructor(
                 _state.update { it.copy(importError = error) }
                 return@launch
             }
-            val imported = result.getOrNull()
             val books = withContextIo { library.books() }
-            _state.update {
-                it.copy(
-                    books = books,
-                    // A silent rewrite of the reader's book deserves a word.
-                    cleanup = imported?.cleanup?.takeIf { cleaned -> cleaned.changed },
-                )
-            }
+            _state.update { it.copy(books = books) }
         }
     }
-
-    fun dismissCleanup() = _state.update { it.copy(cleanup = null) }
 
     fun dismissImportError() = _state.update { it.copy(importError = null) }
 

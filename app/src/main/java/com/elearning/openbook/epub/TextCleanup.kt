@@ -185,10 +185,9 @@ object TextCleanup {
     private val doubledWord = Regex("(?iu)\\b(\\p{L}+)(?:[ \\t]+\\1\\b)+")
 
     /**
-     * Puts back a lost `đ`. Some shop conversions drop the letter, leaving a word that
-     * starts with a vowel and is not in the word list ("ất", "ã", "ó"). Only that one
-     * repair is made, and only when the result is a known word and the original has a
-     * Vietnamese diacritic — which keeps English words in bilingual books untouched.
+     * Repairs a word that is not in the list by the two slips conversions make: a lost
+     * `đ` ("ất" for "đất") and a letter typed twice ("đượcc"). Only a replacement that
+     * turns the word into one the list knows is made, so nothing is invented.
      */
     private fun repairWords(text: String, words: Set<String>): Pair<String, Int> {
         var rebuilt: StringBuilder? = null
@@ -197,17 +196,13 @@ object TextCleanup {
         for (match in word.findAll(text)) {
             val token = match.value
             val lower = token.lowercase()
-            if (lower in words || lower.startsWith("đ")) continue
-            if (lower.none { it.code > 127 }) continue
-            val candidate = "đ$lower"
-            if (candidate !in words) continue
-            val fixed = when {
-                token.all { it.isUpperCase() } -> candidate.uppercase()
-                token.first().isUpperCase() -> "Đ" + candidate.drop(1)
-                else -> candidate
-            }
+            if (lower in words) continue
+            val repaired = when {
+                !lower.startsWith("đ") && lower.any { it.code > 127 } && "đ$lower" in words -> "đ$lower"
+                else -> collapseRepeats(lower).takeIf { it != lower && it in words }
+            } ?: continue
             val out = rebuilt ?: StringBuilder(text.length + 8).also { rebuilt = it }
-            out.append(text, last, match.range.first).append(fixed)
+            out.append(text, last, match.range.first).append(withCase(token, repaired))
             last = match.range.last + 1
             count++
         }
@@ -215,4 +210,15 @@ object TextCleanup {
         out.append(text, last, text.length)
         return out.toString() to count
     }
+
+    /** `đượcc` → `được`: any run of one letter squeezed to a single letter. */
+    private fun collapseRepeats(word: String): String = repeatRun.replace(word, "$1")
+
+    private fun withCase(source: String, replacement: String): String = when {
+        source.all { it.isUpperCase() } -> replacement.uppercase()
+        source.first().isUpperCase() -> replacement.replaceFirstChar { it.uppercaseChar() }
+        else -> replacement
+    }
+
+    private val repeatRun = Regex("(\\p{L})\\1+")
 }

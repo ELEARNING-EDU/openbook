@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+UI 2026-11-02: bỏ hộp thoại "Text checked" — import sửa lỗi hoàn toàn im lặng, người dùng chỉ thấy sách đã sạch. Thêm sửa chữ lặp trong từ (`đượcc` → `được`) khi dạng gộp có trong từ điển. Không có màn duyệt tay.
+
 Từ điển 2026-11-02 (đợt tham chiếu): 834 → 1.974 từ. Cách làm: lấy tần suất từ chưa có trong danh sách từ chính sách đang đọc, loại mọi từ mà `đ`+từ đã có trong danh sách sửa (để không chặn khôi phục `đ`), rồi bổ sung thủ công. Độ phủ trên sách đó: 37,4% → **90,2%** lượt từ; số chữ `đ` khôi phục giữ nguyên 8.429. Viet74K chỉ dùng ngoài máy để đối chiếu, không nhúng.
 
 Hoàn tác 2026-11-02: gỡ `vi-lexicon.txt` + NOTICE (không nhúng dữ liệu Viet74K vào repo). Bộ check là danh sách tự soạn `assets/vi-words.txt` (834 từ). Viet74K chỉ dùng làm tham chiếu để đo độ phủ và phát hiện thiếu từ ở các đợt sau.
