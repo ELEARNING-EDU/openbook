@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Import 2026-11-02: bản sao EPUB khi nhập được chuẩn hóa Unicode một lần (`epub/TextCleanup`): NFC, bỏ soft hyphen/zero-width/BOM trong phần text, giữ nguyên markup và các entry khác, `mimetype` vẫn đầu tiên và không nén. Có hộp thoại báo số đoạn đã sửa. Chỉ lỗi hệ thống, không có từ điển — sách đa ngôn ngữ không bị đoán chữ. Test `TextCleanupTest` (5 ca) + kiểm chứng E3: file NFD-test nhập qua picker, bản sao trong `Books/` thành NFC, `mimetype` đứng đầu.
+
 Fix 2026-11-02: T-110, T-114–T-117 implemented in the working tree (uncommitted). `LibraryStore` ưu tiên author override và xóa cover khi xóa sách; `AppViewModel.deleteBooks` gọi `highlights.erase`; `ReaderEngine` fold trả về offset gốc, `Đ`→`d`; `SpeechReader.stop` hủy `pendingStart`. Test mới `TextFoldTest` (3 ca). Offline test/lint/assembleDebug exit 0 (86 test, 1 skip). Codex `review` PASS; `qa`/`test` bị chặn bởi sandbox Codex (không mở được Gradle lock/socket) nên chưa có evidence độc lập. Chưa commit.
 
 T-118 (mới, cùng batch): TTS lỗi `-4` từng lặp vô hạn và tự nhảy câu dù không có tiếng. Đã sửa: `SpeechReader` dừng sau 2 lỗi liên tiếp và báo `speech_unavailable` (EN/VI). Xác minh trên E3 với lỗi `-4` thật: log dừng ở câu 82, player bar biến mất, thông báo hiện trên trang (ảnh `e3-note.png`).

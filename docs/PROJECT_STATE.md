@@ -1,5 +1,12 @@
 # Project state — Sách (Android EPUB reader)
 
+## Import cleanup — 2026-11-02
+
+- `epub/TextCleanup.kt`: mỗi bản sao EPUB nhập vào được chuẩn hóa một lần — NFC, bỏ `\u00AD`, `\u200B-\u200F`, `\uFEFF` trong text, không đụng tag/markup/CSS, giữ `mimetype` đầu tiên và STORED. Không dùng từ điển nên an toàn với sách đa ngôn ngữ.
+- `LibraryStore.import` trả `ImportedBook(book, cleanup)`; `AppViewModel` đặt `cleanup` vào state; `EpubReaderApp` hiện hộp thoại "Đã kiểm tra chính tả" khi có thay đổi.
+- Bằng chứng: `TextCleanupTest` 5/5 pass; toàn bộ unit test 123 test, 33 skip, 0 fail; lint + assembleDebug pass. Trên E3, import `nfd-test.epub` qua SAF: hộp thoại báo "6 passages in 1 file", bản sao trong `Books/` không còn combining marks, 15 entry và `mimetype` đầu tiên.
+- Chưa có: từ điển tiếng Việt, tự sửa chữ `đ` bị mất (cần dữ liệu từ), và không chạy cleanup cho sách đã có sẵn trong thư viện.
+
 ## Fix checkpoint — 2026-11-02 (T-110, T-114–T-117)
 - Sửa 5 lỗi P2 trong working tree, chưa commit: `library/LibraryStore.kt` (author override thắng `dc:creator`; `delete` xóa `covers/<id>` cho id đã xóa thành công), `ui/AppViewModel.kt` (inject `HighlightStore`, `deleteBooks` erase highlight trong vòng `report.deleted`), `reader/ReaderEngine.kt` (fold thành `foldText` trả `(text, offsets)`, `Đ`→`d`, bỏ dấu tổ hợp NFD và map offset về văn bản gốc), `reader/SpeechReader.kt` (`stop` hủy `pendingStart`; `beginSpeaking` chặn index ngoài source).
 - Test mới `app/src/test/java/com/elearning/openbook/reader/TextFoldTest.kt` (3 ca: Đọc/dấu, NFD + offset, 1 offset mỗi ký tự giữ lại).

@@ -5,17 +5,23 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import com.elearning.openbook.R
 import com.elearning.openbook.epub.EpubArchive
+import com.elearning.openbook.epub.TextCleanup
+import com.elearning.openbook.epub.TextCleanupReport
 import com.elearning.openbook.model.BookItem
 import com.elearning.openbook.model.EpubException
 import com.elearning.openbook.model.EpubProblem
 import java.io.File
 
+/** A book that landed on the shelf, plus what the import's text pass changed in it. */
+data class ImportedBook(val book: BookItem, val cleanup: TextCleanupReport)
+
 /**
  * Owns the on-device library: a `Books/` folder inside the app's private files.
  *
  * The folder is the library; `SharedPreferences` only carries what the reader changed
- * about a file — its title, its author, and when it arrived. The EPUB itself is never
- * rewritten, and the document the reader picked from outside the app is only ever read.
+ * about a file — its title, its author, and when it arrived. An imported copy is cleaned
+ * once (see [TextCleanup]) and never rewritten after that, and the document the reader
+ * picked from outside the app is only ever read.
  */
 class LibraryStore(context: Context) {
 
@@ -129,7 +135,7 @@ class LibraryStore(context: Context) {
     }
 
     /** Copies a document chosen through the Storage Access Framework into the library. */
-    fun import(uri: Uri): BookItem {
+    fun import(uri: Uri): ImportedBook {
         val name = sanitise(displayName(uri) ?: "sach-${System.currentTimeMillis()}.epub")
         val unique = uniqueName(name)
         val target = File(directory, unique)
@@ -159,7 +165,11 @@ class LibraryStore(context: Context) {
                 unique,
                 BookMetadata(importedAt = System.currentTimeMillis().coerceAtLeast(target.lastModified())),
             )
-            return describe(target)
+            // Composed Unicode and no invisible characters, so the same text searches,
+            // highlights and speaks the same way on every device. The original pick is
+            // never touched; only this copy is.
+            val cleanup = TextCleanup.clean(target)
+            return ImportedBook(describe(target), cleanup)
         } catch (t: Throwable) {
             target.delete()
             android.util.Log.w(
