@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.elearning.openbook.model.BookItem
 import com.elearning.openbook.reader.ReaderEngine
+import com.elearning.openbook.reader.ReadingPosition
+import com.elearning.openbook.reader.ReadingPositions
 import com.elearning.openbook.reader.SpeechReader
 import com.elearning.openbook.reader.SpeechState
 
@@ -23,6 +25,9 @@ object Narration {
     @Volatile private var book: BookItem? = null
     @Volatile private var appContext: Context? = null
 
+    /** Written from here once the reader is gone: Back does not end the voice. */
+    @Volatile private var positions: ReadingPositions? = null
+
     /** Set by the reader while it is on screen, so a skip moves the leaf too. */
     @Volatile var onVoiceMoved: ((Int) -> Unit)? = null
 
@@ -30,6 +35,8 @@ object Narration {
     fun install(context: Context, reader: SpeechReader) {
         appContext = context.applicationContext
         speech = reader
+        positions = ReadingPositions(context)
+        reader.addHighlightHook { sentence -> savePlace(sentence) }
         PlaybackBridge.onToggle = { toggle() }
         PlaybackBridge.onStop = { stop() }
         PlaybackBridge.onNext = { skipChapter(1) }
@@ -44,6 +51,31 @@ object Narration {
 
     fun detachReader() {
         onVoiceMoved = null
+    }
+
+    /**
+     * Remembers where the voice is when no reader composition is left to do it. The page
+     * is derived from the sentence through the engine's own pagination, so the shelf and
+     * the next open land on the page the voice reached, not on the page it started from.
+     */
+    private fun savePlace(sentence: Int) {
+        if (onVoiceMoved != null) return
+        val current = book ?: return
+        val source = engine ?: return
+        val store = positions ?: return
+        if (sentence < 0) return
+        val page = source.sentencePage(sentence)
+        if (page !in 0 until source.pageCount) return
+        store.save(
+            current.id,
+            ReadingPosition(
+                page = page,
+                pageCount = source.pageCount,
+                chapter = source.chapterOfPage(page),
+                offset = source.offsetOfPage(page),
+            ),
+        )
+        Log.d(TAG, "background voice saved ${current.id} page ${page + 1}/${source.pageCount}")
     }
 
     fun toggle() {

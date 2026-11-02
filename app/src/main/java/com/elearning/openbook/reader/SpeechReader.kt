@@ -44,6 +44,23 @@ class SpeechReader(private val context: Context) {
     /** Global sentence index that should be highlighted, or -1. */
     var onHighlight: (Int) -> Unit = {}
 
+    private val highlightHooks =
+        java.util.concurrent.CopyOnWriteArrayList<(Int) -> Unit>()
+
+    /**
+     * A sentence listener that outlives the reader screen. Back disposes the composition
+     * but not the voice, so the place in the book still has to be written down.
+     */
+    fun addHighlightHook(hook: (Int) -> Unit) {
+        highlightHooks += hook
+    }
+
+    private fun highlight(index: Int) {
+        if (disposed) return
+        onHighlight(index)
+        highlightHooks.forEach { hook -> hook(index) }
+    }
+
     /** Fires whenever the voice changes between idle, playing and paused. */
     var onStateChanged: (SpeechState) -> Unit = {}
 
@@ -314,7 +331,7 @@ class SpeechReader(private val context: Context) {
                 // Move the highlight at once, before the engine has been restarted: the
                 // reader is looking at the new page now, and a highlight left on the old
                 // one for the length of an engine start-up is a page that fights back.
-                if (!disposed) onHighlight(fromSentence)
+                if (!disposed) highlight(fromSentence)
                 beginSpeaking(fromSentence)
             }
             SpeechState.PAUSED -> {
@@ -340,7 +357,7 @@ class SpeechReader(private val context: Context) {
     fun skip(fromSentence: Int) {
         val paused = stateInternal == SpeechState.PAUSED
         seek(fromSentence)
-        if (paused && !disposed) onHighlight(fromSentence)
+        if (paused && !disposed) highlight(fromSentence)
     }
 
     /**
@@ -566,7 +583,7 @@ class SpeechReader(private val context: Context) {
         lastStarted = -1
         pausedAt = -1
         setState(SpeechState.IDLE)
-        if (!disposed) onHighlight(-1)
+        if (!disposed) highlight(-1)
     }
 
     // --------------------------------------------------------------- listeners
@@ -589,7 +606,7 @@ class SpeechReader(private val context: Context) {
                 consecutiveErrors = 0
                 lastStarted = index
                 cancelWatchdog()
-                onHighlight(index)
+                highlight(index)
             }
         }
 
@@ -669,7 +686,7 @@ class SpeechReader(private val context: Context) {
             finishSpeaking()
             return
         }
-        onHighlight(index)
+        highlight(index)
         val runnable = object : Runnable {
             override fun run() {
                 if (disposed || stateInternal != SpeechState.PLAYING || !fallbackMode) return
@@ -678,7 +695,7 @@ class SpeechReader(private val context: Context) {
                     finishSpeaking()
                     return
                 }
-                onHighlight(index)
+                highlight(index)
                 main.postDelayed(this, FALLBACK_MS)
             }
         }

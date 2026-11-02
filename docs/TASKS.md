@@ -1,5 +1,19 @@
 # Tasks — Sách (Android EPUB reader)
 
+Sửa 2026-11-02 (T-113 + mặc định setting): (1) "Fix spelling on import" mặc định **tắt** (`TextRepairStore` false, `AppUiState.repairText` false) — sách giữ nguyên như bản gốc cho tới khi người dùng bật. (2) Tiến độ nghe nền: `SpeechReader.addHighlightHook` + `Narration.savePlace` lưu `ReadingPositions` từ phía playback khi reader đã đóng (page suy ra từ `sentencePage`, cùng chương/offset). E3: Back rồi nghe tiếp, log "background voice saved en-book.epub page 1/12" xuất hiện và prefs đổi timestamp mà không cần mở lại sách.
+
+Dọn QA 2026-11-02: đã xóa báo cáo 2026-11-01 được thay thế; giữ báo cáo 2026-11-02, probe/bằng chứng lỗi chưa sửa và spec nghiệm thu EPUB. Đã kiểm tra file và cập nhật liên kết; không chạy test vì chỉ dọn tài liệu. Bước tiếp theo: dùng báo cáo QA hiện tại khi được giao sửa lỗi.
+
+## QA 2026-11-02 — findings mới, chưa sửa
+
+| ID | Mức | Trạng thái | Owner | Nghiệm thu |
+| --- | --- | --- | --- | --- |
+| T-119 | P1 | Pending | Chưa giao | Cleanup chặn entry >64 MiB/tổng >256 MiB, giữ file cũ khi lỗi; regression test và import QA pass |
+| T-120 | P1 | Pending | Chưa giao | Câu hợp lệ “She had had enough.” giữ nguyên sau import và quét thư viện |
+| T-121 | P2 | Pending | Chưa giao | Style/script/pre/code không bị quy tắc tidy làm thay đổi nội dung/định dạng |
+
+Không phụ thuộc task khác. T-113 vẫn open (code review); T-111 vẫn open (33 ca skip). Chi tiết, evidence, test và giới hạn ở [QA_REVIEW_2026-11-02.md](QA_REVIEW_2026-11-02.md). Chỉ docs/probe thay đổi, không sửa app.
+
 Settings 2026-11-02 (sửa): quay lại ModalBottomSheet; popover dùng `Popup` + `PopupPositionProvider` tự tính vị trí từ anchor của hàng (rộng 220dp, viền/shadow), vì `DropdownMenu` trong sheet bị Compose neo vào cửa sổ của sheet nên hiện lệch chỗ. Menu bám đúng mép trái hàng, mở xuống dưới nếu đủ chỗ, không thì lật lên trên.
 
 Settings 2026-11-02: cửa sổ App settings chia nhóm LANGUAGE / READING / AUDIO, mỗi lựa chọn là một hàng mở popover (DropdownMenu) thay cho radio/chips. Thêm mục AUDIO → Hẹn giờ tắt (Off, 5, 15, 30, 45, 60 phút) gọi thẳng `SleepTimer` của trình đọc; hiển thị "còn N phút" khi đang chạy. Đổi ModalBottomSheet sang Dialog vì popover trong sheet bị đặt sai vị trí. E3: đặt 5 phút → hàng hiện "5 min left".

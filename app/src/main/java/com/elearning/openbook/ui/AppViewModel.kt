@@ -48,8 +48,8 @@ data class AppUiState(
     val week: List<WeekPoint> = emptyList(),
     val goalMinutes: Int = ReadingLogStore.DEFAULT_GOAL,
     val language: AppLanguage = AppLanguage.SYSTEM,
-    /** Repair the text of an imported copy (on by default). */
-    val repairText: Boolean = true,
+    /** Repair the text of an imported copy; off until the reader asks for it. */
+    val repairText: Boolean = false,
     val importError: Throwable? = null,
     val deleteFailure: Int = 0,
     /** True until the harness's staged states have been played once. */
