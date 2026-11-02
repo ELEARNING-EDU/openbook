@@ -7,6 +7,7 @@ import com.elearning.openbook.library.LibraryStore
 import com.elearning.openbook.library.ReadingLogStore
 import com.elearning.openbook.model.BookItem
 import com.elearning.openbook.reader.BookmarkStore
+import com.elearning.openbook.reader.HighlightStore
 import com.elearning.openbook.reader.ReadingPosition
 import com.elearning.openbook.reader.ReadingPositions
 import com.elearning.openbook.reader.ReadingSummary
@@ -63,6 +64,7 @@ class AppViewModel @Inject constructor(
     private val library: LibraryStore,
     private val positions: ReadingPositions,
     private val bookmarks: BookmarkStore,
+    private val highlights: HighlightStore,
     private val languageStore: AppLanguageStore,
     private val readingLogStore: ReadingLogStore,
 ) : ViewModel() {
@@ -161,6 +163,8 @@ class AppViewModel @Inject constructor(
             for (id in report.deleted) {
                 positions.remove(id)
                 bookmarks.erase(id)
+                // A same-name reimport must start without the old book's highlights.
+                highlights.erase(id)
             }
             val books = withContextIo { library.books() }
             _state.update {

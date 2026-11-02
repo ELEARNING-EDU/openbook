@@ -64,6 +64,8 @@ class SpeechReader(private val context: Context) {
     private var stateInternal by mutableStateOf(SpeechState.IDLE)
     private var hearingFromEngine = false
     private var fallbackMode = false
+    /** Errors since the last sentence that actually started; two in a row means no voice. */
+    private var consecutiveErrors = 0
 
     /**
      * Counts the times the engine has been restarted. It is part of every utterance id,
@@ -259,6 +261,8 @@ class SpeechReader(private val context: Context) {
 
     /** Stops reading and clears the highlight. */
     fun stop() {
+        // A start still waiting for engine init must not fire after the reader stopped.
+        pendingStart = null
         tts?.stop()
         pausedAt = -1
         finishSpeaking()
@@ -500,8 +504,11 @@ class SpeechReader(private val context: Context) {
 
     private fun beginSpeaking(from: Int) {
         val engine = tts ?: return
+        // A pending index belongs to the book that was open when it was tapped.
+        if (from < 0 || from >= (source?.sentenceCount ?: 0)) return
         pendingStart = null
         fallbackMode = false
+        consecutiveErrors = 0
         epoch++
         speakStart = from
         pausedAt = from
@@ -579,6 +586,7 @@ class SpeechReader(private val context: Context) {
                 if (at != epoch) return@post
                 if (!isPlayingNow() || fallbackMode) return@post
                 hearingFromEngine = true
+                consecutiveErrors = 0
                 lastStarted = index
                 cancelWatchdog()
                 onHighlight(index)
@@ -615,6 +623,13 @@ class SpeechReader(private val context: Context) {
             main.post {
                 if (at != epoch) return@post
                 if (!isPlayingNow() || fallbackMode) return@post
+                // Two failures in a row is not a bad sentence but a voice this device
+                // cannot synthesize; walking on would only highlight silent pages.
+                if (++consecutiveErrors >= 2) {
+                    finishSpeaking()
+                    onStatus(context.getString(R.string.speech_unavailable, errorCode))
+                    return@post
+                }
                 onStatus(context.getString(R.string.speech_sentence_error, index, errorCode))
                 onSentenceSpoken()
             }

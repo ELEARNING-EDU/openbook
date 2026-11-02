@@ -1,5 +1,13 @@
 # Tasks — Sách (Android EPUB reader)
 
+Fix 2026-11-02: T-110, T-114–T-117 implemented in the working tree (uncommitted). `LibraryStore` ưu tiên author override và xóa cover khi xóa sách; `AppViewModel.deleteBooks` gọi `highlights.erase`; `ReaderEngine` fold trả về offset gốc, `Đ`→`d`; `SpeechReader.stop` hủy `pendingStart`. Test mới `TextFoldTest` (3 ca). Offline test/lint/assembleDebug exit 0 (86 test, 1 skip). Codex `review` PASS; `qa`/`test` bị chặn bởi sandbox Codex (không mở được Gradle lock/socket) nên chưa có evidence độc lập. Chưa commit.
+
+T-118 (mới, cùng batch): TTS lỗi `-4` từng lặp vô hạn và tự nhảy câu dù không có tiếng. Đã sửa: `SpeechReader` dừng sau 2 lỗi liên tiếp và báo `speech_unavailable` (EN/VI). Xác minh trên E3 với lỗi `-4` thật: log dừng ở câu 82, player bar biến mất, thông báo hiện trên trang (ảnh `e3-note.png`).
+
+QA thiết bị 2026-11-02 trên E3: cài APK debug, mở app/thư viện/sách OK. "Không có tiếng" là do emulator bật chế độ máy bay và chỉ có giọng `vi-vn-x-vif-network` (server); tắt máy bay thì Google TTS tổng hợp và phát bình thường (AudioTrack 304008 frames). Trạng thái E3 sau kiểm tra: máy bay bật lại như ban đầu, dữ liệu Google TTS đã bị `pm clear` (cần tải lại giọng vi khi muốn đọc offline).
+
+QA 2026-11-01: T-110, T-114–T-117 remain pending after code recheck. Filtered offline JVM tests: 82 pass, 1 skip; lint and debug build pass. Corpus cases excluded; no device QA. See PROJECT_STATE.md.
+
 ## Review codebase — 2026-10-29 (chỉ review, chưa sửa)
 
 Ứng dụng đọc EPUB offline cho một người dùng trên thiết bị: nhập sách, thư viện/Home, phân trang/lật trang, tìm kiếm, bookmark/highlight, TTS, hẹn giờ, thống kê và theme. Store hiện là demo, không coi thiếu thanh toán/catalogue là lỗi. Tải đánh giá: thư viện cá nhân gồm nhiều sách, có sách dài và EPUB từ nguồn ngoài.
@@ -98,6 +106,7 @@ the code on 2026-11-01 (T-108/T-109/T-112 closed).
 | T-115 | **P2 — Cover cache:** deleting a book removes its cached cover; a same-name reimport with a different image does not reuse the old one | Pending | T-110 | Code review: `LibraryStore.cacheCover` keys on existence + byte size, `delete` never removes `covers/<id>`. Repro in the review section above |
 | T-116 | **P2 — Search folding:** `doc` matches `Đọc`, `tieng` matches NFD `tiếng`, and the offset maps back to the original text | Pending | — | Kotlin probe 2026-10-29 printed `NFD tiếng matches tieng: false`, `Đọc matches doc: false` (`reader/ReaderEngine.kt:320–345`) |
 | T-117 | **P2 — Pending TTS start:** `stop()` cancels a start that is waiting for engine init | Pending | — | Code review: `SpeechReader.start` stores `pendingStart`, `stop/finishSpeaking` never clears it and `handleInit` speaks it (`SpeechReader.kt:135–148,233–251,523–534`) |
+| T-118 | **P2 — TTS failure loop:** two failed syntheses in a row stop playback and tell the reader to install a voice | Fixed (uncommitted) | — | Device 2026-11-02 (E3, voice `-4`): log stops at sentence 82, player bar clears, `speech_unavailable` note shown. `SpeechReader.kt:628–634`, strings EN/VI |
 
 ## Closed (verified)
 

@@ -1,5 +1,20 @@
 # Project state — Sách (Android EPUB reader)
 
+## Fix checkpoint — 2026-11-02 (T-110, T-114–T-117)
+- Sửa 5 lỗi P2 trong working tree, chưa commit: `library/LibraryStore.kt` (author override thắng `dc:creator`; `delete` xóa `covers/<id>` cho id đã xóa thành công), `ui/AppViewModel.kt` (inject `HighlightStore`, `deleteBooks` erase highlight trong vòng `report.deleted`), `reader/ReaderEngine.kt` (fold thành `foldText` trả `(text, offsets)`, `Đ`→`d`, bỏ dấu tổ hợp NFD và map offset về văn bản gốc), `reader/SpeechReader.kt` (`stop` hủy `pendingStart`; `beginSpeaking` chặn index ngoài source).
+- Test mới `app/src/test/java/com/elearning/openbook/reader/TextFoldTest.kt` (3 ca: Đọc/dấu, NFD + offset, 1 offset mỗi ký tự giữ lại).
+- `./gradlew --offline :app:testDebugUnitTest ... :app:lintDebug :app:assembleDebug` exit 0: 86 test, 1 skip, 0 fail; lint không lỗi; APK debug tạo được.
+- Gate Codex `gpt-6-astra` (effort low): `review` PASS (không finding). `qa` và `test` NOT_VERIFIED vì sandbox Codex không mở được Gradle `.lck`/loopback socket (`Operation not permitted`) — lỗi môi trường, không phải lỗi code; cần chạy lại gate khi Codex có quyền ghi `~/.gradle` và socket.
+- Chưa QA thiết bị/corpus; T-110/T-115/T-117 chỉ được xác nhận bằng đọc code. Chưa commit: TASKS giữ Pending tới khi có xác minh runtime.
+- **T-118 (thêm trong batch):** `SpeechReader` nay dừng sau 2 lỗi TTS liên tiếp và báo thiếu giọng đọc (`speech_unavailable`, EN/VI) thay vì nhảy câu trong im lặng. Thiết bị E3 với lỗi `-4` thật: log dừng ở câu 82, player bar tắt, note hiện 4 giây.
+- **QA thiết bị E3 (2026-11-02):** cài APK debug, mở Home/Library/Reader bình thường. "Không có tiếng" do emulator bật máy bay + chỉ có giọng server `vi-vn-x-vif-network`; tắt máy bay thì phát được (`AudioTrack` 304008 frames). E3 đã bật lại máy bay như ban đầu; dữ liệu Google TTS bị `pm clear` nên cần tải lại giọng vi offline khi cần.
+
+## QA checkpoint — 2026-11-01 (review only)
+
+- Review rechecked T-110, T-114–T-117 against current code; no app changes. T-111/T-113 remain open; no device reproduction this session.
+- Offline `:app:testDebugUnitTest` with library, reader, ui, EpubArchiveTest and ZipExtractTest filters plus `:app:lintDebug :app:assembleDebug` exited 0: 83 tests, 82 passed, 1 skipped (image corpus); 32 parameterized corpus cases excluded. Lint and debug build passed. Initial sandboxed run exited 1 due to Gradle cache lock permission; rerun with permission succeeded.
+- Working tree already contained deletions and modifications before QA, including `app/build.gradle.kts`; preserve them. Next: fix pending defects only when authorized and restore an in-project corpus for full QA.
+
 ## Session — 2026-11-01 (bounded ZIP, process-scoped playback)
 
 - Docs first: `docs/README.md` was still pointing at the repo root for state/tasks, and this

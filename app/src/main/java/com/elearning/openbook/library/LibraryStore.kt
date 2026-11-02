@@ -69,8 +69,8 @@ class LibraryStore(context: Context) {
                     ?: file.nameWithoutExtension,
             ),
             author = tidyAuthor(
-                info?.author?.takeIf { it.isNotBlank() }
-                    ?: stored?.author?.takeIf { it.isNotBlank() }
+                stored?.author?.takeIf { it.isNotBlank() }
+                    ?: info?.author?.takeIf { it.isNotBlank() }
                     ?: "",
             ),
             importedAt = importedAt,
@@ -116,7 +116,12 @@ class LibraryStore(context: Context) {
         val report = LibraryFiles.delete(directory, ids)
         if (report.deleted.isNotEmpty()) {
             val edit = metadata.edit()
-            for (id in report.deleted) edit.remove(metaKey(id))
+            val covers = File(appContext.filesDir, "covers")
+            for (id in report.deleted) {
+                edit.remove(metaKey(id))
+                // A same-name reimport must not inherit the old book's cover.
+                File(covers, id).delete()
+            }
             if (SEED_FILE_NAME in report.deleted) edit.putBoolean(KEY_SAMPLE_DELETED, true)
             edit.apply()
         }

@@ -240,5 +240,6 @@
     <string name="speech_voice_failed">Could not select that voice (code %1$d)</string>
     <string name="speech_sentence_rejected">The engine rejected sentence %1$d</string>
     <string name="speech_sentence_error">Engine error at sentence %1$d (code %2$d)</string>
+    <string name="speech_unavailable">Reading aloud is unavailable: install a voice for the book\'s language in the text-to-speech settings (code %1$d)</string>
     <string name="speech_silent_fallback">The engine is silent — highlighting continues without audio</string>
 </resources>

@@ -1,5 +1,13 @@
 # Session handoff — Sách (Android EPUB reader)
 
+Checkpoint 2026-11-02 (bổ sung): thêm T-118 — `SpeechReader` dừng sau 2 lỗi TTS liên tiếp và báo `speech_unavailable` (strings EN/VI). Đã xác minh trên E3 với lỗi `-4` thật; build/lint/test offline vẫn xanh. E3 hiện bật máy bay như ban đầu, dữ liệu Google TTS đã bị xóa nên cần tải lại giọng tiếng Việt. Vẫn chưa commit: chờ gate Codex `qa`/`test` chạy được (sandbox hiện chặn Gradle) và QA thiết bị cho T-110/T-115/T-117.
+
+Checkpoint 2026-11-02: đã sửa T-110, T-114–T-117 trong working tree, chưa commit. File: `library/LibraryStore.kt`, `ui/AppViewModel.kt`, `reader/ReaderEngine.kt`, `reader/SpeechReader.kt`, test mới `reader/TextFoldTest.kt`. Kiểm chứng cục bộ: filtered offline unit test (86 test, 1 skip, 0 fail), `:app:lintDebug` và `:app:assembleDebug` exit 0. Gate Codex `gpt-6-astra`: `review` PASS; `qa`/`test` NOT_VERIFIED do sandbox Codex chặn Gradle lock/loopback socket — cần chạy lại khi có quyền. Chưa QA thiết bị; T-110/T-115/T-117 mới xác nhận bằng đọc code. Bước tiếp theo: chạy lại gate Codex không sandbox (hoặc có quyền socket), QA thiết bị cho xóa sách/TTS, rồi stage đúng 5 file và commit.
+
+Báo cáo đã lưu theo yêu cầu: [QA_REVIEW_2026-11-01.md](QA_REVIEW_2026-11-01.md). Chỉ lưu tài liệu, chưa commit.
+
+QA 2026-11-01: no app code changed; filtered offline unit tests, lint and debug build exit 0 (82 pass, 1 skip; 32 corpus cases excluded). Pre-existing dirty files remain, including app/build.gradle.kts and environment/document deletions. Next: obtain authorization for fixes, then inspect T-110/T-114–T-117 in TASKS.md; restore corpus within project before full EPUB QA. No device test performed.
+
 ## Checkpoint — 2026-11-01 (ZIP budget + process-scoped playback; docs synced)
 
 - Owner asked to read `docs/`, update the project state, then fix code. Done in that order.

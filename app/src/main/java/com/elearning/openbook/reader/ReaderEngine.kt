@@ -321,25 +321,28 @@ class ReaderEngine private constructor(
         val needle = query.trim()
         if (needle.length < 2) return emptyList()
         val folded = fold(needle)
+        if (folded.text.isEmpty()) return emptyList()
         val found = ArrayList<Hit>()
 
         for (chapterIndex in chapterText.indices) {
             val text = chapterText[chapterIndex]
-            // The text is folded once, and the match's offsets are mapped back through
-            // it: `fold` is length-preserving by construction.
-            val haystack = fold(text.toString())
+            // The text is folded once, and each hit's offset is mapped back through it:
+            // standalone combining marks make the folded string shorter than the real one.
+            val haystack = fold(text)
             var from = 0
             while (found.size < limit) {
-                val at = haystack.indexOf(folded, from)
+                val at = haystack.text.indexOf(folded.text, from)
                 if (at < 0) break
+                val offset = haystack.offsets[at]
+                val end = haystack.offsets[at + folded.text.length - 1]
                 found += Hit(
                     chapterIndex = chapterIndex,
-                    offset = at,
+                    offset = offset,
                     chapterTitle = chapterTitle(chapterIndex),
-                    snippet = snippetAround(text, at, needle.length),
-                    pageIndex = pageForChapterOffset(chapterIndex, at),
+                    snippet = snippetAround(text, offset, end - offset + 1),
+                    pageIndex = pageForChapterOffset(chapterIndex, offset),
                 )
-                from = at + maxOf(1, folded.length)
+                from = at + maxOf(1, folded.text.length)
             }
             if (found.size >= limit) break
         }
@@ -362,35 +365,13 @@ class ReaderEngine private constructor(
     }
 
     /**
-     * Lower-cases and strips Vietnamese diacritics, one character for one character, so
-     * an offset in the folded string is the same offset in the real one.
-     *
-     * Each character is decomposed on its own and only its base is kept, which is what
-     * makes the mapping length-preserving: a letter with a mark becomes `base + marks`
-     * and the marks are dropped, leaving one character where there was one. `đ` has no
+     * Lower-cases and strips Vietnamese diacritics, recording where every kept character
+     * came from in the real text. A precomposed letter keeps one character and one offset;
+     * a standalone combining mark (NFD text) is dropped, so the folded string is shorter
+     * and [Folded.offsets] is what maps a hit back to the original. `đ` has no
      * decomposition, so it is mapped by hand.
      */
-    private fun fold(value: String): String {
-        val out = StringBuilder(value.length)
-        for (character in value) {
-            val base = java.text.Normalizer
-                .normalize(character.toString(), java.text.Normalizer.Form.NFD)
-                .firstOrNull { !isMark(it) }
-                ?: character
-            out.append(
-                when (base) {
-                    'đ' -> 'd'
-                    'Đ' -> 'D'
-                    else -> base.lowercaseChar()
-                },
-            )
-        }
-        return out.toString()
-    }
-
-    private fun isMark(character: Char): Boolean =
-        Character.getType(character) == Character.NON_SPACING_MARK.toInt() ||
-            Character.getType(character) == Character.COMBINING_SPACING_MARK.toInt()
+    private fun fold(value: CharSequence): Folded = foldText(value)
 
     /** True when a touch landed on the text itself rather than on the paper around it. */
     fun isOnText(x: Float, y: Float): Boolean {
@@ -791,3 +772,33 @@ class ReaderEngine private constructor(
         }
     }
 }
+
+/** A folded search string plus, for each of its characters, the index in the real text. */
+internal class Folded(val text: String, val offsets: IntArray)
+
+/**
+ * Folds [value] for the reader's case- and accent-insensitive scan: lower case, no
+ * diacritics, `đ` as `d`. Standalone combining marks are dropped, which is why the
+ * folded string can be shorter than the original and [Folded.offsets] is needed.
+ */
+internal fun foldText(value: CharSequence): Folded {
+    val out = StringBuilder(value.length)
+    val offsets = IntArray(value.length)
+    for (index in 0 until value.length) {
+        val base = java.text.Normalizer
+            .normalize(value[index].toString(), java.text.Normalizer.Form.NFD)
+            .firstOrNull { !isFoldingMark(it) } ?: continue
+        offsets[out.length] = index
+        out.append(
+            when (base) {
+                'đ', 'Đ' -> 'd'
+                else -> base.lowercaseChar()
+            },
+        )
+    }
+    return Folded(out.toString(), offsets.copyOf(out.length))
+}
+
+private fun isFoldingMark(character: Char): Boolean =
+    Character.getType(character) == Character.NON_SPACING_MARK.toInt() ||
+        Character.getType(character) == Character.COMBINING_SPACING_MARK.toInt()

@@ -231,5 +231,6 @@
     <string name="speech_voice_failed">Không đặt được giọng đọc (mã %1$d)</string>
     <string name="speech_sentence_rejected">Engine từ chối câu %1$d</string>
     <string name="speech_sentence_error">Lỗi engine ở câu %1$d (mã %2$d)</string>
+    <string name="speech_unavailable">Không đọc được thành tiếng: hãy cài giọng đọc cho ngôn ngữ của sách trong cài đặt chuyển văn bản thành tiếng (mã %1$d)</string>
     <string name="speech_silent_fallback">Engine không phát tín hiệu — tô sáng mô phỏng (chưa kiểm chứng được âm thanh)</string>
 </resources>
