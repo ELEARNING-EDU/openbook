@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Settings 2026-11-02 (sửa): quay lại ModalBottomSheet; popover dùng `Popup` + `PopupPositionProvider` tự tính vị trí từ anchor của hàng (rộng 220dp, viền/shadow), vì `DropdownMenu` trong sheet bị Compose neo vào cửa sổ của sheet nên hiện lệch chỗ. Menu bám đúng mép trái hàng, mở xuống dưới nếu đủ chỗ, không thì lật lên trên.
+
 Settings 2026-11-02: cửa sổ App settings chia nhóm LANGUAGE / READING / AUDIO, mỗi lựa chọn là một hàng mở popover (DropdownMenu) thay cho radio/chips. Thêm mục AUDIO → Hẹn giờ tắt (Off, 5, 15, 30, 45, 60 phút) gọi thẳng `SleepTimer` của trình đọc; hiển thị "còn N phút" khi đang chạy. Đổi ModalBottomSheet sang Dialog vì popover trong sheet bị đặt sai vị trí. E3: đặt 5 phút → hàng hiện "5 min left".
 
 Sửa 2026-11-02: tiêu đề chương hiện "INDEX" với sách convert bằng Calibre — mọi file XHTML đều có `<title>index</title>` và toc.ncx chỉ có một mục "Start". `EpubArchive.documentTitle` giờ bỏ qua title chung chung (index, untitled, document, contents, start…) và lấy heading đầu tiên. E3: header đổi thành "HỒI TƯỞNG"; test `DocumentTitleTest` 3 ca.

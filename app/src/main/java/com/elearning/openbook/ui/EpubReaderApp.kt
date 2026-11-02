@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -236,6 +238,7 @@ fun EpubReaderApp(
 }
 
 /** The reader's own settings: language, reading, and the sleep timer. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun AppSettingsDialog(
     language: AppLanguage,
@@ -249,14 +252,17 @@ private fun AppSettingsDialog(
     val colors = shellColors()
     val sleepMinutes = com.elearning.openbook.playback.SleepTimer.minutes
     val sleepLeft = com.elearning.openbook.playback.SleepTimer.leftSeconds
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colors.raised,
+        contentColor = colors.ink,
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = colors.inkSoft) },
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(colors.raised)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 22.dp),
+                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
         ) {
             Text(
                 text = stringResource(R.string.app_settings),
@@ -372,19 +378,37 @@ private fun SettingsPick(
                 color = colors.inkSoft,
             )
         }
-        androidx.compose.material3.DropdownMenu(
-            expanded = open,
-            onDismissRequest = { open = false },
-            containerColor = colors.raised,
-        ) {
-            for ((text, action) in options) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(text, fontFamily = FontFamily.Serif, fontSize = 15.sp) },
-                    onClick = {
-                        open = false
-                        action()
-                    },
-                )
+        if (open) {
+            androidx.compose.ui.window.Popup(
+                popupPositionProvider = AnchorBelow,
+                onDismissRequest = { open = false },
+                properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(220.dp)
+                        .shadow(10.dp, RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.raised)
+                        .border(1.dp, colors.hairline, RoundedCornerShape(12.dp))
+                        .padding(vertical = 6.dp),
+                ) {
+                    for ((text, action) in options) {
+                        Text(
+                            text = text,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    open = false
+                                    action()
+                                }
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
+                            fontFamily = FontFamily.Serif,
+                            fontSize = 15.sp,
+                            color = colors.ink,
+                        )
+                    }
+                }
             }
         }
     }
@@ -401,6 +425,33 @@ private fun SettingsGroupLabel(text: String) {
         letterSpacing = 1.sp,
         color = shellColors().inkSoft,
     )
+}
+
+/**
+ * Drops a menu just under the row it belongs to. `DropdownMenu` inside a bottom sheet is
+ * anchored to the sheet's own window in Compose, which put it far from the row; this
+ * provider uses the popup's real anchor bounds instead.
+ */
+private object AnchorBelow : androidx.compose.ui.window.PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: androidx.compose.ui.unit.IntRect,
+        windowSize: androidx.compose.ui.unit.IntSize,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        popupContentSize: androidx.compose.ui.unit.IntSize,
+    ): androidx.compose.ui.unit.IntOffset {
+        val margin = 8
+        val x = anchorBounds.left.coerceIn(
+            margin,
+            (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin),
+        )
+        val below = anchorBounds.bottom + margin
+        val y = if (below + popupContentSize.height <= windowSize.height) {
+            below
+        } else {
+            (anchorBounds.top - popupContentSize.height - margin).coerceAtLeast(margin)
+        }
+        return androidx.compose.ui.unit.IntOffset(x, y)
+    }
 }
 
 private val SLEEP_CHOICES = listOf(0, 5, 15, 30, 45, 60)
