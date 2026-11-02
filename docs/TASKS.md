@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Hoàn tác 2026-11-02: gỡ `vi-lexicon.txt` + NOTICE (không nhúng dữ liệu Viet74K vào repo). Bộ check là danh sách tự soạn `assets/vi-words.txt` (834 từ). Viet74K chỉ dùng làm tham chiếu để đo độ phủ và phát hiện thiếu từ ở các đợt sau.
+
 Từ điển 2026-11-02 (Viet74K): nhúng `assets/vi-lexicon.txt` — 7.203 từ đơn rút từ Viet74K (NFC, lowercase, bỏ cụm từ, chỉ giữ chữ cái Việt), 44 KB, kèm `NOTICE-vi-lexicon.txt` (GPL, Hồ Ngọc Đức / duyet/vietnamese-wordlist). Độ phủ trên sách thật: 75,6% kiểu từ, 97,0% lượt từ. Vì lexicon bảo vệ cả những dạng trùng với từ hợp lệ (`ích`, `ấy`, `au`…), số chữ `đ` tự khôi phục giảm còn 5.768 (trước 8.429) — đổi lấy việc không phá sách sạch. Bước tiếp: màn "Từ cần xem lại" dùng lexicon này.
 
 Từ điển 2026-11-02 (đợt lớn A): 344 → 834 từ (thêm ~500 từ thông dụng + bỏ 11 mục bảo vệ sai như `uôi, ua, inh, ường, ều, ểu, ổi, áy, òn, ưa, óng` vì chúng không phải từ độc lập và đang chặn sửa `đuôi, đua, đinh, đường, đều…`). Sách thật: 8.429 chữ khôi phục / 77 tệp; phân tích lỗ hổng còn lại theo ngữ liệu = 0.
