@@ -342,7 +342,7 @@ private struct ContinueReadingCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            BookCover(book: item.book)
+            BookCover(book: item.book, showsGeneratedText: false)
                 .frame(width: 72)
 
             VStack(alignment: .leading, spacing: 7) {

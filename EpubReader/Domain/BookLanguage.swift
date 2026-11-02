@@ -57,13 +57,21 @@ enum BookLanguage {
     }
 
     /// Letters and tone marks that only Vietnamese uses.
+    ///
+    /// French and Spanish also put acute, grave and circumflex accents on vowels
+    /// (`é`, `è`, `ê`, `à`, `ô`, `á`, `í`, …), so those alone are not evidence of
+    /// Vietnamese. The breve, the horn, `đ`, and the hook-above/dot-below vowels
+    /// are.
     private static let vietnameseSignals: Set<Unicode.Scalar> = {
         let letters =
-            "ăâđêôơưĂÂĐÊÔƠƯ"
-            + "àáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩị"
-            + "òóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ"
-            + "ÀÁẢÃẠẰẮẲẴẶẦẤẨẪẬÈÉẺẼẸỀẾỂỄỆÌÍỈĨỊ"
-            + "ÒÓỎÕỌỒỐỔỖỘỜỚỞỠỢÙÚỦŨỤỪỨỬỮỰỲÝỶỸỴ"
+            "ăĂđĐơƠưƯ"
+            + "ảẢẻẺểỂỉỈỏỎủỦỷỶ"
+            + "ạẠẹẸệỆịỊọỌộỘợỢụỤựỰỵỴ"
+            + "ẳẲẩẨổỔởỞửỬ"
+            + "ẵẴẫẪễỄỗỖỡỠữỮ"
+            + "ặẶậẬộỘợỢựỰ"
+            + "ắẮấẤếẾốỐớỚứỨ"
+            + "ằẰầẦềỀồỒờỜừỪ"
         return Set(letters.unicodeScalars)
     }()
 }

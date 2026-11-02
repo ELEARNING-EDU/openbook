@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// One secondary shelf on Home: a heading and a continuous run of books.
 /// The covers sit on the page with no card around them, and a title too long for
@@ -11,8 +10,6 @@ struct HomeBookRow: View {
     let books: [BookItem]
     let palette: ReaderPalette
     let subtitle: (BookItem) -> String
-
-    @ObservedObject private var covers = BookCoverStore.shared
 
     private let tileWidth: CGFloat = 150
     private let coverWidth: CGFloat = 96
@@ -61,16 +58,6 @@ struct HomeBookRow: View {
         VStack(alignment: .leading, spacing: 5) {
             BookCover(book: book)
                 .frame(width: coverWidth)
-
-            // The title of a generated cover is printed on the cover itself; a
-            // book with a real cover relies on that image. Only the generated
-            // cover repeats the author underneath it.
-            if covers.state(for: book) != .image, !book.author.isEmpty {
-                Text(verbatim: book.author)
-                    .font(.system(size: 12))
-                    .foregroundStyle(palette.swiftInkSoft)
-                    .lineLimit(1)
-            }
 
             Text(verbatim: subtitle(book))
                 .font(.system(size: 11, weight: .medium, design: .rounded))

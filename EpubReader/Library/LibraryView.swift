@@ -337,7 +337,7 @@ struct LibraryView: View {
 
     private func listRow(_ book: BookItem) -> some View {
         HStack(alignment: .center, spacing: 14) {
-            BookCover(book: book)
+            BookCover(book: book, showsGeneratedText: false)
                 .frame(width: 64)
             VStack(alignment: .leading, spacing: 6) {
                 Text(verbatim: book.title)
@@ -555,6 +555,10 @@ struct ReadPercentLabel: View {
 struct BookCover: View {
 
     let book: BookItem
+    /// Whether a generated cover prints the title and author inside it. The
+    /// Home Continue card and the Library list already name the book beside the
+    /// cover, so they ask for the gradient alone; the shelf and grid keep it.
+    var showsGeneratedText = true
 
     @ObservedObject private var covers = BookCoverStore.shared
     @State private var image: UIImage?
@@ -585,7 +589,9 @@ struct BookCover: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                generatedText
+                if showsGeneratedText {
+                    generatedText
+                }
             }
         }
         .aspectRatio(0.68, contentMode: .fit)

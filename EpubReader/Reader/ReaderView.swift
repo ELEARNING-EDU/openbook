@@ -1328,7 +1328,7 @@ struct ReaderView: View {
 
             HStack(spacing: 0) {
                 if !playerIsCompact {
-                    panelButton("gobackward", label: L10n.string("reader.slower"), enabled: speech.canSlowDown) {
+                    panelButton("minus", label: L10n.string("reader.slower"), enabled: speech.canSlowDown) {
                         speech.slower()
                     }
                 }
@@ -1337,7 +1337,7 @@ struct ReaderView: View {
                     label: L10n.string(speech.state == .playing ? "reader.pause" : "reader.play")
                 ) { speech.togglePlayPause() }
                 if !playerIsCompact {
-                    panelButton("goforward", label: L10n.string("reader.faster"), enabled: speech.canSpeedUp) {
+                    panelButton("plus", label: L10n.string("reader.faster"), enabled: speech.canSpeedUp) {
                         speech.faster()
                     }
                 }
