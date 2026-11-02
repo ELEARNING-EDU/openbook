@@ -385,7 +385,7 @@ private fun ContinueCard(item: InProgressBook, onOpen: () -> Unit) {
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BookCover(book = item.book, modifier = Modifier.width(72.dp))
+        BookCover(book = item.book, modifier = Modifier.width(72.dp), showText = false)
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -492,19 +492,6 @@ private fun ShelfBook(book: BookItem, subtitle: String, onOpen: () -> Unit) {
             .semantics(mergeDescendants = true) { contentDescription = description },
     ) {
         BookCover(book = book, modifier = Modifier.width(96.dp))
-        // A book that carries its own cover already shows its name there; a second,
-        // scrolling title under it only made the shelf noisy.
-        if (book.coverPath == null && book.author.isNotBlank()) {
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = book.author,
-                fontFamily = FontFamily.Serif,
-                fontSize = 11.sp,
-                color = colors.inkSoft,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = subtitle,

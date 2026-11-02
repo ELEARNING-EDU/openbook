@@ -1271,11 +1271,11 @@ private fun isPlainCover(bitmap: android.graphics.Bitmap): Boolean {
 
 /**
  * The generated cover, in the shelf and in the audio player: the same gradient and the
- * same spine, so the book is one object wherever it appears. The title and author live
- * outside the cover — printing them twice made the cover fight the label beside it.
+ * same spine, so the book is one object wherever it appears. [showText] is false where
+ * the reader has just read the title and a printed cover would only repeat it.
  */
 @Composable
-fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
+fun BookCover(book: BookItem, modifier: Modifier = Modifier, showText: Boolean = true) {
     val (top, bottom) = ReaderTheme.coverPalette(book.title)
     val shape = RoundedCornerShape(10.dp)
     val rawBitmap = remember(book.coverPath) {
@@ -1303,7 +1303,7 @@ fun BookCover(book: BookItem, modifier: Modifier = Modifier) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-        } else {
+        } else if (showText) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()

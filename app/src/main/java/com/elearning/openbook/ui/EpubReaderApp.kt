@@ -46,7 +46,6 @@ import com.elearning.openbook.R
 import com.elearning.openbook.library.ReadingLogStore
 import com.elearning.openbook.reader.ReaderTheme
 import com.elearning.openbook.settings.AppLanguage
-import com.elearning.openbook.ui.MainTab
 
 @Composable
 fun EpubReaderApp(
@@ -137,7 +136,8 @@ fun EpubReaderApp(
         }
 
         val now = com.elearning.openbook.playback.NowPlaying.book
-        if (now != null && state.opened == null && state.tab == MainTab.HOME) {
+        // The listening disc follows the reader across Home, Library and Store.
+        if (now != null && state.opened == null) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
