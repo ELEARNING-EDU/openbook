@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Chính tả 2026-11-02 (đợt 2): nhận diện tiếng Việt theo nội dung từng tài liệu (`TextCleanup.looksVietnamese`, ≥2% chữ cái mang dấu tiếng Việt, ≥20 chữ cái) thay vì tin `dc:language` — sách "33-thuc-tinh" khai báo sai là `en`. Sách/ chương ngôn ngữ khác không bị chèn `đ`, chỉ chuẩn hóa Unicode. Từ điển mở rộng lên 303 từ. Kết quả trên sách thật: 7.853 chữ khôi phục / 72 tệp (trước 7.411); bản `en-book.epub` nhập vào không đổi byte nào và không hiện hộp thoại.
+
 Sửa chính tả 2026-11-02: bộ từ điển tự dựng `assets/vi-words.txt` (272 từ, gồm từ có `đ` để khôi phục và từ bắt đầu bằng nguyên âm để không sửa nhầm). Quy tắc: chỉ chèn `đ` khi từ gốc không có trong danh sách, chứa dấu tiếng Việt, và dạng thêm `đ` là từ đã biết; giữ nguyên hoa/thường. Kết quả trên sách "33-thuc-tinh...": 7.411 chữ `đ` được khôi phục trong 72 tệp, đã kiểm tra lại "trái đất", "đời sống", "áp suất" đúng và không còn "đấm lòng"/"ký đức". Từ vựng chưa có trong danh sách chỉ bị bỏ qua, không bị sửa bừa.
 
 Import 2026-11-02: bản sao EPUB khi nhập được chuẩn hóa Unicode một lần (`epub/TextCleanup`): NFC, bỏ soft hyphen/zero-width/BOM trong phần text, giữ nguyên markup và các entry khác, `mimetype` vẫn đầu tiên và không nén. Có hộp thoại báo số đoạn đã sửa. Chỉ lỗi hệ thống, không có từ điển — sách đa ngôn ngữ không bị đoán chữ. Test `TextCleanupTest` (5 ca) + kiểm chứng E3: file NFD-test nhập qua picker, bản sao trong `Books/` thành NFC, `mimetype` đứng đầu.

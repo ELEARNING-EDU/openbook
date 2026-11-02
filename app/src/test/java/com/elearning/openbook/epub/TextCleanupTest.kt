@@ -91,36 +91,81 @@ class TextCleanupTest {
 
     @Test
     fun restoresALostDWhenTheResultIsAKnownWord() {
-        val file = epub("<p>trái ất ã ó ời</p>")
+        val file = epub(
+            "<p>Người ta bảo nhau rằng biển rất đẹp và ất ã ó ời là những chữ đã mất.</p>",
+        )
 
         val report = TextCleanup.clean(file, setOf("đất", "đã", "đó", "đời", "ăn", "em"))
 
-        assertEquals("<p>trái đất đã đó đời</p>", entry(file, "OEBPS/chapter.xhtml"))
+        assertEquals(
+            "<p>Người ta bảo nhau rằng biển rất đẹp và đất đã đó đời là những chữ đã mất.</p>",
+            entry(file, "OEBPS/chapter.xhtml"),
+        )
         assertEquals(4, report.words)
         assertEquals(1, report.files)
     }
 
     @Test
     fun keepsKnownWordsAndLettersThatAreNotVietnamese() {
-        val file = epub("<p>em ăn ở nhà i a</p>")
+        val file = epub(
+            "<p>Người ta bảo nhau rằng em ăn ở nhà và i a vẫn đúng như vậy.</p>",
+        )
 
         val report = TextCleanup.clean(
             file,
             setOf("em", "ăn", "ở", "đem", "đăn", "đở", "đi", "đa"),
         )
 
-        assertEquals("<p>em ăn ở nhà i a</p>", entry(file, "OEBPS/chapter.xhtml"))
+        assertEquals(
+            "<p>Người ta bảo nhau rằng em ăn ở nhà và i a vẫn đúng như vậy.</p>",
+            entry(file, "OEBPS/chapter.xhtml"),
+        )
         assertEquals(0, report.words)
         assertFalse(report.changed)
     }
 
     @Test
     fun keepsTheCaseOfARestoredLetter() {
-        val file = epub("<p>Ã đã mất</p>")
+        val file = epub(
+            "<p>Người ta bảo nhau rằng biển rất đẹp và Ã là chữ mất đầu câu.</p>",
+        )
 
         TextCleanup.clean(file, setOf("đã"))
 
-        assertEquals("<p>ĐÃ đã mất</p>", entry(file, "OEBPS/chapter.xhtml"))
+        assertEquals(
+            "<p>Người ta bảo nhau rằng biển rất đẹp và ĐÃ là chữ mất đầu câu.</p>",
+            entry(file, "OEBPS/chapter.xhtml"),
+        )
+    }
+
+    @Test
+    fun recognisesVietnameseFromTheTextItself() {
+        assertTrue(
+            TextCleanup.looksVietnamese(
+                "Người ta bảo nhau rằng một người giữ đèn thì không được ngủ.",
+            ),
+        )
+        assertFalse(
+            TextCleanup.looksVietnamese(
+                "The quick brown fox jumps over the lazy dog and runs away.",
+            ),
+        )
+        // Too short to judge either way.
+        assertFalse(TextCleanup.looksVietnamese("Tiếng Việt"))
+    }
+
+    @Test
+    fun leavesAChapterInAnotherLanguageAloneEvenWithAWordList() {
+        val file = epub(
+            "<p>The quick brown fox jumps over the lazy dog and runs away before the hunter comes.</p>",
+        )
+
+        val report = TextCleanup.clean(file, setOf("đất", "đó", "được"))
+
+        assertEquals(0, report.words)
+        assertTrue(
+            entry(file, "OEBPS/chapter.xhtml").startsWith("<p>The quick brown fox"),
+        )
     }
 
     @Test

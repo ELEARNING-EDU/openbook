@@ -38,9 +38,27 @@ object TextCleanup {
         '\uFEFF',
     )
 
+    /**
+     * Whether a document reads as Vietnamese, judged from the text itself. Shop copies
+     * are often mislabelled (`dc:language` says `en` for a Vietnamese book), and a
+     * mixed-language book can hold both, so the package's claim is not trusted.
+     */
+    internal fun looksVietnamese(text: CharSequence): Boolean {
+        var letters = 0
+        var vietnamese = 0
+        for (character in text) {
+            if (!character.isLetter()) continue
+            letters++
+            if (character.lowercaseChar() in vietnameseLetters) vietnamese++
+        }
+        return letters >= 20 && vietnamese * 50 >= letters
+    }
+
+    private val vietnameseLetters =
+        "àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ".toSet()
+
     /** Rewrites [file], or leaves it alone when there is nothing to fix or the pass fails. */
-    fun clean(file: File, words: Set<String> = emptySet()): TextCleanupReport {
-        val temp = File(file.parentFile, file.name + ".clean")
+    fun clean(file: File, words: Set<String> = emptySet()): TextCleanupReport {        val temp = File(file.parentFile, file.name + ".clean")
         var report = TextCleanupReport()
         try {
             ZipFile(file).use { zip ->
@@ -57,7 +75,8 @@ object TextCleanup {
                             val text = runCatching { bytes.decodeToString(throwOnInvalidSequence = true) }
                                 .getOrNull()
                             if (text != null) {
-                                val (cleaned, count, fixed) = cleanMarkup(text, words)
+                                val dictionary = if (looksVietnamese(text)) words else emptySet()
+                                val (cleaned, count, fixed) = cleanMarkup(text, dictionary)
                                 if (count > 0 || fixed > 0) {
                                     payload = cleaned.encodeToByteArray()
                                     changed = count

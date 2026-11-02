@@ -18,7 +18,13 @@ import java.util.zip.ZipFile
  */
 object EpubArchive {
 
-    data class Metadata(val title: String, val author: String, val cover: ByteArray? = null)
+    data class Metadata(
+        val title: String,
+        val author: String,
+        val cover: ByteArray? = null,
+        /** The OPF's `dc:language`, lowercase; empty when the package does not say. */
+        val language: String = "",
+    )
 
     private const val CONTAINER = "META-INF/container.xml"
     private const val ENCRYPTION = "META-INF/encryption.xml"
@@ -59,6 +65,7 @@ object EpubArchive {
                 title = pkg.title.ifBlank { file.nameWithoutExtension },
                 author = pkg.author.ifBlank { "" },
                 cover = coverBytes(pkg, zip),
+                language = pkg.language.trim().lowercase(),
             )
         }
     }

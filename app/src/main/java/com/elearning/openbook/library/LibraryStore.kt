@@ -152,7 +152,7 @@ class LibraryStore(context: Context) {
             // Refuse anything that is not a readable, unencrypted EPUB. The archive
             // decides which problem it is (not a ZIP, no container, no OPF, empty
             // spine, DRM); the UI turns that into the matching localized line.
-            try {
+            val meta = try {
                 EpubArchive.readMetadata(target)
             } catch (problem: EpubException) {
                 throw problem
@@ -163,7 +163,7 @@ class LibraryStore(context: Context) {
             android.util.Log.i(
                 "LibraryStore",
                 "import ${target.name}: ${android.os.SystemClock.elapsedRealtime() - started} ms, " +
-                    "${target.length()} bytes",
+                    "${target.length()} bytes, lang ${meta.language.ifBlank { "unknown" }}",
             )
             persist(
                 unique,
