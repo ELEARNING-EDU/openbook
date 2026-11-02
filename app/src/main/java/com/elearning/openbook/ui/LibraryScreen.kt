@@ -586,7 +586,7 @@ private fun ListBook(
             .padding(vertical = 6.dp, horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BookCover(book = book, modifier = Modifier.width(64.dp), showText = false)
+        BookCover(book = book, modifier = Modifier.width(88.dp), showText = false)
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
