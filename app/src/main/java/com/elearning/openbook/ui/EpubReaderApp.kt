@@ -219,6 +219,7 @@ fun EpubReaderApp(
         AppSettingsDialog(
             language = state.language,
             goalMinutes = state.goalMinutes,
+            repairText = state.repairText,
             onDismiss = { showAppSettings = false },
             onSelect = { next ->
                 app.setLanguage(next)
@@ -227,6 +228,7 @@ fun EpubReaderApp(
                 contextActivity?.recreate()
             },
             onGoal = app::setGoal,
+            onRepair = app::setRepairText,
         )
     }
 }
@@ -237,9 +239,11 @@ fun EpubReaderApp(
 private fun AppSettingsDialog(
     language: AppLanguage,
     goalMinutes: Int,
+    repairText: Boolean,
     onDismiss: () -> Unit,
     onSelect: (AppLanguage) -> Unit,
     onGoal: (Int) -> Unit,
+    onRepair: (Boolean) -> Unit,
 ) {
     val colors = shellColors()
     androidx.compose.material3.ModalBottomSheet(
@@ -301,6 +305,32 @@ private fun AppSettingsDialog(
                 }
             }
 
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_repair_text),
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = colors.inkSoft,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.settings_repair_text_hint),
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 11.sp,
+                        color = colors.inkSoft.copy(alpha = 0.8f),
+                    )
+                }
+                androidx.compose.material3.Switch(
+                    checked = repairText,
+                    onCheckedChange = onRepair,
+                )
+            }
             Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = stringResource(R.string.settings_reading_goal),

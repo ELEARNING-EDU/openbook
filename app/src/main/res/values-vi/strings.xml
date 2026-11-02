@@ -42,6 +42,8 @@
     <string name="library_mark_finished">Đánh dấu đã đọc xong</string>
     <string name="library_unmark_finished">Bỏ đánh dấu</string>
     <string name="library_finished">Đã đọc xong</string>
+    <string name="settings_repair_text">Tự sửa lỗi chính tả khi nhập sách</string>
+    <string name="settings_repair_text_hint">Khôi phục chữ đ bị mất và chữ bị lặp trong bản sao. Tắt đi thì sách được giữ nguyên như bản gốc.</string>
     <string name="settings_reading_goal">Mục tiêu đọc mỗi ngày</string>
     <string name="settings_reading_goal_minutes">%1$d phút</string>
     <string name="home_reading_now">ĐANG ĐỌC</string>

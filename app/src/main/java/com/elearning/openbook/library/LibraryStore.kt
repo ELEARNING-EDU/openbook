@@ -11,6 +11,7 @@ import com.elearning.openbook.epub.VietnameseWords
 import com.elearning.openbook.model.BookItem
 import com.elearning.openbook.model.EpubException
 import com.elearning.openbook.model.EpubProblem
+import com.elearning.openbook.settings.TextRepairStore
 import java.io.File
 
 /** A book that landed on the shelf, plus what the import's text pass changed in it. */
@@ -32,6 +33,9 @@ class LibraryStore(context: Context) {
 
     /** Read once: the words the import may lean on when it puts a lost `đ` back. */
     private val words by lazy { VietnameseWords.load(appContext) }
+
+    /** The reader's choice: repair the text of a copy, or keep the book as published. */
+    private val repair = TextRepairStore(appContext)
 
     private val directory: File
         get() = File(appContext.filesDir, "Books").also { if (!it.exists()) it.mkdirs() }
@@ -64,6 +68,7 @@ class LibraryStore(context: Context) {
      * flag keeps later launches from repeating the pass.
      */
     fun cleanLibrary() {
+        if (!repair.enabled) return
         val edit = metadata.edit()
         var touched = false
         for (file in directory.listFiles().orEmpty()) {
@@ -193,8 +198,13 @@ class LibraryStore(context: Context) {
             // Composed Unicode and no invisible characters, so the same text searches,
             // highlights and speaks the same way on every device. The original pick is
             // never touched; only this copy is.
-            val cleanup = TextCleanup.clean(target, words)
-            metadata.edit().putBoolean(cleanedKey(unique), true).apply()
+            val cleanup = if (repair.enabled) {
+                TextCleanup.clean(target, words).also {
+                    metadata.edit().putBoolean(cleanedKey(unique), true).apply()
+                }
+            } else {
+                TextCleanupReport()
+            }
             return ImportedBook(describe(target), cleanup)
         } catch (t: Throwable) {
             target.delete()

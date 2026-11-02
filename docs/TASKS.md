@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Setting 2026-11-02: thêm tùy chọn "Tự sửa lỗi chính tả khi nhập sách" trong App settings (`settings/TextRepairStore`, mặc định bật). Bật: import + quét sách cũ đều sửa; tắt: bản sao giữ nguyên như bản gốc. Đã kiểm trên E3: tắt → bản nhập chỉ còn 5 chữ `đ` như file gốc; bật → 8.397.
+
 Sửa 2026-11-02: sách đã có trong thư viện (copy tay hoặc nhập bằng bản cũ) trước đây chưa từng qua bước sửa. Thêm `LibraryStore.cleanLibrary()` chạy lúc khởi động, mỗi file một lần (cờ `clean.<id>` trong prefs). Trên E3, bản `33-thuc…vn.epub` copy tay đã được sửa: 8.397 chữ `đ`, `được` 1.126 lần.
 
 UI 2026-11-02: bỏ hộp thoại "Text checked" — import sửa lỗi hoàn toàn im lặng, người dùng chỉ thấy sách đã sạch. Thêm sửa chữ lặp trong từ (`đượcc` → `được`) khi dạng gộp có trong từ điển. Không có màn duyệt tay.

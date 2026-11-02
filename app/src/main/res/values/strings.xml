@@ -43,6 +43,8 @@
     <string name="library_mark_finished">Mark as finished</string>
     <string name="library_unmark_finished">Remove finished mark</string>
     <string name="library_finished">Finished</string>
+    <string name="settings_repair_text">Fix spelling on import</string>
+    <string name="settings_repair_text_hint">Restores a missing đ and doubled letters in the imported copy. Turned off, the book is kept exactly as published.</string>
     <string name="settings_reading_goal">Daily reading goal</string>
     <string name="settings_reading_goal_minutes">%1$d min</string>
     <string name="home_reading_now">READING NOW</string>

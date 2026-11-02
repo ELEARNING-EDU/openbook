@@ -9,6 +9,7 @@ import com.elearning.openbook.reader.ReaderSettings
 import com.elearning.openbook.reader.ReadingPositions
 import com.elearning.openbook.reader.SavedPlaces
 import com.elearning.openbook.settings.AppLanguageStore
+import com.elearning.openbook.settings.TextRepairStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -51,6 +52,10 @@ object AppModule {
     @Provides
     @Singleton
     fun language(@ApplicationContext context: Context): AppLanguageStore = AppLanguageStore(context)
+
+    @Provides
+    @Singleton
+    fun textRepair(@ApplicationContext context: Context): TextRepairStore = TextRepairStore(context)
 
     @Provides
     @Singleton

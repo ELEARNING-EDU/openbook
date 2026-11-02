@@ -14,6 +14,7 @@ import com.elearning.openbook.reader.ReadingSummary
 import com.elearning.openbook.reader.WeekPoint
 import com.elearning.openbook.settings.AppLanguage
 import com.elearning.openbook.settings.AppLanguageStore
+import com.elearning.openbook.settings.TextRepairStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -47,6 +48,8 @@ data class AppUiState(
     val week: List<WeekPoint> = emptyList(),
     val goalMinutes: Int = ReadingLogStore.DEFAULT_GOAL,
     val language: AppLanguage = AppLanguage.SYSTEM,
+    /** Repair the text of an imported copy (on by default). */
+    val repairText: Boolean = true,
     val importError: Throwable? = null,
     val deleteFailure: Int = 0,
     /** True until the harness's staged states have been played once. */
@@ -66,6 +69,7 @@ class AppViewModel @Inject constructor(
     private val bookmarks: BookmarkStore,
     private val highlights: HighlightStore,
     private val languageStore: AppLanguageStore,
+    private val repairStore: TextRepairStore,
     private val readingLogStore: ReadingLogStore,
 ) : ViewModel() {
 
@@ -73,6 +77,7 @@ class AppViewModel @Inject constructor(
         AppUiState(
             goalMinutes = readingLogStore.goalMinutes,
             language = languageStore.value,
+            repairText = repairStore.enabled,
         ),
     )
     val state: StateFlow<AppUiState> = _state.asStateFlow()
@@ -180,6 +185,11 @@ class AppViewModel @Inject constructor(
             }
             refreshReading()
         }
+    }
+
+    fun setRepairText(enabled: Boolean) {
+        repairStore.enabled = enabled
+        _state.update { it.copy(repairText = enabled) }
     }
 
     fun setLanguage(language: AppLanguage) {
