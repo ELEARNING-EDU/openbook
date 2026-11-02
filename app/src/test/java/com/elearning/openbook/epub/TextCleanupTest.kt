@@ -139,6 +139,30 @@ class TextCleanupTest {
     }
 
     @Test
+    fun tidiesSpacingPunctuationAndDoubledWords() {
+        val file = epub(
+            "<p>Ông Cửu  ,và bà  của của tôi   đi chợ;rồi về:ngay!</p>",
+        )
+
+        val report = TextCleanup.clean(file)
+
+        assertEquals(
+            "<p>Ông Cửu, và bà của tôi đi chợ; rồi về: ngay!</p>",
+            entry(file, "OEBPS/chapter.xhtml"),
+        )
+        assertTrue(report.changed)
+    }
+
+    @Test
+    fun keepsNumberSeparators() {
+        val file = epub("<p>Giá 1.000 đồng và 10,5 mét .</p>")
+
+        TextCleanup.clean(file)
+
+        assertEquals("<p>Giá 1.000 đồng và 10,5 mét.</p>", entry(file, "OEBPS/chapter.xhtml"))
+    }
+
+    @Test
     fun recognisesVietnameseFromTheTextItself() {
         assertTrue(
             TextCleanup.looksVietnamese(

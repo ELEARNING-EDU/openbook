@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Chính tả 2026-11-02 (đợt 3 — "full"): thêm dọn lỗi cơ học không cần từ điển (`TextCleanup.tidy`): gộp khoảng trắng/tab lặp, bỏ khoảng trắng trước dấu câu, thêm khoảng trắng sau `, ; : ! ?` khi gặp chữ cái (giữ nguyên `1.000`, `10,5`), gộp từ lặp liền nhau ("của của"). Từ điển tự soạn tăng lên 326 từ. Sách thật: 2.772 đoạn được dọn + 7.955 chữ `đ` khôi phục / 77 tệp; số token 141.399 → 141.320 (chỉ mất từ lặp), token dài nhất không đổi nên không có chữ bị dính.
+
 Chính tả 2026-11-02 (đợt 2): nhận diện tiếng Việt theo nội dung từng tài liệu (`TextCleanup.looksVietnamese`, ≥2% chữ cái mang dấu tiếng Việt, ≥20 chữ cái) thay vì tin `dc:language` — sách "33-thuc-tinh" khai báo sai là `en`. Sách/ chương ngôn ngữ khác không bị chèn `đ`, chỉ chuẩn hóa Unicode. Từ điển mở rộng lên 303 từ. Kết quả trên sách thật: 7.853 chữ khôi phục / 72 tệp (trước 7.411); bản `en-book.epub` nhập vào không đổi byte nào và không hiện hộp thoại.
 
 Sửa chính tả 2026-11-02: bộ từ điển tự dựng `assets/vi-words.txt` (272 từ, gồm từ có `đ` để khôi phục và từ bắt đầu bằng nguyên âm để không sửa nhầm). Quy tắc: chỉ chèn `đ` khi từ gốc không có trong danh sách, chứa dấu tiếng Việt, và dạng thêm `đ` là từ đã biết; giữ nguyên hoa/thường. Kết quả trên sách "33-thuc-tinh...": 7.411 chữ `đ` được khôi phục trong 72 tệp, đã kiểm tra lại "trái đất", "đời sống", "áp suất" đúng và không còn "đấm lòng"/"ký đức". Từ vựng chưa có trong danh sách chỉ bị bỏ qua, không bị sửa bừa.

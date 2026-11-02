@@ -159,10 +159,30 @@ object TextCleanup {
         if (value.isEmpty()) return Triple(value, 0, 0)
         var text = Normalizer.normalize(value, Normalizer.Form.NFC)
         if (text.any { it in junk }) text = text.filterNot { it in junk }
-        val passage = if (text != value) 1 else 0
-        val (repaired, count) = if (words.isEmpty()) text to 0 else repairWords(text, words)
+        val tidied = tidy(text)
+        val passage = if (text != value || tidied != text) 1 else 0
+        val (repaired, count) = if (words.isEmpty()) tidied to 0 else repairWords(tidied, words)
         return Triple(repaired, passage, count)
     }
+
+    /**
+     * The mechanical slips every conversion makes, all of them language-neutral:
+     * runs of spaces, a space before a comma or a full stop, and a word typed twice
+     * in a row. Numbers keep their separators ("1.000", "10,5"), because a space is
+     * only added after `, ; : ! ?` when a letter follows.
+     */
+    private fun tidy(text: String): String {
+        var out = spaces.replace(text, " ")
+        out = spaceBeforePunctuation.replace(out, "$1")
+        out = punctuationGlue.replace(out, "$1 ")
+        out = doubledWord.replace(out) { match -> match.groupValues[1] }
+        return out
+    }
+
+    private val spaces = Regex("[ \\t]{2,}")
+    private val spaceBeforePunctuation = Regex("[ \\t]+([,.;:!?%)\\]}»)”…])")
+    private val punctuationGlue = Regex("([,;:!?])(?=\\p{L})")
+    private val doubledWord = Regex("(?iu)\\b(\\p{L}+)(?:[ \\t]+\\1\\b)+")
 
     /**
      * Puts back a lost `đ`. Some shop conversions drop the letter, leaving a word that
