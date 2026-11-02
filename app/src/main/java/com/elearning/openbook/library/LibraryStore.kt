@@ -58,6 +58,26 @@ class LibraryStore(context: Context) {
             ?.map { file -> describe(file) }
             ?: emptyList()
 
+    /**
+     * Cleans copies that arrived before the importer could do it: a book dropped into
+     * the folder by hand, or imported by an older build. Each file is done once and the
+     * flag keeps later launches from repeating the pass.
+     */
+    fun cleanLibrary() {
+        val edit = metadata.edit()
+        var touched = false
+        for (file in directory.listFiles().orEmpty()) {
+            if (!file.isFile || !file.name.endsWith(".epub", ignoreCase = true)) continue
+            if (metadata.getBoolean(cleanedKey(file.name), false)) continue
+            val report = TextCleanup.clean(file, words)
+            if (report.files > 0 || file.length() > 0) {
+                edit.putBoolean(cleanedKey(file.name), true)
+                touched = true
+            }
+        }
+        if (touched) edit.apply()
+    }
+
     private fun describe(file: File): BookItem {
         val stored = BookMetadataCodec.decode(metadata.getString(metaKey(file.name), null))
         val info = runCatching { EpubArchive.readMetadata(file) }.getOrNull()
@@ -129,6 +149,7 @@ class LibraryStore(context: Context) {
             val covers = File(appContext.filesDir, "covers")
             for (id in report.deleted) {
                 edit.remove(metaKey(id))
+                edit.remove(cleanedKey(id))
                 // A same-name reimport must not inherit the old book's cover.
                 File(covers, id).delete()
             }
@@ -173,6 +194,7 @@ class LibraryStore(context: Context) {
             // highlights and speaks the same way on every device. The original pick is
             // never touched; only this copy is.
             val cleanup = TextCleanup.clean(target, words)
+            metadata.edit().putBoolean(cleanedKey(unique), true).apply()
             return ImportedBook(describe(target), cleanup)
         } catch (t: Throwable) {
             target.delete()
@@ -261,11 +283,14 @@ class LibraryStore(context: Context) {
 
     private fun metaKey(id: String): String = "$KEY_META_PREFIX$id"
 
+    private fun cleanedKey(id: String): String = "$KEY_CLEANED_PREFIX$id"
+
     private companion object {
         const val SEED_ASSET = "sample.epub"
         const val SEED_FILE_NAME = "ngon-hai-dang-cuoi-cung.epub"
         const val META_PREFS = "libraryMetadata"
         const val KEY_META_PREFIX = "meta."
         const val KEY_SAMPLE_DELETED = "sampleDeleted"
+        const val KEY_CLEANED_PREFIX = "clean."
     }
 }

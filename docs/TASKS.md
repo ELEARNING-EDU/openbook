@@ -1,5 +1,7 @@
 # Tasks — Sách (Android EPUB reader)
 
+Sửa 2026-11-02: sách đã có trong thư viện (copy tay hoặc nhập bằng bản cũ) trước đây chưa từng qua bước sửa. Thêm `LibraryStore.cleanLibrary()` chạy lúc khởi động, mỗi file một lần (cờ `clean.<id>` trong prefs). Trên E3, bản `33-thuc…vn.epub` copy tay đã được sửa: 8.397 chữ `đ`, `được` 1.126 lần.
+
 UI 2026-11-02: bỏ hộp thoại "Text checked" — import sửa lỗi hoàn toàn im lặng, người dùng chỉ thấy sách đã sạch. Thêm sửa chữ lặp trong từ (`đượcc` → `được`) khi dạng gộp có trong từ điển. Không có màn duyệt tay.
 
 Từ điển 2026-11-02 (đợt tham chiếu): 834 → 1.974 từ. Cách làm: lấy tần suất từ chưa có trong danh sách từ chính sách đang đọc, loại mọi từ mà `đ`+từ đã có trong danh sách sửa (để không chặn khôi phục `đ`), rồi bổ sung thủ công. Độ phủ trên sách đó: 37,4% → **90,2%** lượt từ; số chữ `đ` khôi phục giữ nguyên 8.429. Viet74K chỉ dùng ngoài máy để đối chiếu, không nhúng.

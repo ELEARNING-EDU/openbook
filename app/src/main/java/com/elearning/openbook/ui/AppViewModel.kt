@@ -83,6 +83,8 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             val loaded = withContextIo {
                 library.ensureSeeded()
+                // Books copied in before the importer cleaned text still need one pass.
+                library.cleanLibrary()
                 library.books()
             }
             _state.update {
