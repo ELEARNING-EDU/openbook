@@ -23,6 +23,7 @@ struct LibraryView: View {
     @AppStorage("libraryLayout") private var layout: LibraryLayout = .grid
     @AppStorage("librarySort") private var sort: LibrarySort = .recent
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.playerInset) private var playerInset
 
     @State private var showImporter = false
     @State private var selecting = false
@@ -50,7 +51,7 @@ struct LibraryView: View {
                     shelf
                         .padding(.horizontal, 20)
                         .padding(.top, 58)
-                        .padding(.bottom, MainTabBarMetrics.contentReserve)
+                        .padding(.bottom, MainTabBarMetrics.contentReserve + playerInset)
                 }
             }
             .background(palette.swiftPaper.ignoresSafeArea())

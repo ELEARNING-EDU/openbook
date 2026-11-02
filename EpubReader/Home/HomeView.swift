@@ -19,6 +19,7 @@ struct HomeView: View {
     @ObservedObject private var readerSettings = ReaderSettings.shared
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.playerInset) private var playerInset
 
     @AppStorage(ReadingGoal.storageKey) private var goalMinutes = ReadingGoal.defaultMinutes
     @State private var showSettings = false
@@ -61,7 +62,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(.top, 56)
-                .padding(.bottom, MainTabBarMetrics.contentReserve)
+                .padding(.bottom, MainTabBarMetrics.contentReserve + playerInset)
             }
             .background(palette.swiftPaper.ignoresSafeArea())
             .onAppear {

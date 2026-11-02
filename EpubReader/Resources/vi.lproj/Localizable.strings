@@ -140,6 +140,8 @@
 "reader.pageOf" = "Trang %1$lld/%2$lld";
 
 "reader.player.open" = "Mở trình phát";
+"reader.player.state.playing" = "Đang phát";
+"reader.player.state.paused" = "Tạm dừng";
 "reader.player.progress" = "Vị trí đang đọc";
 "reader.player.previous" = "Chương trước";
 "reader.player.next" = "Chương sau";

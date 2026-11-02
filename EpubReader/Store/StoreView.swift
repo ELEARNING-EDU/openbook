@@ -5,6 +5,7 @@ import SwiftUI
 struct StoreView: View {
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.playerInset) private var playerInset
 
     private var palette: ReaderPalette { .shell(dark: colorScheme == .dark) }
 
@@ -52,7 +53,7 @@ struct StoreView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 6)
-                .padding(.bottom, MainTabBarMetrics.contentReserve)
+                .padding(.bottom, MainTabBarMetrics.contentReserve + playerInset)
             }
             .background(palette.swiftPaper.ignoresSafeArea())
             .navigationTitle("store.title")

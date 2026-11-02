@@ -74,6 +74,26 @@ struct MainView: View {
         }
     }
 
+    /// The book the shared voice is reading, while it can still be opened from
+    /// the shelf. A book deleted from the library has no button.
+    private var playingBook: BookItem? {
+        guard let book = speech.book,
+              library.books.contains(where: { $0.id == book.id })
+        else { return nil }
+        return book
+    }
+
+    /// One shared button for all three tabs. It steps aside with the tab bar
+    /// while a book is open, and disappears when the voice is stopped.
+    private var showsPlayerButton: Bool {
+        MiniPlayerVisibility.isVisible(
+            state: speech.state,
+            book: playingBook,
+            readerOpen: !showsBar,
+            bookInLibrary: playingBook != nil
+        )
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             Group {
@@ -86,6 +106,10 @@ struct MainView: View {
                     StoreView()
                 }
             }
+            .environment(
+                \.playerInset,
+                showsPlayerButton ? MiniPlayerMetrics.reserve : 0
+            )
 
             if showsBar {
                 HStack(spacing: 0) {
@@ -96,9 +120,28 @@ struct MainView: View {
                 .padding(.bottom, MainTabBarMetrics.bottomGap)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            if showsPlayerButton, let book = playingBook {
+                MiniPlayerButton(book: book, state: speech.state, palette: palette) {
+                    openPlayingBook()
+                }
+                .padding(.trailing, MiniPlayerMetrics.trailing)
+                .padding(
+                    .bottom,
+                    MainTabBarMetrics.bottomGap
+                        + MainTabBarMetrics.height
+                        + MiniPlayerMetrics.gapAboveTabBar
+                )
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .transition(
+                    .scale(scale: 0.8, anchor: .bottomTrailing)
+                        .combined(with: .opacity)
+                )
+            }
         }
         .animation(.easeInOut(duration: 0.22), value: tab)
         .animation(.easeInOut(duration: 0.22), value: showsBar)
+        .animation(.easeInOut(duration: 0.2), value: showsPlayerButton)
         .tint(palette.swiftAccent)
         .environment(\.locale, language.locale)
         .onAppear(perform: applyDemoTabHook)
@@ -170,6 +213,17 @@ struct MainView: View {
         guard let raw = UserDefaults.standard.string(forKey: "demoTab"),
               let requested = MainTab(rawValue: raw) else { return }
         tab = requested
+
+        // A capture run needs the player button on each tab after narration has
+        // started and the reader has been left, so the tab can change later.
+        let after = UserDefaults.standard.double(forKey: "demoSwitchTabAfter")
+        guard after > 0,
+              let name = UserDefaults.standard.string(forKey: "demoSwitchTab"),
+              let target = MainTab(rawValue: name)
+        else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + after) {
+            tab = target
+        }
     }
 }
 

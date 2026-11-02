@@ -140,6 +140,8 @@
 "reader.pageOf" = "Page %1$lld/%2$lld";
 
 "reader.player.open" = "Open player";
+"reader.player.state.playing" = "Playing";
+"reader.player.state.paused" = "Paused";
 "reader.player.progress" = "Reading position";
 "reader.player.previous" = "Previous chapter";
 "reader.player.next" = "Next chapter";
