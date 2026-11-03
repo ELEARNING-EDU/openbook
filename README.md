@@ -22,10 +22,16 @@ Thiết kế: `docs/superpowers/specs/2026-10-29-openbook-design.md`.
 3. `npm run seed` — tạo 4 thể loại và 12 sách mẫu (**xoá** sách, thể loại, bình luận hiện có).
 4. `npm run dev` → <http://localhost:3000>
 
+## Đọc online
+
+- Sách có `epubUrl` (URL `http`/`https`) hiện nút **"Đọc online"**. Máy tính/iPad mở trình đọc EPUB ngay trong trang; điện thoại (`min(innerWidth, innerHeight) < 600`) không mở trình đọc mà hiện hộp mời mở sách trong ứng dụng OpenBook.
+- Đặt `NEXT_PUBLIC_APP_BOOK_URL` (dùng `{slug}` được thay bằng slug sách), `NEXT_PUBLIC_APP_STORE_URL`, `NEXT_PUBLIC_PLAY_STORE_URL` để hiện nút **Mở trong ứng dụng**, **App Store**, **Google Play**; biến rỗng thì ẩn nút tương ứng. Các biến `NEXT_PUBLIC_*` được nhúng lúc build nên phải build lại sau khi đổi.
+- Sách mẫu "Sách mẫu OpenBook" dùng cho e2e/demo chỉ được seed khi có `SEED_BASE_URL`: `SEED_BASE_URL=http://localhost:3200 npm run seed`.
+
 ## Kiểm thử
 
 - `npm test` — unit/integration (Vitest, MongoDB chạy trong bộ nhớ, không cần Atlas).
-- `npm run e2e` — Playwright ở khung mobile 390px và desktop 1280px. Cần `.env.local` có `AUTH_TRUST_HOST=true` và DB đã seed. Lần đầu chạy `npx playwright install chromium`.
+- `npm run e2e` — Playwright ở khung mobile 390px và desktop 1280px. Cần `.env.local` có `AUTH_TRUST_HOST=true` và DB đã seed bằng `SEED_BASE_URL=http://localhost:3200 npm run seed` (thêm sách mẫu có EPUB). Lần đầu chạy `npx playwright install chromium`.
 - `npm run lint`, `npm run build`.
 
 ## Deploy lên Vercel

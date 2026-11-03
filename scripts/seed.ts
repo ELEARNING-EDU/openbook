@@ -68,7 +68,23 @@ async function main() {
       createdAt: new Date(Date.now() - i * 86_400_000),
     })),
   );
-  console.log(`Seeded ${cats.length} categories, ${BOOKS.length} books.`);
+  // Local-only sample book whose EPUB is served by this app (e2e + demos); never seeded without SEED_BASE_URL.
+  const base = process.env.SEED_BASE_URL;
+  if (base) {
+    const epubUrl = `${base.replace(/\/$/, "")}/test-fixtures/sample.epub`;
+    const literatureId = catId.get("Văn học Việt Nam");
+    if (!literatureId) throw new Error("Missing category: Văn học Việt Nam");
+    await Book.create({
+      title: "Sách mẫu OpenBook",
+      slug: "sach-mau-openbook",
+      author: "OpenBook",
+      description: "Sách mẫu để thử trình đọc online.",
+      epubUrl,
+      links: [{ label: "Tải EPUB", url: epubUrl }],
+      categoryIds: [literatureId],
+    });
+  }
+  console.log(`Seeded ${cats.length} categories, ${BOOKS.length + (base ? 1 : 0)} books.`);
 }
 
 main()
