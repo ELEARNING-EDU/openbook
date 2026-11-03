@@ -24,6 +24,7 @@ type Props = { slug: string; title: string; epubUrl: string; onClose(): void };
 export default function Reader({ slug, title, epubUrl, onClose }: Props) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
+  const [tooLarge, setTooLarge] = useState(false);
   const [book, setBook] = useState<{ epub: EpubBook; htmls: string[] } | null>(null);
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
   const [chapter, setChapter] = useState(0);
@@ -46,6 +47,7 @@ export default function Reader({ slug, title, epubUrl, onClose }: Props) {
     (async () => {
       try {
         const res = await fetch(`/books/${slug}/epub`);
+        if (res.status === 413 && !cancelled) setTooLarge(true);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const parsed = openEpub(await res.arrayBuffer());
         if (cancelled) return;
@@ -254,12 +256,15 @@ export default function Reader({ slug, title, epubUrl, onClose }: Props) {
         {status === "error" && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <p className="font-display text-xl font-bold">Không mở được sách</p>
-            <p className="max-w-sm text-sm opacity-70">Có thể nguồn sách đang bận hoặc file không hợp lệ.</p>
+            <p className="max-w-sm text-sm opacity-70">
+              {tooLarge ? "Sách quá lớn để đọc trực tiếp. Hãy mở bản gốc." : "Có thể nguồn sách đang bận hoặc file không hợp lệ."}
+            </p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setStatus("loading");
+                  setTooLarge(false);
                   setAttempt((a) => a + 1);
                 }}
                 className="rounded-full bg-brick px-5 py-2.5 font-semibold text-white"

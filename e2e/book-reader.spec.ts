@@ -33,6 +33,14 @@ test("máy tính: mở trình đọc, lật trang, đổi nền, nhớ vị trí
   await expect(page.locator("#reader [aria-live]")).toHaveText(where!);
 });
 
+test("máy tính: sách quá lớn báo đúng lỗi", async ({ page, isMobile }) => {
+  test.skip(isMobile, "chỉ cho máy tính/iPad");
+  await page.route("**/books/*/epub", (route) => route.fulfill({ status: 413, body: "Sách quá lớn" }));
+  await page.goto(BOOK);
+  await page.getByRole("button", { name: "📖 Đọc online" }).click();
+  await expect(page.getByText("Sách quá lớn để đọc trực tiếp. Hãy mở bản gốc.")).toBeVisible();
+});
+
 test("điện thoại: mời mở ứng dụng, không mở trình đọc", async ({ page, isMobile }) => {
   test.skip(!isMobile, "chỉ cho điện thoại");
   await page.goto(BOOK);
