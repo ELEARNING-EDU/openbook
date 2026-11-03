@@ -29,8 +29,6 @@ const BOOKS: { title: string; author: string; description: string; coverUrl: str
     description: "Kiệt tác thơ lục bát 3.254 câu kể về cuộc đời mười lăm năm lưu lạc của Thúy Kiều — đỉnh cao của văn học trung đại Việt Nam." },
   { title: "Lục Vân Tiên", author: "Nguyễn Đình Chiểu", cats: ["Văn học Việt Nam"], coverUrl: "", links: wikisource("Lục Vân Tiên"), epubUrl: wikisourceEpub("Lục Vân Tiên"),
     description: "Truyện thơ Nôm đề cao nhân nghĩa, trung hiếu, tiết hạnh qua hình tượng chàng Lục Vân Tiên trọng nghĩa khinh tài." },
-  { title: "Số đỏ", author: "Vũ Trọng Phụng", cats: ["Văn học Việt Nam"], featured: true, coverUrl: "", links: wikisource("Số đỏ"), epubUrl: "",
-    description: "Tiểu thuyết trào phúng bậc thầy về xã hội thành thị Hà Nội những năm 1930 qua hành trình thăng tiến của Xuân Tóc Đỏ." },
   { title: "Chinh phụ ngâm", author: "Đặng Trần Côn", cats: ["Văn học Việt Nam"], coverUrl: "", links: wikisource("Chinh phụ ngâm"), epubUrl: wikisourceEpub("Chinh phụ ngâm"),
     description: "Khúc ngâm nỗi lòng người vợ có chồng ra trận, bản dịch Nôm nổi tiếng theo thể song thất lục bát." },
   { title: "Pride and Prejudice", author: "Jane Austen", cats: ["Văn học nước ngoài"], featured: true, coverUrl: cover("9780141439518"), links: gutenberg(1342), epubUrl: "https://www.gutenberg.org/ebooks/1342.epub.noimages",

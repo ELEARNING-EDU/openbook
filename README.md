@@ -19,7 +19,7 @@ Thiết kế: `docs/superpowers/specs/2026-10-29-openbook-design.md`.
    - `AUTH_SECRET` — tạo bằng `npx auth secret` hoặc `openssl rand -base64 32`.
    - `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` — tạo OAuth Client (loại *Web application*) tại Google Cloud Console → APIs & Services → Credentials. Thêm *Authorized redirect URI*: `http://localhost:3000/api/auth/callback/google`.
    - `ADMIN_EMAILS` — email Google của admin, phân cách bằng dấu phẩy.
-3. `npm run seed` — tạo 4 thể loại và 12 sách mẫu (**xoá** sách, thể loại, bình luận hiện có).
+3. `npm run seed` — tạo 4 thể loại và 11 sách mẫu (**xoá** sách, thể loại, bình luận hiện có).
 4. `npm run dev` → <http://localhost:3000>
 
 ## Đọc online

@@ -194,6 +194,11 @@ export default function Reader({ slug, title, epubUrl, onClose }: Props) {
     hideTimer.current = setTimeout(() => setChrome(false), CHROME_HIDE_MS);
   }, []);
   useEffect(() => () => clearTimeout(hideTimer.current), []);
+  useEffect(() => {
+    if (status !== "ready") return;
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setChrome(false), CHROME_HIDE_MS);
+  }, [status]);
 
   const updateSettings = (s: ReaderSettings) => {
     if (s.fontSize !== settings.fontSize) keepPlace();

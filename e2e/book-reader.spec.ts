@@ -33,6 +33,18 @@ test("máy tính: mở trình đọc, lật trang, đổi nền, nhớ vị trí
   await expect(page.locator("#reader [aria-live]")).toHaveText(where!);
 });
 
+test("máy tính: thanh công cụ tự mờ và hiện lại khi rê chuột", async ({ page, isMobile }) => {
+  test.skip(isMobile, "chỉ cho máy tính/iPad");
+  await page.goto(BOOK);
+  await page.getByRole("button", { name: "📖 Đọc online" }).click();
+  const reader = page.locator("#reader");
+  const toolbar = reader.getByRole("button", { name: "Mục lục" }).locator("xpath=..");
+  await expect(reader.locator("[aria-live]")).toHaveText(/^Trang 1 \//);
+  await expect(toolbar).toHaveCSS("opacity", "0", { timeout: 6000 });
+  await reader.hover();
+  await expect(toolbar).toHaveCSS("opacity", "1");
+});
+
 test("máy tính: sách quá lớn báo đúng lỗi", async ({ page, isMobile }) => {
   test.skip(isMobile, "chỉ cho máy tính/iPad");
   await page.route("**/books/*/epub", (route) => route.fulfill({ status: 413, body: "Sách quá lớn" }));

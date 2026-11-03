@@ -92,15 +92,18 @@ export function openEpub(data: ArrayBuffer | Uint8Array): EpubBook {
   const items = [...manifest.values()];
   const navItem = items.find((i) => i.props.split(/\s+/).includes("nav"));
   const ncxItem = items.find((i) => i.type === "application/x-dtbncx+xml");
-  let toc: TocItem[] = [];
-  try {
-    toc = navItem ? fromNav(navItem.href) : ncxItem ? fromNcx(ncxItem.href) : [];
-  } catch {
-    toc = [];
-  }
   const prune = (list: TocItem[]): TocItem[] =>
     list.filter((t) => t.chapter >= 0 || t.children.length).map((t) => ({ ...t, children: prune(t.children) }));
-  toc = prune(toc);
+  const readToc = (item: { href: string } | undefined, parse: (path: string) => TocItem[]) => {
+    if (!item) return [];
+    try {
+      return prune(parse(item.href));
+    } catch {
+      return [];
+    }
+  };
+  let toc = readToc(navItem, fromNav);
+  if (toc.length === 0) toc = readToc(ncxItem, fromNcx);
   if (toc.length === 0) toc = chapters.map((_, i) => ({ label: `Chương ${i + 1}`, chapter: i, children: [] }));
 
   return {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { strToU8, zipSync } from "fflate";
+import { strToU8, unzipSync, zipSync } from "fflate";
 import { makeEpub } from "../helpers/epub";
 import { openEpub, resolvePath } from "@/lib/epub/parse";
 
@@ -16,6 +16,11 @@ describe("openEpub", () => {
     expect(b.chapters.map((c) => c.href)).toEqual(["OEBPS/Text/ch1.xhtml", "OEBPS/Text/ch2.xhtml"]);
     expect(b.toc.map((t) => [t.label, t.chapter])).toEqual([["Khởi đầu", 0], ["Tiếp theo", 1]]);
     expect(b.chapterHtml(1)).toContain("Hai");
+  });
+  it("nav không có mục lục thì dùng ncx", () => {
+    const files = unzipSync(makeEpub({ chapters, nav: true, ncx: true }));
+    files["OEBPS/nav.xhtml"] = strToU8('<html xmlns="http://www.w3.org/1999/xhtml"><body><nav></nav></body></html>');
+    expect(openEpub(zipSync(files)).toc).toEqual(openEpub(makeEpub({ chapters, ncx: true })).toc);
   });
   it("mục lục EPUB2 ncx", () => {
     const b = openEpub(makeEpub({ chapters, ncx: true }));
