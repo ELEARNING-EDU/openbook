@@ -56,3 +56,22 @@ test("menu hamburger chỉ hiện trên mobile", async ({ page, isMobile }) => {
     await expect(burger).toBeHidden();
   }
 });
+
+test("lọc sách theo thể loại ở /books", async ({ page }) => {
+  await page.goto("/books");
+  await page.getByRole("navigation", { name: "Lọc theo thể loại" }).getByRole("link", { name: "Triết học" }).click();
+  await expect(page).toHaveURL(/\/books\?category=/);
+  await expect(page.getByRole("link", { name: /Tao Te Ching/ }).first()).toBeVisible();
+  await expect(page.getByText("Alice's Adventures in Wonderland")).toHaveCount(0);
+});
+
+test("tìm sách trong menu mobile", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "chỉ cho điện thoại");
+  await page.goto("/books");
+  await page.getByRole("button", { name: "Mở menu" }).click();
+  const drawer = page.locator("#mobile-drawer");
+  await drawer.getByRole("searchbox").fill("Alice");
+  await drawer.getByRole("button", { name: "Tìm" }).click();
+  await expect(page).toHaveURL(/\/books\?q=Alice/);
+  await expect(drawer).toHaveCount(0);
+});

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { SearchBox } from "@/components/SearchBox";
 import type { CategoryDTO } from "@/lib/queries";
 
 export function MobileNav({ categories, userSlot }: { categories: CategoryDTO[]; userSlot: ReactNode }) {
@@ -39,6 +40,7 @@ export function MobileNav({ categories, userSlot }: { categories: CategoryDTO[];
             id="mobile-drawer"
             aria-label="Menu"
             onClick={(e) => (e.target as HTMLElement).closest("a") && setOpen(false)}
+            onSubmit={() => setOpen(false)}
             className="absolute inset-y-0 right-0 flex w-80 max-w-[85vw] flex-col gap-6 overflow-y-auto bg-cream p-6 shadow-2xl"
           >
             <div className="flex items-center justify-between">
@@ -47,6 +49,7 @@ export function MobileNav({ categories, userSlot }: { categories: CategoryDTO[];
                 ×
               </button>
             </div>
+            <SearchBox />
             <div>{userSlot}</div>
             <div>
               <p className="mb-2 text-xs font-semibold tracking-wider text-ink/60 uppercase">Khám phá</p>

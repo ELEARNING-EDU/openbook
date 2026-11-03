@@ -45,6 +45,38 @@ describe("proxyEpub", () => {
   });
 });
 
+describe("proxyEpub redirect", () => {
+  const redirect = (location: string) => new Response(null, { status: 302, headers: { location } });
+  const sequence = (...responses: Response[]) => {
+    const requested: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      requested.push(url);
+      return responses.shift() ?? redirect("https://a.org/again");
+    }) as unknown as typeof fetch;
+    return { requested, fetchImpl };
+  };
+
+  it("theo redirect hợp lệ, kể cả đường dẫn tương đối", async () => {
+    const { requested, fetchImpl } = sequence(redirect("https://b.org/y.epub"), redirect("/z.epub"), new Response("ok"));
+    const r = await proxyEpub("https://a.org/x.epub", fetchImpl);
+    expect(r.status).toBe(200);
+    expect(requested).toEqual(["https://a.org/x.epub", "https://b.org/y.epub", "https://b.org/z.epub"]);
+  });
+  it.each(["http://127.0.0.1/x", "http://169.254.169.254/latest", "http://localhost:3000/x", "http://[::1]/x", "ftp://a.org/x"])(
+    "chặn redirect tới %s mà không gọi tới đó",
+    async (target) => {
+      const { requested, fetchImpl } = sequence(redirect(target));
+      expect((await proxyEpub("https://a.org/x.epub", fetchImpl)).status).toBe(502);
+      expect(requested).toEqual(["https://a.org/x.epub"]);
+    },
+  );
+  it("quá nhiều redirect → 502", async () => {
+    const { requested, fetchImpl } = sequence();
+    expect((await proxyEpub("https://a.org/x.epub", fetchImpl)).status).toBe(502);
+    expect(requested).toHaveLength(6);
+  });
+});
+
 describe("getEpubUrl", () => {
   it("trả URL hoặc null", async () => {
     await Book.create({ title: "A", slug: "a", author: "X", links: link(), epubUrl: "https://a.org/a.epub" });

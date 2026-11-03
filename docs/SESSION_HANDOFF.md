@@ -22,3 +22,9 @@ Cập nhật: 2026-11-03
 ## Bước tiếp theo (ứng dụng chính)
 1. Người dùng điền `.env.local` thật (Atlas + Google OAuth), `npm run seed`, `npm run dev`, thử đăng nhập Google.
 2. Deploy Vercel theo README.
+
+## Cập nhật 2026-11-03: sách seed thật
+- Đã sửa: bỏ `epubUrl` của "Số đỏ" (ws-export 404), "Pride and Prejudice" dùng `1342.epub.noimages` (bản có ảnh 24,9 MB vượt giới hạn 20 MB), Reader báo riêng lỗi 413, thêm 1 test e2e.
+- Kiểm chứng: `tsc`, lint pass; `npm test` 75/75; `npm run e2e` 19 pass, 3 skip; Pride and Prejudice mở và lật trang được trên trình duyệt.
+- Còn tồn: link Wikisource của "Số đỏ" trả 404; sách Wikisource mất 10–12 giây để mở trong khi proxy chỉ chờ 15 giây; chưa đo trên Vercel.
+- Đã sửa thêm: `/books` lọc theo `?category=`; ô tìm kiếm trong menu mobile; proxy EPUB tự theo redirect và chặn đích IP/localhost. Kiểm chứng: `tsc`, lint pass; `npm test` 82/82; `npm run e2e` 22 pass, 4 skip.

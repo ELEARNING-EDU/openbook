@@ -1,14 +1,16 @@
 import Form from "next/form";
+import { useId } from "react";
 
 export function SearchBox({ className = "", size = "md" }: { className?: string; size?: "md" | "lg" }) {
   const lg = size === "lg";
+  const id = useId(); // the header and the mobile drawer can render at the same time
   return (
     <Form action="/books" role="search" className={`relative ${className}`}>
-      <label htmlFor={`q-${size}`} className="sr-only">
+      <label htmlFor={id} className="sr-only">
         Tìm sách
       </label>
       <input
-        id={`q-${size}`}
+        id={id}
         name="q"
         type="search"
         placeholder="Tìm theo tên sách, tác giả…"

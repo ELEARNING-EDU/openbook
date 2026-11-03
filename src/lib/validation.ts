@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const httpUrl = z
+export const httpUrl = z
   .string()
   .trim()
   .pipe(z.url({ protocol: /^https?$/, hostname: z.regexes.domain, error: "Cần link http/https hợp lệ" }));
