@@ -11,8 +11,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.elearning.openbook.settings.AppLanguageStore
+import com.elearning.openbook.settings.ReviewPromptStore
 import com.elearning.openbook.ui.DemoOptions
 import com.elearning.openbook.ui.EpubReaderApp
+import com.google.android.play.core.review.ReviewManagerFactory
 
 @dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -78,6 +80,25 @@ class MainActivity : ComponentActivity() {
         setContent {
             EpubReaderApp(autoOpenFirstBook = autoOpenFirstBook, demo = demo)
         }
+
+        if (ReaderApplication.consumeReviewDue()) {
+            // Posted, so the sheet opens on the first frame the app is actually on screen.
+            window.decorView.post { askForReview() }
+        }
+    }
+
+    /**
+     * The Play review sheet, once the app has been opened [ReviewPromptStore.LAUNCHES_BEFORE_ASK]
+     * times. Play owns the sheet and its quota, and it stays silent when the app was not
+     * installed by Play — a sideloaded build just logs the reason and carries on.
+     */
+    private fun askForReview() {
+        val manager = ReviewManagerFactory.create(this)
+        manager.requestReviewFlow()
+            .addOnSuccessListener { flow -> manager.launchReviewFlow(this, flow) }
+            .addOnFailureListener { error ->
+                android.util.Log.i("Review", "review sheet unavailable: ${error.message}")
+            }
     }
 
     override fun onNewIntent(intent: Intent) {

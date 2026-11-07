@@ -24,8 +24,8 @@ android {
         applicationId = "com.elearning.openbook"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 2026102800
-        versionName = "20261028.00"
+        versionCode = 2026110700
+        versionName = "20261107.00"
     }
 
     lint {
@@ -104,6 +104,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.media)
+    implementation(libs.play.review.ktx)
     implementation(libs.androidx.compose.material.icons.extended)
 
     implementation(libs.hilt.android)
@@ -112,4 +113,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
 
     testImplementation(libs.junit)
+}
+
+// The EPUB corpus lives in the iOS worktree. Resolve it from the repo instead of a hard-coded
+// absolute path, so moving the project does not silently skip EpubCorpusTest.
+tasks.withType<Test>().configureEach {
+    systemProperty("epubCorpus", rootProject.file("../ios/build/qa/epub-corpus").absolutePath)
 }
