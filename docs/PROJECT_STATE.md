@@ -1,5 +1,16 @@
 # Project state — Sách (Android EPUB reader)
 
+Dọn QA 2026-11-02: đã xóa báo cáo 2026-11-01 được thay thế; giữ báo cáo 2026-11-02, probe/bằng chứng lỗi chưa sửa và spec nghiệm thu EPUB. Đã kiểm tra file và cập nhật liên kết; không chạy test vì chỉ dọn tài liệu. Bước tiếp theo: dùng báo cáo QA hiện tại khi được giao sửa lỗi.
+
+## QA/Test/Review — 2026-11-02 (lượt hiện tại)
+
+- Report: [QA_REVIEW_2026-11-02.md](QA_REVIEW_2026-11-02.md); bằng chứng `qa/2026-11-02/`.
+- Root Git thực tế: `master`, `c6633fb`; android/ios/design/web, TODO.md và .DS_Store untracked có sẵn. Các ghi chú linked-worktree/commit Android cũ không mô tả Git hiện tại. Không stage/commit; chỉ thêm báo cáo/probe/checkpoint trong Android docs.
+- Gradle offline test/lint/assembleDebug/kover exit 0 (build/lint UP-TO-DATE); rerun unit test thực tế exit 0: 134 tổng, 101 pass, 33 skip do corpus thiếu. Lint 0 error/115 warning. Branch coverage report 21,57% (bộ lọc hiện hữu).
+- T-119 P1: cleanup bỏ qua ZIP budget; T-120 P1: xóa từ lặp hợp lệ; T-121 P2: sửa CSS/pre. Probe trên class đã build tái hiện cả ba (exit 0 = xác nhận defect). T-113 nghe nền không lưu vẫn tồn tại theo code.
+- E3 APK trùng hash bản debug; Home/Library/Reader/lật trang/Back smoke pass, sách mẫu lưu trang 2/12. Không install/reset/clear data; app ở Library. Chưa TTS nền, release/R8, instrumentation hay corpus đầy đủ.
+- Bước chính xác tiếp theo khi được yêu cầu sửa: đọc report mục 1–3 và `epub/TextCleanup.kt`, thay đường cleanup không giới hạn/sửa nội dung sai, thêm regression test; chưa có quyền sửa từ yêu cầu review hiện tại.
+
 ## Import cleanup — 2026-11-02
 
 - `epub/TextCleanup.kt`: mỗi bản sao EPUB nhập vào được chuẩn hóa một lần — NFC, bỏ `\u00AD`, `\u200B-\u200F`, `\uFEFF` trong text, không đụng tag/markup/CSS, giữ `mimetype` đầu tiên và STORED. Không dùng từ điển nên an toàn với sách đa ngôn ngữ.
