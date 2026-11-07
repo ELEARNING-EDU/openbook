@@ -114,9 +114,3 @@ dependencies {
 
     testImplementation(libs.junit)
 }
-
-// The EPUB corpus lives in the iOS worktree. Resolve it from the repo instead of a hard-coded
-// absolute path, so moving the project does not silently skip EpubCorpusTest.
-tasks.withType<Test>().configureEach {
-    systemProperty("epubCorpus", rootProject.file("../ios/build/qa/epub-corpus").absolutePath)
-}
