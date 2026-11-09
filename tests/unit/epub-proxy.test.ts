@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { link, setupTestDB } from "../helpers/mongo";
 import { Book } from "@/models/Book";
-import { getEpubUrl, MAX_EPUB_BYTES, proxyEpub } from "@/lib/epub-proxy";
+import { getEpubUrl, MAX_EPUB_BYTES, checkEpub, proxyEpub } from "@/lib/epub-proxy";
 
 setupTestDB();
 
@@ -84,5 +84,49 @@ describe("getEpubUrl", () => {
     expect(await getEpubUrl("a")).toBe("https://a.org/a.epub");
     expect(await getEpubUrl("b")).toBeNull();
     expect(await getEpubUrl("khong-co")).toBeNull();
+  });
+  it("bản nháp không lộ URL EPUB", async () => {
+    await Book.create({ title: "Nháp", slug: "nhap", author: "X", links: link(), status: "draft", epubUrl: "https://a.org/d.epub" });
+    expect(await getEpubUrl("nhap")).toBeNull();
+  });
+});
+
+describe("checkEpub", () => {
+  const called = () => {
+    const urls: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      urls.push(url);
+      return withUrl(new Response(new Uint8Array([1, 2, 3])), "https://a.org/x.epub");
+    }) as unknown as typeof fetch;
+    return { urls, fetchImpl };
+  };
+
+  it("báo dung lượng khi mở được", async () => {
+    const { fetchImpl } = called();
+    expect(await checkEpub("https://a.org/x.epub", fetchImpl)).toEqual({ status: "ok", bytes: 3 });
+  });
+
+  it("báo quá lớn theo Content-Length và theo luồng", async () => {
+    const big = withUrl(new Response("x", { headers: { "content-length": String(MAX_EPUB_BYTES + 1) } }), "https://a.org/x.epub");
+    expect(await checkEpub("https://a.org/x.epub", fakeFetch(big))).toEqual({ status: "tooLarge" });
+    const chunk = new Uint8Array(1024 * 1024);
+    let sent = 0;
+    const body = new ReadableStream({
+      pull(c) {
+        if (sent++ > 21) c.close();
+        else c.enqueue(chunk);
+      },
+    });
+    expect(await checkEpub("https://a.org/x.epub", fakeFetch(withUrl(new Response(body), "https://a.org/x.epub")))).toEqual({ status: "tooLarge" });
+  });
+
+  it("báo không mở được khi lỗi, và không gọi mạng với địa chỉ riêng", async () => {
+    expect(await checkEpub("https://a.org/x.epub", fakeFetch(withUrl(new Response("no", { status: 500 }), "https://a.org/x.epub")))).toEqual({ status: "unreachable" });
+    expect(await checkEpub("https://a.org/x.epub", fakeFetch(() => { throw new DOMException("t", "TimeoutError"); }))).toEqual({ status: "unreachable" });
+    const spy = vi.fn();
+    for (const url of ["http://127.0.0.1/x.epub", "http://192.168.0.1/x.epub", "http://localhost/x.epub", "http://[::1]/x.epub"]) {
+      expect(await checkEpub(url, spy as unknown as typeof fetch)).toEqual({ status: "unreachable" });
+    }
+    expect(spy).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { bookSchema, categorySchema, parsePage, reviewSchema } from "@/lib/validation";
+import { makeT } from "@/lib/i18n";
+import { makeBookSchema, makeCategorySchema, makeReviewSchema, parsePage } from "@/lib/validation";
+
+const t = makeT("vi");
+const bookSchema = makeBookSchema(t);
+const categorySchema = makeCategorySchema(t);
+const reviewSchema = makeReviewSchema(t);
 
 const validBook = {
   title: "T",
@@ -42,6 +48,40 @@ describe("bookSchema", () => {
   });
   it("từ chối tiêu đề chỉ có khoảng trắng", () => {
     expect(bookSchema.safeParse({ ...validBook, title: "   " }).success).toBe(false);
+  });
+  it("ISBN: 10 hoặc 13 chữ số, cho phép gạch nối, bỏ trống được", () => {
+    expect(bookSchema.safeParse({ ...validBook, isbn: "" }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, isbn: "0-306-40615-2" }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, isbn: "978-0-306-40615-7" }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, isbn: "123" }).success).toBe(false);
+    expect(bookSchema.safeParse({ ...validBook, isbn: "12345abcde" }).success).toBe(false);
+    expect(bookSchema.safeParse({ ...validBook, isbn: "97803064061577" }).success).toBe(false);
+  });
+  it("năm xuất bản: số nguyên từ 1 đến năm sau, hoặc để trống", () => {
+    const nextYear = new Date().getFullYear() + 1;
+    expect(bookSchema.safeParse({ ...validBook, publishYear: null }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, publishYear: 2024 }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, publishYear: nextYear }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, publishYear: 0 }).success).toBe(false);
+    expect(bookSchema.safeParse({ ...validBook, publishYear: nextYear + 1 }).success).toBe(false);
+    expect(bookSchema.safeParse({ ...validBook, publishYear: "abc" as unknown as number }).success).toBe(false);
+    expect(bookSchema.safeParse({ ...validBook, publishYear: 2024.5 }).success).toBe(false);
+  });
+  it("tập số mà không có bộ sách là lỗi", () => {
+    expect(bookSchema.safeParse({ ...validBook, series: "", seriesNumber: 2 }).success).toBe(false);
+    expect(bookSchema.safeParse({ ...validBook, series: "Sherlock Holmes", seriesNumber: 2 }).success).toBe(true);
+    expect(bookSchema.safeParse({ ...validBook, series: "", seriesNumber: null }).success).toBe(true);
+  });
+  it("mặc định trạng thái xuất bản, ngôn ngữ trống; từ chối vai trò lạ", () => {
+    const parsed = bookSchema.parse(validBook);
+    expect(parsed.status).toBe("published");
+    expect(parsed.language).toBe("");
+    expect(
+      bookSchema.safeParse({ ...validBook, contributors: [{ name: "A", role: "painter" }] }).success,
+    ).toBe(false);
+    expect(
+      bookSchema.safeParse({ ...validBook, contributors: [{ name: "A", role: "translator" }] }).success,
+    ).toBe(true);
   });
 });
 

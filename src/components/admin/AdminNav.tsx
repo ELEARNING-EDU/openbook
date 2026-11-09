@@ -2,46 +2,52 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 const ITEMS = [
-  { href: "/admin/books", label: "Sách", icon: "📚" },
-  { href: "/admin/categories", label: "Thể loại", icon: "🏷️" },
-  { href: "/admin/reviews", label: "Bình luận", icon: "💬" },
-  { href: "/", label: "Trang chủ", icon: "🏠" },
-];
+  { href: "/admin", key: "admin.navOverview", icon: "🧭" },
+  { href: "/admin/stats", key: "admin.navStats", icon: "📊" },
+  { href: "/admin/books", key: "admin.navBooks", icon: "📚" },
+  { href: "/admin/authors", key: "admin.navAuthors", icon: "✍️" },
+  { href: "/admin/categories", key: "admin.navCategories", icon: "🏷️" },
+  { href: "/admin/reviews", key: "admin.navReviews", icon: "💬" },
+  { href: "/", key: "admin.navHome", icon: "🏠" },
+] as const;
 
 export function AdminNav() {
+  const t = useT();
   const pathname = usePathname();
-  const active = (href: string) => href !== "/" && pathname.startsWith(href);
+  // Overview is only active on exactly /admin; the other admin items cover their subpages.
+  const active = (href: string) => (href === "/" ? false : href === "/admin" ? pathname === href : pathname.startsWith(href));
   return (
     <>
-      <nav aria-label="Quản trị" className="hidden w-56 shrink-0 md:block">
+      <nav aria-label={t("admin.navLabel")} className="hidden w-56 shrink-0 md:block">
         <ul className="sticky top-6 space-y-1">
-          {ITEMS.map((i) => (
-            <li key={i.href}>
+          {ITEMS.map((item) => (
+            <li key={item.href}>
               <Link
-                href={i.href}
-                aria-current={active(i.href) ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 font-medium transition ${active(i.href) ? "bg-brick text-white shadow" : "hover:bg-orange-100"}`}
+                href={item.href}
+                aria-current={active(item.href) ? "page" : undefined}
+                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 font-medium transition ${active(item.href) ? "bg-brick text-white shadow" : "hover:bg-tint"}`}
               >
-                <span aria-hidden>{i.icon}</span>
-                {i.label}
+                <span aria-hidden>{item.icon}</span>
+                {t(item.key)}
               </Link>
             </li>
           ))}
         </ul>
       </nav>
-      <nav aria-label="Quản trị" className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-cream/95 backdrop-blur md:hidden">
-        <ul className="grid grid-cols-4">
-          {ITEMS.map((i) => (
-            <li key={i.href}>
+      <nav aria-label={t("admin.navLabel")} className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-cream/95 backdrop-blur md:hidden">
+        <ul className="flex w-full overflow-x-auto">
+          {ITEMS.map((item) => (
+            <li key={item.href} className="min-w-16 flex-1 shrink-0">
               <Link
-                href={i.href}
-                aria-current={active(i.href) ? "page" : undefined}
-                className={`flex flex-col items-center gap-0.5 py-2 text-xs font-medium ${active(i.href) ? "text-brick" : "text-ink/70"}`}
+                href={item.href}
+                aria-current={active(item.href) ? "page" : undefined}
+                className={`flex min-h-11 flex-col items-center justify-center gap-0.5 px-1 py-1 text-center text-[10px] leading-tight font-medium break-words ${active(item.href) ? "text-brick dark:text-orange-400" : "text-ink/70"}`}
               >
-                <span aria-hidden className="text-lg">{i.icon}</span>
-                {i.label}
+                <span aria-hidden className="text-base">{item.icon}</span>
+                {t(item.key)}
               </Link>
             </li>
           ))}

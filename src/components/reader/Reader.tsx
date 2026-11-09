@@ -6,6 +6,7 @@ import { ReaderToolbar } from "@/components/reader/ReaderToolbar";
 import { SettingsPanel } from "@/components/reader/SettingsPanel";
 import { THEME_COLORS } from "@/components/reader/themes";
 import { TocDrawer } from "@/components/reader/TocDrawer";
+import { useT } from "@/components/i18n/LocaleProvider";
 import { openEpub, type EpubBook, type TocItem } from "@/lib/epub/parse";
 import { sanitizeChapter } from "@/lib/epub/sanitize";
 import { isTwoPage, pageForProgress, progressForPage } from "@/lib/reader/paging";
@@ -22,6 +23,11 @@ const flatten = (items: TocItem[]): TocItem[] => items.flatMap((t) => [t, ...fla
 type Props = { slug: string; title: string; epubUrl: string; onClose(): void };
 
 export default function Reader({ slug, title, epubUrl, onClose }: Props) {
+  const t = useT();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
   const [tooLarge, setTooLarge] = useState(false);
@@ -49,7 +55,7 @@ export default function Reader({ slug, title, epubUrl, onClose }: Props) {
         const res = await fetch(`/books/${slug}/epub`);
         if (res.status === 413 && !cancelled) setTooLarge(true);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const parsed = openEpub(await res.arrayBuffer());
+        const parsed = openEpub(await res.arrayBuffer(), (i) => tRef.current("reader.chapter", { n: i + 1 }));
         if (cancelled) return;
         const images = new Map<string, string>();
         const imageUrl = (path: string) => {
@@ -255,14 +261,14 @@ export default function Reader({ slug, title, epubUrl, onClose }: Props) {
         {status === "loading" && (
           <div className="flex h-full flex-col items-center justify-center gap-4">
             <div className="h-3/5 w-2/5 max-w-xs animate-pulse rounded-xl bg-current opacity-10" />
-            <p className="text-sm opacity-70">Đang mở sách…</p>
+            <p className="text-sm opacity-70">{t("reader.opening")}</p>
           </div>
         )}
         {status === "error" && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <p className="font-display text-xl font-bold">Không mở được sách</p>
+            <p className="font-display text-xl font-bold">{t("reader.openFailed")}</p>
             <p className="max-w-sm text-sm opacity-70">
-              {tooLarge ? "Sách quá lớn để đọc trực tiếp. Hãy mở bản gốc." : "Có thể nguồn sách đang bận hoặc file không hợp lệ."}
+              {tooLarge ? t("reader.tooLarge") : t("reader.invalid")}
             </p>
             <div className="flex gap-2">
               <button
@@ -274,10 +280,10 @@ export default function Reader({ slug, title, epubUrl, onClose }: Props) {
                 }}
                 className="rounded-full bg-brick px-5 py-2.5 font-semibold text-white"
               >
-                Thử lại
+                {t("error.retry")}
               </button>
               <a href={epubUrl} target="_blank" rel="noopener noreferrer" className="rounded-full px-5 py-2.5 font-semibold underline-offset-4 hover:underline">
-                Mở bản gốc
+                {t("reader.openOriginal")}
               </a>
             </div>
           </div>
@@ -308,11 +314,11 @@ export default function Reader({ slug, title, epubUrl, onClose }: Props) {
 
       <div className={`flex items-center gap-3 px-5 py-3 text-xs transition-opacity duration-300 ${chrome || status !== "ready" ? "opacity-80" : "opacity-40"}`}>
         <span className="shrink-0 tabular-nums" aria-live="polite">
-          Trang {current} / {total}
+          {t("reader.page", { current, total })}
         </span>
         <input
           type="range"
-          aria-label="Tiến độ đọc"
+          aria-label={t("reader.progress")}
           min={0}
           max={total - 1}
           value={current - 1}

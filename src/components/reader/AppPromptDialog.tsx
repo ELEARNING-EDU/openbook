@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Cover } from "@/components/Cover";
+import { useT } from "@/components/i18n/LocaleProvider";
 import { appBookUrl, appStoreUrl, playStoreUrl } from "@/lib/reader/app-links";
 
 export function AppPromptDialog({
@@ -13,6 +14,7 @@ export function AppPromptDialog({
   onClose: () => void;
   book: { slug: string; title: string; coverUrl: string };
 }) {
+  const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -38,15 +40,13 @@ export function AppPromptDialog({
           <Cover src={book.coverUrl} alt="" className="rounded-xl shadow-lg" />
         </div>
         <h2 id="app-prompt-title" className="mt-4 text-xl font-bold">
-          Đọc sách này trên ứng dụng OpenBook
+          {t("app.title")}
         </h2>
-        <p className="mt-1 text-sm text-ink/70">
-          Mở <span className="font-semibold">{book.title}</span> trong ứng dụng để tải về và đọc thoải mái trên điện thoại.
-        </p>
+        <p className="mt-1 text-sm text-ink/70">{t("app.body", { title: book.title })}</p>
         <div className="mt-5 w-full space-y-2">
           {openInApp && (
             <a href={openInApp} className={`${btn} bg-gradient-to-r from-brick to-rose-600 text-white shadow-lg`}>
-              Mở trong ứng dụng
+              {t("app.openInApp")}
             </a>
           )}
           <div className="flex gap-2">
@@ -61,8 +61,8 @@ export function AppPromptDialog({
               </a>
             )}
           </div>
-          <button type="button" onClick={onClose} className={`${btn} hover:bg-orange-100`}>
-            Đóng
+          <button type="button" onClick={onClose} className={`${btn} hover:bg-tint`}>
+            {t("common.close")}
           </button>
         </div>
       </div>

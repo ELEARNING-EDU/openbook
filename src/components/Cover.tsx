@@ -13,7 +13,7 @@ export function Cover({ src, alt, className = "" }: { src: string; alt: string; 
       alt={alt}
       loading="lazy"
       onError={() => setFailed(true)}
-      className={`aspect-[2/3] w-full object-cover bg-orange-100 ${className}`}
+      className={`aspect-[2/3] w-full object-cover bg-tint ${className}`}
     />
   );
 }

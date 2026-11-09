@@ -2,14 +2,16 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { getSessionUser } from "@/lib/auth-guard";
-import { listCategories } from "@/lib/queries";
+import { getT } from "@/lib/i18n/server";
+import { listMenuCategories } from "@/lib/queries";
 import { MobileNav } from "@/components/MobileNav";
 import { SearchBox } from "@/components/SearchBox";
+import { LanguageToggle, ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
 
 export function Logo() {
   return (
-    <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="OpenBook — trang chủ">
+    <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="OpenBook">
       <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-brick to-rose-500 font-display text-lg font-bold text-white shadow-md">
         O
       </span>
@@ -22,10 +24,12 @@ export function Logo() {
 
 async function HeaderDynamic() {
   await connection();
-  const [user, categories] = await Promise.all([getSessionUser(), listCategories()]);
+  const [user, categories] = await Promise.all([getSessionUser(), listMenuCategories()]);
   return (
     <>
-      <div className="hidden md:block">
+      <div className="hidden items-center gap-1 md:flex">
+        <ThemeToggle />
+        <LanguageToggle />
         <UserMenu user={user} />
       </div>
       <MobileNav categories={categories} userSlot={<UserMenu user={user} />} />
@@ -35,15 +39,14 @@ async function HeaderDynamic() {
 
 async function CategoryNav() {
   await connection();
-  const categories = await listCategories();
-  if (categories.length === 0) return null;
+  const [t, categories] = await Promise.all([getT(), listMenuCategories()]);
   return (
-    <nav aria-label="Thể loại" className="no-scrollbar hidden gap-1 overflow-x-auto md:flex">
-      <Link href="/books" className="shrink-0 rounded-full px-3 py-1.5 text-sm font-medium hover:bg-orange-100">
-        Tất cả
+    <nav aria-label={t("category.label")} className="no-scrollbar hidden gap-1 overflow-x-auto md:flex">
+      <Link href="/books" className="shrink-0 rounded-full px-3 py-1.5 text-sm font-medium hover:bg-tint">
+        {t("common.all")}
       </Link>
       {categories.map((c) => (
-        <Link key={c.id} href={`/categories/${c.slug}`} className="shrink-0 rounded-full px-3 py-1.5 text-sm hover:bg-orange-100 hover:text-brick">
+        <Link key={c.id} href={`/categories/${c.slug}`} className="shrink-0 rounded-full px-3 py-1.5 text-sm hover:bg-tint hover:text-brick">
           {c.name}
         </Link>
       ))}

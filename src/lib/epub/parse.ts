@@ -32,7 +32,7 @@ const xml = (text: string) => {
 const tags = (root: Document | Element, name: string) => Array.from(root.getElementsByTagNameNS("*", name));
 const childTags = (el: Element, name: string) => Array.from(el.children).filter((c) => c.localName === name);
 
-export function openEpub(data: ArrayBuffer | Uint8Array): EpubBook {
+export function openEpub(data: ArrayBuffer | Uint8Array, chapterLabel: (index: number) => string = (i) => `Chương ${i + 1}`): EpubBook {
   let files: Record<string, Uint8Array>;
   try {
     files = unzipSync(data instanceof Uint8Array ? data : new Uint8Array(data));
@@ -104,7 +104,7 @@ export function openEpub(data: ArrayBuffer | Uint8Array): EpubBook {
   };
   let toc = readToc(navItem, fromNav);
   if (toc.length === 0) toc = readToc(ncxItem, fromNcx);
-  if (toc.length === 0) toc = chapters.map((_, i) => ({ label: `Chương ${i + 1}`, chapter: i, children: [] }));
+  if (toc.length === 0) toc = chapters.map((_, i) => ({ label: chapterLabel(i), chapter: i, children: [] }));
 
   return {
     title: tags(opf, "title")[0]?.textContent?.trim() ?? "",

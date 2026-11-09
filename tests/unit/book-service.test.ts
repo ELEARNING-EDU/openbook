@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { link, setupTestDB } from "../helpers/mongo";
 import { Book } from "@/models/Book";
+import { BookDailyStat } from "@/models/BookDailyStat";
 import { Review } from "@/models/Review";
-import { incrementDownload, recalcBookRating, recordDownload, uniqueSlug } from "@/lib/book-service";
+import { recalcBookRating, recordDownload, uniqueSlug } from "@/lib/book-service";
 
 setupTestDB();
 
@@ -43,11 +44,23 @@ describe("recordDownload", () => {
     expect(await recordDownload("truyen-kieu", 1)).toBe("https://a.org/2");
     expect((await Book.findById(b._id).lean())?.downloadCount).toBe(1);
   });
+  it("không đổi updatedAt", async () => {
+    const b = await book();
+    await new Promise((r) => setTimeout(r, 5));
+    await recordDownload("truyen-kieu", 0);
+    expect((await Book.findById(b._id).lean())?.updatedAt).toEqual(b.updatedAt);
+  });
   it("index/slug không hợp lệ → null, không tăng", async () => {
     const b = await book();
     for (const i of [5, 1, -1, NaN, 0.5]) expect(await recordDownload("truyen-kieu", i)).toBeNull();
     expect(await recordDownload("khong-co", 0)).toBeNull();
     expect((await Book.findById(b._id).lean())?.downloadCount).toBe(0);
+    expect(await BookDailyStat.countDocuments()).toBe(0);
+  });
+  it("ghi lượt tải theo ngày", async () => {
+    const b = await book();
+    await recordDownload("truyen-kieu", 0);
+    expect(await BookDailyStat.findOne({ bookId: b._id }).lean()).toMatchObject({ reads: 0, downloads: 1 });
   });
 });
 
@@ -56,14 +69,5 @@ describe("Review unique index", () => {
     const b = await book();
     await Review.create({ bookId: b._id, userId: "u1", userName: "A", rating: 5 });
     await expect(Review.create({ bookId: b._id, userId: "u1", userName: "A", rating: 3 })).rejects.toThrow(/duplicate key/);
-  });
-});
-
-describe("incrementDownload", () => {
-  it("tăng lượt tải khi sách tồn tại", async () => {
-    const b = await book();
-    expect(await incrementDownload("truyen-kieu")).toBe(true);
-    expect((await Book.findById(b._id).lean())?.downloadCount).toBe(1);
-    expect(await incrementDownload("khong-co")).toBe(false);
   });
 });

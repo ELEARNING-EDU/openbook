@@ -16,6 +16,21 @@ test("mở chi tiết sách từ thẻ sách", async ({ page }) => {
   const read = page.locator("a[href*='/go/0']");
   await expect(read).toHaveAttribute("target", "_blank");
   await expect(read).toHaveAttribute("rel", /noopener/);
+  await expect(page.getByRole("heading", { name: "Sách liên quan" })).toBeVisible();
+});
+
+test("đổi chế độ sáng/tối và ngôn ngữ, nhớ qua cookie", async ({ page, isMobile }) => {
+  test.skip(isMobile, "nút nằm trong menu trên điện thoại");
+  await page.goto("/");
+  await page.getByRole("button", { name: "Chuyển chế độ sáng/tối" }).click();
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await page.getByRole("button", { name: "Đổi ngôn ngữ" }).click();
+  await expect(page.getByRole("heading", { name: "Featured books" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await page.reload();
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("button", { name: "Toggle light/dark mode" })).toBeVisible();
 });
 
 test("tìm kiếm với ký tự đặc biệt không lỗi", async ({ page }) => {
@@ -50,6 +65,8 @@ test("menu hamburger chỉ hiện trên mobile", async ({ page, isMobile }) => {
     await expect(burger).toBeVisible();
     await burger.click();
     await expect(page.locator("#mobile-drawer")).toBeVisible();
+    await expect(page.locator("#mobile-drawer").getByRole("button", { name: "Chuyển chế độ sáng/tối" })).toBeVisible();
+    await expect(page.locator("#mobile-drawer").getByRole("button", { name: "Đổi ngôn ngữ" })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.locator("#mobile-drawer")).toHaveCount(0);
   } else {

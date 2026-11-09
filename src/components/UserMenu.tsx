@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { signIn, signOut } from "@/auth";
+import { getT } from "@/lib/i18n/server";
 import type { SessionUser } from "@/lib/auth-guard";
 
-export function SignInButton({ label = "Đăng nhập Google", callbackUrl }: { label?: string; callbackUrl?: string }) {
+export async function SignInButton({ label, callbackUrl }: { label?: string; callbackUrl?: string }) {
+  const t = await getT();
   return (
     <form
       action={async () => {
@@ -14,17 +16,18 @@ export function SignInButton({ label = "Đăng nhập Google", callbackUrl }: { 
         type="submit"
         className="inline-flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-cream transition hover:bg-brick"
       >
-        <span aria-hidden className="grid size-5 place-items-center rounded-full bg-white text-xs font-bold text-brick">
+        <span aria-hidden className="grid size-5 place-items-center rounded-full bg-surface text-xs font-bold text-brick">
           G
         </span>
-        {label}
+        {label ?? t("common.signIn")}
       </button>
     </form>
   );
 }
 
-export function UserMenu({ user }: { user: SessionUser | null }) {
+export async function UserMenu({ user }: { user: SessionUser | null }) {
   if (!user) return <SignInButton />;
+  const t = await getT();
   return (
     <div className="flex flex-wrap items-center gap-3">
       {user.image ? (
@@ -36,7 +39,7 @@ export function UserMenu({ user }: { user: SessionUser | null }) {
       <span className="max-w-32 truncate text-sm font-medium">{user.name}</span>
       {user.isAdmin && (
         <Link href="/admin" className="rounded-full bg-moss px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90">
-          Quản trị
+          {t("common.admin")}
         </Link>
       )}
       <form
@@ -46,7 +49,7 @@ export function UserMenu({ user }: { user: SessionUser | null }) {
         }}
       >
         <button type="submit" className="text-sm text-ink/70 underline-offset-4 hover:text-brick hover:underline">
-          Đăng xuất
+          {t("common.signOut")}
         </button>
       </form>
     </div>

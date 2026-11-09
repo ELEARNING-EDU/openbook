@@ -5,16 +5,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { BookDTO } from "@/lib/queries";
 import { Cover } from "@/components/Cover";
 import { Stars } from "@/components/Stars";
+import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { localeTag } from "@/lib/i18n";
 
 const GRADIENTS = [
-  "from-orange-200 via-rose-200 to-amber-100",
-  "from-rose-200 via-amber-100 to-orange-200",
-  "from-amber-200 via-orange-100 to-rose-200",
-  "from-lime-100 via-amber-100 to-orange-200",
+  "from-orange-200 via-rose-200 to-amber-100 dark:from-orange-950 dark:via-rose-950 dark:to-amber-950",
+  "from-rose-200 via-amber-100 to-orange-200 dark:from-rose-950 dark:via-amber-950 dark:to-orange-950",
+  "from-amber-200 via-orange-100 to-rose-200 dark:from-amber-950 dark:via-orange-950 dark:to-rose-950",
+  "from-lime-100 via-amber-100 to-orange-200 dark:from-lime-950 dark:via-amber-950 dark:to-orange-950",
 ];
 const INTERVAL_MS = 5000;
 
-export function HeroSlider({ books, label = "Sách tải nhiều nhất" }: { books: BookDTO[]; label?: string }) {
+export function HeroSlider({ books, label }: { books: BookDTO[]; label?: string }) {
+  const t = useT();
+  const { locale } = useLocale();
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -51,12 +55,12 @@ export function HeroSlider({ books, label = "Sách tải nhiều nhất" }: { bo
   if (books.length === 0) return null;
 
   const arrow =
-    "grid size-11 place-items-center rounded-full bg-white/80 text-xl text-ink shadow-md backdrop-blur transition hover:bg-white hover:text-brick focus-visible:outline-2 focus-visible:outline-brick";
+    "grid size-11 place-items-center rounded-full bg-surface/80 text-xl text-ink shadow-md backdrop-blur transition hover:bg-surface hover:text-brick focus-visible:outline-2 focus-visible:outline-brick";
 
   return (
     <section
       aria-roledescription="carousel"
-      aria-label={label}
+      aria-label={label ?? t("home.topDownloaded")}
       className="relative"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -78,8 +82,8 @@ export function HeroSlider({ books, label = "Sách tải nhiều nhất" }: { bo
             <div className="pointer-events-none absolute -top-16 -right-16 size-64 rounded-full bg-white/30 blur-2xl" />
             <div className="relative flex min-h-[420px] flex-col-reverse items-center gap-6 px-6 pt-8 pb-16 md:min-h-[480px] md:flex-row md:gap-12 md:px-16 md:py-12">
               <div className="flex-1 text-center md:text-left">
-                <p className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-brick">
-                  🔥 #{i + 1} · {b.downloadCount.toLocaleString("vi-VN")} lượt tải
+                <p className="inline-flex items-center gap-1.5 rounded-full bg-surface/70 px-3 py-1 text-xs font-semibold text-brick">
+                  {t("hero.badge", { n: i + 1, d: b.downloadCount.toLocaleString(localeTag(locale)) })}
                 </p>
                 <h2 className="mt-3 text-3xl leading-tight font-bold md:text-5xl">{b.title}</h2>
                 <p className="mt-2 text-ink/75 md:text-lg">{b.author}</p>
@@ -96,11 +100,11 @@ export function HeroSlider({ books, label = "Sách tải nhiều nhất" }: { bo
                   tabIndex={i === index ? 0 : -1}
                   className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brick to-rose-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
                 >
-                  Xem sách →
+                  {t("hero.viewBook")}
                 </Link>
               </div>
               <div className="w-36 shrink-0 -rotate-3 transition duration-500 hover:rotate-0 md:w-56">
-                <Cover src={b.coverUrl} alt={`Bìa sách ${b.title}`} className="rounded-2xl shadow-2xl ring-4 ring-white/60" />
+                <Cover src={b.coverUrl} alt={t("common.coverAlt", { title: b.title })} className="rounded-2xl shadow-2xl ring-4 ring-surface/60" />
               </div>
             </div>
           </article>
@@ -110,12 +114,12 @@ export function HeroSlider({ books, label = "Sách tải nhiều nhất" }: { bo
       {books.length > 1 && (
         <>
           <div className="absolute inset-y-0 left-3 hidden items-center md:flex">
-            <button type="button" aria-label="Sách trước" className={arrow} onClick={() => goTo((index - 1 + books.length) % books.length)}>
+            <button type="button" aria-label={t("hero.prevBook")} className={arrow} onClick={() => goTo((index - 1 + books.length) % books.length)}>
               ‹
             </button>
           </div>
           <div className="absolute inset-y-0 right-3 hidden items-center md:flex">
-            <button type="button" aria-label="Sách sau" className={arrow} onClick={() => goTo((index + 1) % books.length)}>
+            <button type="button" aria-label={t("hero.nextBook")} className={arrow} onClick={() => goTo((index + 1) % books.length)}>
               ›
             </button>
           </div>
@@ -124,7 +128,7 @@ export function HeroSlider({ books, label = "Sách tải nhiều nhất" }: { bo
               <button
                 key={b.id}
                 type="button"
-                aria-label={`Tới sách ${i + 1}`}
+                aria-label={t("hero.goToBook", { n: i + 1 })}
                 aria-current={i === index ? "true" : undefined}
                 onClick={() => goTo(i)}
                 className={`h-2.5 rounded-full transition-all ${i === index ? "w-8 bg-brick" : "w-2.5 bg-ink/25 hover:bg-ink/40"}`}

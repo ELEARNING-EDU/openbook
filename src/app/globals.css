@@ -1,12 +1,32 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
-  --color-cream: #fbf6ec;
-  --color-ink: #3b2a1a;
+  --color-cream: var(--tone-cream);
+  --color-ink: var(--tone-ink);
+  --color-surface: var(--tone-surface);
+  --color-tint: var(--tone-tint);
   --color-brick: #c2410c;
   --color-moss: #4d7c0f;
   --font-display: var(--font-playfair);
   --font-sans: var(--font-be-vietnam);
+}
+
+:root {
+  --tone-cream: #fbf6ec;
+  --tone-ink: #3b2a1a;
+  --tone-surface: #ffffff;
+  --tone-tint: #ffedd5;
+  color-scheme: light;
+}
+
+.dark {
+  --tone-cream: #171310;
+  --tone-ink: #ece4d7;
+  --tone-surface: #221c16;
+  --tone-tint: #33271d;
+  color-scheme: dark;
 }
 
 body {

@@ -1,0 +1,1 @@
+Bước tiếp theo của mình: chạy npm run dev, đăng nhập Google rồi vào /admin; nếu ổn thì deploy Vercel.

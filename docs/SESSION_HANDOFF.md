@@ -36,6 +36,18 @@ Cập nhật: 2026-11-03
 - Dùng `.opencode/agents/worker.md`, model `opencode-go/deepseek-v4.1-flash`: `opencode run --standalone --agent worker --format json "<brief>" </dev/null`. Thiếu `</dev/null` thì lệnh bị treo.
 - Worker làm, Claude QA, review và test. Quy tắc chặn commit, push, seed, e2e nằm trong file agent. Chưa thử worker sửa file thật.
 
+## Thiết kế admin (2026-11-04, chưa code)
+- Canvas: https://claude.ai/artifact/4a7uX9h5Ys6zLGp14aey4b, 7 màn hình, số liệu là minh hoạ. Chờ người dùng duyệt.
+- Cần đổi dữ liệu trước khi code: model Author, Series, Publisher; thêm trạng thái, ngôn ngữ, ISBN, năm vào Book.
+- `recordRead` (`src/actions/books.ts`) đang cộng vào `downloadCount`, nên lượt đọc và lượt tải bị lẫn. Muốn có biểu đồ cần bộ đếm riêng theo ngày.
+
+## Tiến độ code admin (2026-11-05, chưa commit, chưa deploy)
+- Đã xong và QA 4 đợt theo brief trong `.superpowers/admin-design/`: khung, Tổng quan, Thống kê; thể loại và menu frontend; tác giả và gộp trùng; bản nháp, bộ sách, NXB, form sách, thao tác hàng loạt, lọc bình luận.
+- Kiểm chứng trên DB tạm: tsc, lint, unit test, e2e và chạy thử trình duyệt với admin giả lập. Chưa thử đăng nhập Google thật.
+- Atlas CHƯA chuyển dữ liệu tác giả. Cần hỏi người dùng, sao lưu, rồi chạy `npm run migrate:authors` (chạy thử) và thêm `-- --apply`. Làm trước khi gộp tác giả trên Atlas.
+- Chưa quyết: hàng sách trang chủ của thể loại ẩn khỏi menu, việc worker gửi code sang Codex, commit.
+- Chạy thử an toàn: đặt `MONGODB_URI` trỏ DB tạm ngay trên dòng lệnh (biến môi trường thắng `.env.local`).
+
 ## Bước tiếp theo
 1. Người dùng chạy `npm run dev`, đăng nhập Google tại <http://localhost:3000>, vào `/admin` bằng email trong `ADMIN_EMAILS`.
 2. Deploy Vercel theo README, thêm origin và redirect URI của domain vào OAuth Client, rồi thử mở sách Wikisource trên production.

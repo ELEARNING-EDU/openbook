@@ -10,7 +10,7 @@ const failed = () => new Response("Không tải được sách", { status: 502 }
 
 export async function getEpubUrl(slug: string): Promise<string | null> {
   await connectDB();
-  const book = await Book.findOne({ slug }, { epubUrl: 1 }).lean();
+  const book = await Book.findOne({ slug, status: { $ne: "draft" } }, { epubUrl: 1 }).lean();
   return book?.epubUrl || null;
 }
 
@@ -28,6 +28,39 @@ async function fetchEpub(url: string, fetchImpl: typeof fetch): Promise<Response
     if (!httpUrl.safeParse(current).success) throw new Error("EPUB_BAD_REDIRECT");
   }
   throw new Error("EPUB_TOO_MANY_REDIRECTS");
+}
+
+export type EpubCheck = { status: "ok"; bytes: number } | { status: "tooLarge" } | { status: "unreachable" };
+
+// Admin link check: goes through the same guard as the proxy and stops reading at the size cap.
+export async function checkEpub(url: string, fetchImpl: typeof fetch = fetch): Promise<EpubCheck> {
+  if (!httpUrl.safeParse(url).success) return { status: "unreachable" };
+  let src: Response;
+  try {
+    src = await fetchEpub(url, fetchImpl);
+  } catch {
+    return { status: "unreachable" };
+  }
+  if (!src.ok || !src.body) return { status: "unreachable" };
+  if (Number(src.headers.get("content-length")) > MAX_EPUB_BYTES) {
+    await src.body.cancel();
+    return { status: "tooLarge" };
+  }
+  const reader = src.body.getReader();
+  let bytes = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return { status: "ok", bytes };
+      bytes += value.byteLength;
+      if (bytes > MAX_EPUB_BYTES) {
+        await reader.cancel();
+        return { status: "tooLarge" };
+      }
+    }
+  } catch {
+    return { status: "unreachable" };
+  }
 }
 
 // Streams a stored EPUB to the browser (sources don't send CORS headers), capped in time and size.

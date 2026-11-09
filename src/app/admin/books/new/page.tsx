@@ -1,20 +1,31 @@
 import { Suspense } from "react";
 import { BookForm } from "@/components/admin/BookForm";
 import { assertAdminPage } from "@/lib/auth-guard";
-import { listCategories } from "@/lib/queries";
+import { getT } from "@/lib/i18n/server";
+import { listAuthorOptions, listCategories, listPublisherOptions, listSeriesOptions } from "@/lib/queries";
 
-export const metadata = { title: "Thêm sách" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("admin.newBook") };
+}
 
 async function NewBookForm() {
   await assertAdminPage();
-  return <BookForm categories={await listCategories()} />;
+  const [categories, authors, series, publishers] = await Promise.all([
+    listCategories(),
+    listAuthorOptions(),
+    listSeriesOptions(),
+    listPublisherOptions(),
+  ]);
+  return <BookForm categories={categories} authors={authors} series={series} publishers={publishers} />;
 }
 
-export default function NewBookPage() {
+export default async function NewBookPage() {
+  const t = await getT();
   return (
     <div>
-      <h1 className="mb-6 text-3xl font-bold">Thêm sách</h1>
-      <Suspense fallback={<p className="text-ink/60">Đang tải…</p>}>
+      <h1 className="mb-6 text-3xl font-bold">{t("admin.newBook")}</h1>
+      <Suspense fallback={<p className="text-ink/60">{t("common.loading")}</p>}>
         <NewBookForm />
       </Suspense>
     </div>

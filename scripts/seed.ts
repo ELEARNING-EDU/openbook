@@ -1,9 +1,14 @@
 import mongoose from "mongoose";
+import { authorNameKey } from "../src/lib/authors";
 import { connectDB } from "../src/lib/db";
 import { slugify } from "../src/lib/slug";
+import { Author } from "../src/models/Author";
 import { Book } from "../src/models/Book";
+import { BookDailyStat } from "../src/models/BookDailyStat";
 import { Category } from "../src/models/Category";
+import { Publisher } from "../src/models/Publisher";
 import { Review } from "../src/models/Review";
+import { Series } from "../src/models/Series";
 
 try {
   process.loadEnvFile(".env.local");
@@ -51,15 +56,25 @@ const BOOKS: { title: string; author: string; description: string; coverUrl: str
 
 async function main() {
   await connectDB();
-  await Promise.all([Book.deleteMany({}), Category.deleteMany({}), Review.deleteMany({})]);
-  await Promise.all([Book.syncIndexes(), Category.syncIndexes(), Review.syncIndexes()]);
+  await Promise.all([Book.deleteMany({}), Author.deleteMany({}), Category.deleteMany({}), Review.deleteMany({}), BookDailyStat.deleteMany({}), Series.deleteMany({}), Publisher.deleteMany({})]);
+  await Promise.all([Book.syncIndexes(), Author.syncIndexes(), Category.syncIndexes(), Review.syncIndexes(), BookDailyStat.syncIndexes(), Series.syncIndexes(), Publisher.syncIndexes()]);
 
   const cats = await Category.insertMany(CATEGORIES.map((name) => ({ name, slug: slugify(name) })));
   const catId = new Map(cats.map((c) => [c.name, c._id]));
+  const base = process.env.SEED_BASE_URL;
+  const authors = await Author.insertMany(
+    [...new Set([...BOOKS.map((b) => b.author), ...(base ? ["OpenBook"] : [])])].map((name) => ({
+      name,
+      nameKey: authorNameKey(name),
+      slug: slugify(name),
+    })),
+  );
+  const authorId = new Map(authors.map((a) => [a.name, a._id]));
 
   await Book.insertMany(
     BOOKS.map(({ cats: names, ...b }, i) => ({
       ...b,
+      authorId: authorId.get(b.author),
       slug: slugify(b.title),
       categoryIds: names.map((n) => catId.get(n)),
       downloadCount: Math.floor(Math.random() * 5000),
@@ -67,7 +82,6 @@ async function main() {
     })),
   );
   // Local-only sample book whose EPUB is served by this app (e2e + demos); never seeded without SEED_BASE_URL.
-  const base = process.env.SEED_BASE_URL;
   if (base) {
     const epubUrl = `${base.replace(/\/$/, "")}/test-fixtures/sample.epub`;
     const literatureId = catId.get("Văn học Việt Nam");
@@ -76,6 +90,7 @@ async function main() {
       title: "Sách mẫu OpenBook",
       slug: "sach-mau-openbook",
       author: "OpenBook",
+      authorId: authorId.get("OpenBook"),
       description: "Sách mẫu để thử trình đọc online.",
       epubUrl,
       links: [{ label: "Tải EPUB", url: epubUrl }],

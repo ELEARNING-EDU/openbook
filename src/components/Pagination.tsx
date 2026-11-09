@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 
-export function Pagination({ page, totalPages, baseHref }: { page: number; totalPages: number; baseHref: string }) {
+export async function Pagination({ page, totalPages, baseHref }: { page: number; totalPages: number; baseHref: string }) {
+  const t = await getT();
   if (totalPages <= 1) return null;
   const href = (p: number) => `${baseHref}${baseHref.includes("?") ? "&" : "?"}page=${p}`;
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
@@ -8,10 +10,10 @@ export function Pagination({ page, totalPages, baseHref }: { page: number; total
   );
   const item = "grid h-10 min-w-10 place-items-center rounded-full px-3 text-sm font-semibold transition";
   return (
-    <nav aria-label="Phân trang" className="mt-10 flex flex-wrap items-center justify-center gap-2">
+    <nav aria-label={t("common.pagination")} className="mt-10 flex flex-wrap items-center justify-center gap-2">
       {page > 1 && (
-        <Link href={href(page - 1)} className={`${item} bg-white/70 hover:bg-orange-100`}>
-          ← Trước
+        <Link href={href(page - 1)} className={`${item} bg-surface/70 hover:bg-tint`}>
+          {t("common.prev")}
         </Link>
       )}
       {pages.map((p, i) => (
@@ -20,15 +22,15 @@ export function Pagination({ page, totalPages, baseHref }: { page: number; total
           <Link
             href={href(p)}
             aria-current={p === page ? "page" : undefined}
-            className={`${item} ${p === page ? "bg-brick text-white" : "bg-white/70 hover:bg-orange-100"}`}
+            className={`${item} ${p === page ? "bg-brick text-white" : "bg-surface/70 hover:bg-tint"}`}
           >
             {p}
           </Link>
         </span>
       ))}
       {page < totalPages && (
-        <Link href={href(page + 1)} className={`${item} bg-white/70 hover:bg-orange-100`}>
-          Sau →
+        <Link href={href(page + 1)} className={`${item} bg-surface/70 hover:bg-tint`}>
+          {t("common.next")}
         </Link>
       )}
     </nav>
