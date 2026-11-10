@@ -32,7 +32,7 @@ Hiện trạng: importer/`describe()` chỉ hiểu EPUB; `RawChapter` chứa HTM
   `TextReaderScreen` (P1/P2) hoặc `PageReaderScreen` (P4); metadata/cover theo từng định dạng.
 - [ ] **Thứ tự:** P1 → P2 → P3 → P4 → P5. Rủi ro: scroll đụng nhiều chỗ giả định page; PDF tốn RAM;
   MOBI cần thư viện ngoài; chưa có `androidTest` nên P1/P2 cần thêm unit test map offset↔vị trí và
-  QA E3 cho TTS/highlight.
+  QA trên E1/E2 cho TTS/highlight.
 
 ### Việc còn treo từ QA 2026-11-02
 
