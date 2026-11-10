@@ -167,7 +167,8 @@ giới hạn. Nhật ký theo ngày trước 2026-11-07 nằm trong Git — xem
 4. Chưa từng nghe giọng đọc qua loa/Bluetooth thật; chỉ xác nhận bằng log tổng hợp TTS và
    chuyển trạng thái PLAYING/PAUSED/IDLE.
 5. Test chỉ JVM (`app/src/test`), không có CI; reader/TTS/player vẫn phải QA trên emulator.
-   33 ca corpus skip vì thiếu `../ios/build/qa/epub-corpus`.
+   33 ca corpus skip vì thiếu corpus; `EpubCorpusTest` còn trỏ path cũ
+   `/Users/cuong/Workspace/Orca/OpenBook/…` (T-111).
 6. Full player co theo nội dung, không phải nửa màn hình: ~60% trên 1344×2992, ~93% trên
    360×640dp; landscape Material chặn 640dp và nội dung phải cuộn. Ở 360dp headline thanh đọc
    co còn "Hải Đ" (T-085).

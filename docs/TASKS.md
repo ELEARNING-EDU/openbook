@@ -10,7 +10,7 @@ Cập nhật 2026-11-10. Chỉ giữ việc đang mở; việc đã xong nằm t
 | T-119 | P1 | Chưa giao | Import không đọc quá 64 MiB mỗi entry / 256 MiB mỗi EPUB trong `TextCleanup`, từ chối trước khi cấp phát, giữ file cũ khi lỗi; có regression test | `epub/TextCleanup.kt:70` gọi `readBytes()` thẳng, bỏ qua budget của `ZipExtract` (T-112) |
 | T-120 | P1 | Chưa giao | `"She had had enough."` giữ nguyên sau khi sửa | `TextCleanup.kt:178,185` — `doubledWord` xoá cả từ lặp hợp lệ |
 | T-121 | P2 | Chưa giao | `<style>`, `<script>`, `<pre>`, `<code>` không bị `tidy` sửa | Chỉ sửa text node; hiện regex chạy trên cả khối |
-| T-111 | P2 | Chưa giao | 33 ca corpus chạy thật thay vì skip | Corpus EPUB nằm ở worktree iOS (`../ios/build/qa/epub-corpus`); `app/build.gradle.kts` (working tree) đã có `systemProperty("epubCorpus", …)`, cần corpus tồn tại |
+| T-111 | P2 | Chưa giao | 33 ca corpus chạy thật thay vì skip | Corpus không có ở `../ios/build/qa/epub-corpus`. `EpubCorpusTest` còn fallback path cũ `/Users/cuong/Workspace/Orca/OpenBook/ios/…` và không còn nhận `-DepubCorpus` từ Gradle — cần khôi phục corpus rồi truyền đường dẫn (hoặc sửa fallback) |
 
 Ba lỗi T-119/T-120/T-121 có probe tái hiện trong báo cáo QA 2026-11-02 (đã xoá khỏi
 `docs/`; xem Git history). Không phụ thuộc task khác.
