@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 /// The three places in the app: what is being read, what is owned, and the store
@@ -59,6 +60,7 @@ struct MainView: View {
     @ObservedObject private var speech = SpeechController.shared
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestReview) private var requestReview
     @AppStorage(AppLanguage.storageKey) private var languageID = AppLanguage.system.rawValue
 
     private var palette: ReaderPalette { .shell(dark: colorScheme == .dark) }
@@ -145,12 +147,21 @@ struct MainView: View {
         .tint(palette.swiftAccent)
         .environment(\.locale, language.locale)
         .onAppear(perform: applyDemoTabHook)
+        .task {
+            // The system decides whether the sheet actually shows.
+            guard ReviewPrompt.due else { return }
+            ReviewPrompt.due = false
+            try? await Task.sleep(for: .seconds(1))
+            requestReview()
+        }
         .onOpenURL(perform: openBook(from:))
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:
                 wasBackgrounded = true
             case .active:
+                // Covers a light/dark switch made in Control Centre while the app was open.
+                ReaderSettings.shared.followSystem()
                 guard wasBackgrounded else { return }
                 wasBackgrounded = false
                 openPlayingBook()
@@ -163,11 +174,36 @@ struct MainView: View {
     /// `epubreader://book/<file name>` opens that book at its saved place. The
     /// now-playing panel itself cannot carry a URL on iOS, so its tap is handled
     /// by `openPlayingBook()`; this is the link the app can be handed from
-    /// elsewhere.
+    /// elsewhere. A `.epub` handed over by another app is imported first.
     private func openBook(from url: URL) {
+        if url.isFileURL {
+            importAndOpen(url)
+            return
+        }
         guard url.scheme == "epubreader" else { return }
         let name = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
         guard let book = library.books.first(where: { $0.id == name }) else { return }
+        show(book)
+    }
+
+    /// The file goes through the library's own import: same validation, same
+    /// DRM and damaged-file errors, same duplicate-name rule as the picker. The
+    /// access scope is taken inside `importBook`.
+    private func importAndOpen(_ url: URL) {
+        let id = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
+        library.importBook(from: url)
+
+        guard library.importError == nil,
+              let book = library.books.first(where: { $0.id == id })
+        else {
+            // The existing import-failed alert lives on the library screen.
+            tab = .library
+            return
+        }
+        show(book)
+    }
+
+    private func show(_ book: BookItem) {
         tab = .library
         libraryPath = [book]
     }

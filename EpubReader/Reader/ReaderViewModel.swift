@@ -9,7 +9,7 @@ final class ReaderViewModel: ObservableObject {
     /// intervals are what to look at in Instruments before making any of it
     /// cheaper.
     private static let signposter = OSSignposter(
-        subsystem: "com.example.epubreader.ios",
+        subsystem: "com.elearning.openbook",
         category: "reader"
     )
 
@@ -317,9 +317,11 @@ final class ReaderViewModel: ObservableObject {
             ?? text.startIndex
         let end = text.index(range.upperBound, offsetBy: 70, limitedBy: text.endIndex)
             ?? text.endIndex
-        return text[start..<end]
+        let body = text[start..<end]
             .split(whereSeparator: { $0.isWhitespace })
             .joined(separator: " ")
+        // Same as Android: an ellipsis marks each side that was cut.
+        return (start > text.startIndex ? "…" : "") + body + (end < text.endIndex ? "…" : "")
     }
 
     // MARK: - Pagination
@@ -416,6 +418,24 @@ final class ReaderViewModel: ObservableObject {
 /// apart from the view model so the scrubber's arithmetic can be tested without
 /// opening a book.
 enum NarrationMath {
+
+    /// Where Play goes after a pause: back into the paused sentence, or to the
+    /// page the reader is looking at now.
+    enum ResumeStart: Equatable {
+        case pausedSentence
+        case visiblePage
+    }
+
+    /// The paused place is tied to the page on screen: once the reader has moved
+    /// to another page, Play starts at that page's first sentence instead of the
+    /// sentence the voice stopped on. With no reader open there is no page to
+    /// follow, so the paused place wins.
+    static func resumeStart(pausedPage: Int?, visiblePage: Int?) -> ResumeStart {
+        guard let pausedPage, let visiblePage, pausedPage != visiblePage else {
+            return .pausedSentence
+        }
+        return .visiblePage
+    }
 
     /// The chapter and offset `fraction` points at, counted in characters so a
     /// long chapter takes more of the bar than a short one.

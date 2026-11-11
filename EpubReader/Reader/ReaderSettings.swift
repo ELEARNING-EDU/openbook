@@ -149,9 +149,16 @@ final class ReaderSettings: ObservableObject {
     }
 
     /// Day or night. The theme is the same either way; this picks its face.
-    @Published var isDarkAppearance: Bool {
-        didSet { UserDefaults.standard.set(isDarkAppearance, forKey: Self.appearanceKey) }
-    }
+    /// Follows the phone until the reader picks one (same rule as Android).
+    @Published private(set) var isDarkAppearance: Bool
+
+    /// The reader's own choice, or nil while the phone's appearance is in charge.
+    private var savedDark: Bool?
+
+    static func resolvedDark(saved: Bool?, systemDark: Bool) -> Bool { saved ?? systemDark }
+
+    /// The phone's appearance, not the window's: the reader forces the window's scheme.
+    static var systemIsDark: Bool { UIScreen.main.traitCollection.userInterfaceStyle == .dark }
 
     /// Every theme's own settings, keyed by theme id.
     @Published private(set) var customs: [String: ReaderCustom] {
@@ -193,7 +200,8 @@ final class ReaderSettings: ObservableObject {
             : ReaderTheme.defaultThemeID
 
         themeID = theme
-        isDarkAppearance = UserDefaults.standard.bool(forKey: Self.appearanceKey)
+        savedDark = UserDefaults.standard.object(forKey: Self.appearanceKey) as? Bool
+        isDarkAppearance = Self.resolvedDark(saved: savedDark, systemDark: Self.systemIsDark)
 
         customisedThemes = Set(UserDefaults.standard.stringArray(forKey: Self.customisedKey) ?? [])
 
@@ -243,11 +251,21 @@ final class ReaderSettings: ObservableObject {
         themeID = id
     }
 
-    func toggleAppearance() { isDarkAppearance.toggle() }
+    func toggleAppearance() { setAppearance(dark: !isDarkAppearance) }
 
     /// Day or night, without toggling: the capture harness has to be able to say
-    /// which face it wants, whatever the last run left behind.
-    func setAppearance(dark: Bool) { isDarkAppearance = dark }
+    /// which face it wants, whatever the last run left behind. From now on it is saved.
+    func setAppearance(dark: Bool) {
+        savedDark = dark
+        isDarkAppearance = dark
+        UserDefaults.standard.set(dark, forKey: Self.appearanceKey)
+    }
+
+    /// Keeps an unchosen reader on the phone's appearance.
+    func followSystem() {
+        guard savedDark == nil, isDarkAppearance != Self.systemIsDark else { return }
+        isDarkAppearance = Self.systemIsDark
+    }
 
     // MARK: - Type size
 

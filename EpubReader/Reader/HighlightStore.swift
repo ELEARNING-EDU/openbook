@@ -43,6 +43,9 @@ struct Highlight: Codable, Identifiable, Hashable {
     /// ARGB. Kept as a number so a new palette entry cannot break saved marks.
     let color: UInt32
     let createdAt: Date
+    /// What the reader wrote beside the passage. Optional so a mark saved
+    /// before notes existed still decodes — a missing key is simply no note.
+    let note: String?
 
     /// Stable across a re-typeset: it names the text, not the page.
     var id: String { "\(chapterIndex)-\(startOffset)-\(endOffset)" }
@@ -115,7 +118,8 @@ final class HighlightStore: ObservableObject {
             endOffset: endOffset,
             text: text,
             color: color.rawValue,
-            createdAt: Date()
+            createdAt: Date(),
+            note: nil
         )
 
         if let index = highlights.firstIndex(where: { $0.isSamePassage(as: candidate) }) {
@@ -126,7 +130,8 @@ final class HighlightStore: ObservableObject {
                 endOffset: existing.endOffset,
                 text: existing.text,
                 color: color.rawValue,
-                createdAt: existing.createdAt
+                createdAt: existing.createdAt,
+                note: existing.note
             )
             highlights[index] = recoloured
             persist()
@@ -154,7 +159,25 @@ final class HighlightStore: ObservableObject {
             endOffset: existing.endOffset,
             text: existing.text,
             color: color.rawValue,
-            createdAt: existing.createdAt
+            createdAt: existing.createdAt,
+            note: existing.note
+        )
+        persist()
+    }
+
+    /// Writes or clears the note beside a mark. A blank note is no note.
+    func setNote(_ note: String?, of highlight: Highlight) {
+        guard let index = highlights.firstIndex(where: { $0.id == highlight.id }) else { return }
+        let cleaned = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let existing = highlights[index]
+        highlights[index] = Highlight(
+            chapterIndex: existing.chapterIndex,
+            startOffset: existing.startOffset,
+            endOffset: existing.endOffset,
+            text: existing.text,
+            color: existing.color,
+            createdAt: existing.createdAt,
+            note: cleaned?.isEmpty == false ? cleaned : nil
         )
         persist()
     }

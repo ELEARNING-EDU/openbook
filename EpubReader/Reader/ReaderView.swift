@@ -1,4 +1,6 @@
 import SwiftUI
+import Translation
+import UIKit
 
 struct ReaderView: View {
 
@@ -32,6 +34,17 @@ struct ReaderView: View {
     @State private var turnRequest: PageTurnRequest?
     @State private var showSearch = false
     @State private var searchQuery = ""
+    /// A note being written for the saved passage whose popup is open.
+    @State private var showNoteEditor = false
+    @State private var noteDraft = ""
+    /// The selected passage handed to the system translator.
+    @State private var translationText = ""
+    @State private var showTranslation = false
+    /// The system decides whether this device has a translator at all.
+    @State private var canTranslate = true
+    /// The highlights file waiting for the system save dialog.
+    @State private var exportFile: HighlightExportFile?
+    @State private var showExport = false
     /// The passage the reader is choosing, and where the popup should sit.
     @State private var selection: ActiveSelection?
     /// The popup's two shapes: the compact row, and the vertical list behind ›.
@@ -40,6 +53,8 @@ struct ReaderView: View {
     /// Which half of the contents sheet is showing: the book's own outline, or the
     /// places the reader has marked.
     @State private var tocSection = 0
+    /// The one-time gesture guide, shown over the first book that finishes opening.
+    @State private var showGuide = false
     /// Screenshot hooks run once per launch, not once per book opened: reopening a
     /// book must not re-open the full player or start narration by itself.
     private static var demoApplied = false
@@ -141,6 +156,13 @@ struct ReaderView: View {
                 pageCount: max(model.pages.count, 1)
             )
         }
+        .sheet(isPresented: $showNoteEditor) { noteEditorSheet }
+        .translationPresentation(isPresented: $showTranslation, text: translationText)
+        .task { canTranslate = await translationAvailable() }
+    }
+
+    private func translationAvailable() async -> Bool {
+        !(await LanguageAvailability().supportedLanguages).isEmpty
     }
 
     private func screen(size: CGSize, full: CGSize, safeTop: CGFloat) -> some View {
@@ -158,6 +180,12 @@ struct ReaderView: View {
                 layoutChanged(full: full, safeTop: newValue)
             }
             .onChange(of: model.pages.count) { _, count in pagesChanged(count) }
+            .onChange(of: model.pages.isEmpty) { _, empty in
+                if !empty && ReaderGuide.pending() {
+                    ReaderGuide.done()
+                    showGuide = true
+                }
+            }
             .onDisappear { leaveBook() }
             .onChange(of: scenePhase) { _, phase in handleScenePhase(phase) }
             .onChange(of: speech.state) { _, newState in
@@ -184,7 +212,18 @@ struct ReaderView: View {
         // A chosen passage is anchored to the old layout: a rotation or a
         // split-view resize makes its offsets meaningless.
         cancelSelection()
+        // Page numbers change with the width (and 1 ↔ 2 columns): keep the place by text.
+        let anchor = model.pages.indices.contains(pageIndex)
+            ? (chapter: model.pages[pageIndex].chapterIndex, offset: model.pages[pageIndex].range.location)
+            : nil
         model.updatePagination(for: full, safeTop: safeTop, style: settings.applied)
+        if let anchor,
+           let target = model.pageIndex(forChapterOffset: anchor.offset, chapter: anchor.chapter) {
+            pageIndex = target
+        } else if pageIndex >= model.pages.count {
+            pageIndex = max(0, model.pages.count - 1)
+        }
+        publishVisiblePage()
     }
 
     private func pagesChanged(_ count: Int) {
@@ -199,6 +238,7 @@ struct ReaderView: View {
         resumeReading(pageCount: count)
         applyDemoHooks(pageCount: count)
         applyNarrationDemoHook()
+        publishVisiblePage()
     }
 
     /// The voice drives the page — but only while it is actually speaking:
@@ -216,6 +256,7 @@ struct ReaderView: View {
     }
 
     private func pageChanged(to newIndex: Int) {
+        publishVisiblePage()
         cancelSelection()
         scheduleSavePosition()
         stats.noteActivity(at: Date())
@@ -238,6 +279,7 @@ struct ReaderView: View {
         saveToken += 1
         savePosition()
         stats.endSession(at: Date())
+        speech.setVisiblePage(nil)
     }
 
     private func screenBody(size: CGSize, full: CGSize, safeTop: CGFloat) -> some View {
@@ -262,6 +304,10 @@ struct ReaderView: View {
                 .padding(.horizontal, ReaderMetrics.hMargin)
 
             debugOverlay(size: size, full: full, safeTop: safeTop)
+
+            if showGuide {
+                ReaderGuideOverlay(palette: palette) { showGuide = false }
+            }
         }
     }
 
@@ -562,6 +608,82 @@ struct ReaderView: View {
         cancelSelection()
     }
 
+    // MARK: - Selection actions
+
+    private var selectedText: String {
+        guard let current = selection,
+              let text = model.text(inChapter: current.chapter, range: current.range)
+        else { return "" }
+        return text
+    }
+
+    /// The quotation the share sheet carries. The author is left out when the
+    /// library only knows the placeholder.
+    private var shareText: String {
+        let author = book.author == L10n.string("library.unknownAuthor") ? nil : book.author
+        let byline = author.map { ", \($0)" } ?? ""
+        return "“\(selectedText)”\n— \(book.title)\(byline)"
+    }
+
+    private func copySelection() {
+        let text = selectedText
+        guard !text.isEmpty else { return }
+        UIPasteboard.general.string = text
+        cancelSelection()
+    }
+
+    /// The reader's own in-book search, with the passage as the query.
+    private func searchSelection() {
+        let query = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        searchQuery = String(query.prefix(80))
+        cancelSelection()
+        showSearch = true
+    }
+
+    private func translateSelection() {
+        let text = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        translationText = text
+        cancelSelection()
+        showTranslation = true
+    }
+
+    // MARK: - Notes
+
+    private func openNoteEditor() {
+        guard let highlight = selection?.highlight else { return }
+        noteDraft = highlight.note ?? ""
+        showNoteEditor = true
+    }
+
+    private func saveNote() {
+        guard let highlight = selection?.highlight else { return }
+        highlights.setNote(noteDraft, of: highlight)
+        showNoteEditor = false
+        cancelSelection()
+    }
+
+    private var noteEditorSheet: some View {
+        NavigationStack {
+            TextEditor(text: $noteDraft)
+                .font(.system(size: 16))
+                .padding(12)
+                .navigationTitle(Text("reader.highlight.note"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("common.cancel") { showNoteEditor = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("library.edit.save") { saveNote() }
+                    }
+                }
+        }
+        .presentationDetents([.height(280)])
+        .preferredColorScheme(palette.isDark ? .dark : .light)
+    }
+
     // MARK: - The selection popup
 
     /// The popup rides on the passage, not on a bottom sheet. It is put above the
@@ -613,10 +735,16 @@ struct ReaderView: View {
             popupAction("reader.highlight.action", enabled: true) {
                 selectionChoosingColor = true
             }
+            if canTranslate {
+                popupDivider
+                popupAction("reader.action.translate", enabled: true) {
+                    translateSelection()
+                }
+            }
             popupDivider
-            popupAction("reader.action.translate", enabled: false) {}
-            popupDivider
-            popupAction("reader.action.search", enabled: false) {}
+            popupAction("reader.action.search", enabled: true) {
+                searchSelection()
+            }
             popupDivider
             Button {
                 withAnimation(.easeInOut(duration: 0.16)) { selectionExpanded = true }
@@ -638,10 +766,21 @@ struct ReaderView: View {
             popupRow("reader.highlight.action", icon: "highlighter", enabled: true) {
                 selectionChoosingColor = true
             }
-            popupRow("reader.action.translate", icon: "character.bubble", enabled: false) {}
-            popupRow("reader.action.search", icon: "magnifyingglass", enabled: false) {}
-            popupRow("reader.action.copy", icon: "doc.on.doc", enabled: false) {}
-            popupRow("reader.action.share", icon: "square.and.arrow.up", enabled: false) {}
+            if canTranslate {
+                popupRow("reader.action.translate", icon: "character.bubble", enabled: true) {
+                    translateSelection()
+                }
+            }
+            popupRow("reader.action.search", icon: "magnifyingglass", enabled: true) {
+                searchSelection()
+            }
+            popupRow("reader.action.copy", icon: "doc.on.doc", enabled: true) {
+                copySelection()
+            }
+            ShareLink(item: shareText) {
+                popupRowLabel("reader.action.share", icon: "square.and.arrow.up")
+            }
+            .buttonStyle(.plain)
         }
         .padding(.vertical, 6)
     }
@@ -650,6 +789,10 @@ struct ReaderView: View {
         HStack(spacing: 0) {
             popupAction("reader.highlight.action", enabled: true) {
                 selectionChoosingColor = true
+            }
+            popupDivider
+            popupAction("reader.highlight.note", enabled: true) {
+                openNoteEditor()
             }
             popupDivider
             Button {
@@ -714,22 +857,32 @@ struct ReaderView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(width: 22)
-                Text(verbatim: L10n.string(key))
-                    .font(.system(size: 15, weight: .medium))
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(palette.swiftInk)
-            .opacity(enabled ? 1 : 0.4)
-            .padding(.horizontal, 16)
-            .frame(height: 44)
-            .contentShape(Rectangle())
+            popupRowLabel(key, icon: icon, enabled: enabled)
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+    }
+
+    /// The row's look, shared with `ShareLink`, which presents the system sheet
+    /// itself and so cannot be a plain `Button`.
+    private func popupRowLabel(
+        _ key: String,
+        icon: String,
+        enabled: Bool = true
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 22)
+            Text(verbatim: L10n.string(key))
+                .font(.system(size: 15, weight: .medium))
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(palette.swiftInk)
+        .opacity(enabled ? 1 : 0.4)
+        .padding(.horizontal, 16)
+        .frame(height: 44)
+        .contentShape(Rectangle())
     }
 
     private var popupDivider: some View {
@@ -1528,6 +1681,7 @@ struct ReaderView: View {
             pageIndex = max(0, model.pages.count - 1)
         }
         scheduleAutoHide()
+        publishVisiblePage()
     }
 
     /// Synthetic tap in the page's text-view coordinates. The screenshot harness
@@ -1608,6 +1762,30 @@ struct ReaderView: View {
             pageRange: page.range
         ) else { return }
         speech.speak(chapter: page.chapterIndex, fromChapterOffset: start)
+    }
+
+    /// Tells the voice which page is on screen, so Play while paused starts here
+    /// when the paused sentence is no longer visible.
+    private func publishVisiblePage() {
+        guard model.pages.indices.contains(pageIndex) else {
+            speech.setVisiblePage(nil)
+            return
+        }
+        let page = model.pages[pageIndex]
+        guard let start = model.firstSentenceOffset(
+            inChapter: page.chapterIndex,
+            pageRange: page.range
+        ) else {
+            speech.setVisiblePage(nil)
+            return
+        }
+        speech.setVisiblePage(
+            SpeechController.VisiblePage(
+                index: pageIndex,
+                chapter: page.chapterIndex,
+                firstSentence: start
+            )
+        )
     }
 
     /// A tap on a sentence: the page measured the tap in chapter coordinates, so
@@ -1790,6 +1968,7 @@ struct ReaderView: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
+                .padding(.bottom, 12)
 
                 switch tocSection {
                 case 0: contentsList
@@ -1797,16 +1976,58 @@ struct ReaderView: View {
                 default: highlightsList
                 }
             }
-            .background(palette.swiftPaper)
+            .background(palette.swiftPaper.ignoresSafeArea())
+            .toolbarBackground(palette.swiftPaper, for: .navigationBar)
             .navigationTitle(contentsTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if tocSection == 2, !highlights.highlights.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("reader.highlight.export") { exportHighlights() }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("common.done") { showTOC = false }
                 }
             }
             .preferredColorScheme(palette.isDark ? .dark : .light)
+            .presentationBackground(palette.swiftPaper)
+            .fileExporter(
+                isPresented: $showExport,
+                document: exportFile,
+                contentType: HighlightExportFile.markdownType,
+                defaultFilename: "\(book.title) - highlights.md"
+            ) { _ in }
         }
+    }
+
+    /// The same rows the Highlights tab shows, in reading order, handed to the
+    /// shared Markdown builder.
+    private var exportEntries: [HighlightExportEntry] {
+        highlights.highlights.map { mark in
+            HighlightExportEntry(
+                chapterIndex: mark.chapterIndex,
+                startOffset: mark.startOffset,
+                chapterTitle: model.hit(
+                    chapterIndex: mark.chapterIndex,
+                    offset: mark.startOffset
+                )?.chapterTitle ?? "",
+                text: mark.text,
+                note: mark.note
+            )
+        }
+    }
+
+    private func exportHighlights() {
+        let author = book.author == L10n.string("library.unknownAuthor") ? nil : book.author
+        exportFile = HighlightExportFile(
+            text: HighlightMarkdown.document(
+                title: book.title,
+                author: author,
+                highlights: exportEntries
+            )
+        )
+        showExport = true
     }
 
     private var contentsList: some View {
@@ -1814,6 +2035,7 @@ struct ReaderView: View {
             if model.toc.isEmpty {
                 Text("reader.noContents")
                     .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
             } else {
                 ForEach(model.toc) { entry in
                     Button {
@@ -1830,10 +2052,10 @@ struct ReaderView: View {
                         }
                     }
                 }
+                .listRowBackground(Color.clear)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+        .tocListStyle()
     }
 
     private var contentsTitle: String {
@@ -1854,6 +2076,7 @@ struct ReaderView: View {
             if resolved.isEmpty {
                 Text("reader.noMarks")
                     .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
             } else {
                 ForEach(resolved) { hit in
                     Button {
@@ -1880,10 +2103,10 @@ struct ReaderView: View {
                         bookmarks.marks.firstIndex { $0.id == hit.id }
                     }))
                 }
+                .listRowBackground(Color.clear)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+        .tocListStyle()
     }
 
     /// The passages the reader has marked, read down the book. They are stored by
@@ -1899,6 +2122,7 @@ struct ReaderView: View {
             if rows.isEmpty {
                 Text("reader.noHighlights")
                     .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
             } else {
                 ForEach(rows) { row in
                     Button {
@@ -1913,6 +2137,12 @@ struct ReaderView: View {
                                 .font(.system(size: 14))
                                 .foregroundStyle(.primary)
                                 .lineLimit(2)
+                            if let note = row.highlight.note, !note.isEmpty {
+                                Text(verbatim: note)
+                                    .font(.system(size: 13).italic())
+                                    .foregroundStyle(palette.swiftInkSoft)
+                                    .lineLimit(2)
+                            }
                             Text(verbatim: L10n.format("reader.pageRef", row.hit.pageIndex + 1))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
@@ -1926,10 +2156,10 @@ struct ReaderView: View {
                     }
                     for mark in removable { highlights.remove(mark) }
                 }
+                .listRowBackground(Color.clear)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+        .tocListStyle()
     }
 
     // MARK: - Settings
@@ -1976,5 +2206,12 @@ struct ReaderView: View {
             onPick: { hit in jump(to: hit) },
             onDone: { showSearch = false }
         )
+    }
+}
+
+private extension View {
+    /// The contents sheet's lists sit on the reader's paper, like Android's.
+    func tocListStyle() -> some View {
+        listStyle(.plain).scrollContentBackground(.hidden)
     }
 }

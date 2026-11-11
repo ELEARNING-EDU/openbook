@@ -15,21 +15,27 @@ struct SearchSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                field
-                results
+        // Same layout as Android's search sheet: serif title left, Done right, all on the paper.
+        VStack(spacing: 0) {
+            HStack {
+                Text("reader.search")
+                    .font(.system(size: 22, weight: .semibold, design: .serif))
+                    .foregroundStyle(palette.swiftInk)
+                Spacer()
+                Button("common.done", action: onDone)
+                    .font(.system(size: 17, weight: .semibold, design: .serif))
+                    .foregroundStyle(palette.swiftAccent)
             }
-            .background(palette.swiftPaper)
-            .navigationTitle("reader.search")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("common.done", action: onDone)
-                }
-            }
-            .preferredColorScheme(palette.isDark ? .dark : .light)
+            .padding(.horizontal, 16)
+            .padding(.top, 24)
+            field
+            results
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(palette.swiftPaper.ignoresSafeArea())
+        .presentationBackground(palette.swiftPaper)
+        .presentationDragIndicator(.visible)
+        .preferredColorScheme(palette.isDark ? .dark : .light)
     }
 
     private var field: some View {
@@ -91,6 +97,9 @@ struct SearchSheet: View {
                     }
                     .padding(.vertical, 3)
                 }
+                // Same 16pt edge as the field above, on the paper, not a system row.
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

@@ -248,7 +248,7 @@ extension UIColor {
 
 /// Every measurement the reader's chrome and its pages agree on.
 enum ReaderMetrics {
-    static let hInset: CGFloat = 30
+    static let hInset: CGFloat = 20
     static let headerHeight: CGFloat = 14
     static let footerHeight: CGFloat = 14
     static let gap: CGFloat = 14

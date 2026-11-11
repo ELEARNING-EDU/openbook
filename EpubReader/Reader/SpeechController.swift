@@ -69,6 +69,15 @@ final class SpeechController: NSObject, ObservableObject {
     private(set) var bookID: String?
 
     private let synthesizer = AVSpeechSynthesizer()
+    /// AVAudioSession activation blocks, and the runtime flags it as a main-thread
+    /// hang risk: every call goes through this serial queue instead.
+    private let audioQueue = DispatchQueue(
+        label: "com.elearning.openbook.audio-session",
+        qos: .userInitiated
+    )
+    private var sessionReady = false
+    private var activatingSession = false
+    private var activationWaiters: [() -> Void] = []
     private var chapters: [Chapter] = []
     private var chapterTitles: [String] = []
     /// Where the current utterance starts inside its chapter string.
@@ -80,6 +89,12 @@ final class SpeechController: NSObject, ObservableObject {
     /// Where the voice last reached, so a speed change can resume in the same
     /// sentence instead of jumping back to the top of the page.
     private var lastSpokenOffset = 0
+    /// The page the reader is looking at, while a reader is open. Play follows it,
+    /// so a page turned during a pause is where the voice picks up.
+    private(set) var visiblePage: VisiblePage?
+    /// The page the paused sentence was printed on, captured when the pause
+    /// happened. `nil` when the reader was closed at that moment.
+    private var pausedPage: Int?
     private var artwork: MPMediaItemArtwork?
     private var interruptionObserver: NSObjectProtocol?
     private var routeObserver: NSObjectProtocol?
@@ -87,6 +102,20 @@ final class SpeechController: NSObject, ObservableObject {
     var isSpeaking: Bool { state == .playing }
     var isBusy: Bool { state != .idle }
     var rateLabel: String { String(format: "%g×", rateFactor) }
+
+    /// The page on screen, with the sentence Play should start from when the
+    /// reader has moved away from the paused one.
+    struct VisiblePage: Equatable {
+        let index: Int
+        let chapter: Int
+        let firstSentence: Int
+    }
+
+    /// The reader owns this: call it on every page change, and with `nil` when
+    /// the book closes.
+    func setVisiblePage(_ page: VisiblePage?) {
+        visiblePage = page
+    }
 
     override init() {
         super.init()
@@ -96,7 +125,7 @@ final class SpeechController: NSObject, ObservableObject {
         rateFactor = Self.rateOptions.contains(saved) ? saved : 1.0
         voiceID = UserDefaults.standard.string(forKey: Self.voiceKey)
 
-        activateAudioSession()
+        ensureAudioSession {}
         configureRemoteCommands()
         observeAudioChanges()
     }
@@ -162,8 +191,15 @@ final class SpeechController: NSObject, ObservableObject {
 
     // MARK: - Reading
 
-    /// Starts narration at the sentence containing `offset` (chapter coordinates).
+    /// Starts narration at the sentence containing `offset` (chapter coordinates),
+    /// once the audio session is active.
     func speak(chapter index: Int, fromChapterOffset offset: Int) {
+        ensureAudioSession { [weak self] in
+            self?.startSpeaking(chapter: index, fromChapterOffset: offset)
+        }
+    }
+
+    private func startSpeaking(chapter index: Int, fromChapterOffset offset: Int) {
         guard chapters.indices.contains(index) else { return }
 
         let chapter = chapters[index]
@@ -211,13 +247,23 @@ final class SpeechController: NSObject, ObservableObject {
         guard state == .playing else { return }
         // `.word` lets the current word finish rather than clipping it.
         synthesizer.pauseSpeaking(at: .word)
+        pausedPage = visiblePage?.index
         state = .paused
         updateNowPlaying()
     }
 
     func resume() {
         guard state == .paused else { return }
-        if synthesizer.continueSpeaking() {
+        // The reader may have turned away while the voice was paused: Play reads
+        // the page on screen, not the sentence it stopped on. `speak` drops the
+        // paused utterance before queueing the new one.
+        let start = NarrationMath.resumeStart(
+            pausedPage: pausedPage,
+            visiblePage: visiblePage?.index
+        )
+        if start == .visiblePage, let page = visiblePage {
+            speak(chapter: page.chapter, fromChapterOffset: page.firstSentence)
+        } else if synthesizer.continueSpeaking() {
             state = .playing
         } else {
             // The queue was dropped while paused, so pick the sentence back up.
@@ -399,19 +445,50 @@ final class SpeechController: NSObject, ObservableObject {
         return installed.first { $0.language.hasPrefix("vi") } ?? installed.first
     }
 
-    private func activateAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(
-                .playback,
-                mode: .spokenAudio,
-                options: [.duckOthers, .allowBluetoothA2DP, .allowAirPlay]
-            )
-            try session.setActive(true)
-            NSLog("[speech] audio session ready")
-        } catch {
-            NSLog("[speech] audio session failed: \(error)")
+    /// Configures and activates the session on the audio queue, then runs `work`
+    /// on the main thread with the session already active — the synthesizer must
+    /// never speak before it. Repeated asks while the first activation is in
+    /// flight wait for that same activation instead of starting another.
+    private func ensureAudioSession(_ work: @escaping () -> Void) {
+        if sessionReady {
+            work()
+            return
         }
+        activationWaiters.append(work)
+        guard !activatingSession else { return }
+        activatingSession = true
+        audioQueue.async { [weak self] in
+            let session = AVAudioSession.sharedInstance()
+            do {
+                // Never add `.duckOthers`: it implies `.mixWithOthers`, and a
+                // mixable session can never own the Now Playing slot, so the lock
+                // screen and Control Centre would ignore this app's controls.
+                try session.setCategory(
+                    .playback,
+                    mode: .spokenAudio,
+                    options: [.allowBluetoothA2DP, .allowAirPlay]
+                )
+                try session.setActive(true)
+                NSLog("[speech] audio session ready")
+            } catch {
+                NSLog("[speech] audio session failed: \(error)")
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.sessionReady = true
+                self.activatingSession = false
+                let waiting = self.activationWaiters
+                self.activationWaiters.removeAll()
+                waiting.forEach { $0() }
+            }
+        }
+    }
+
+    /// The system deactivated the session (an interruption, or the call end that
+    /// releases it): activate again in the background.
+    private func reactivateAudioSession() {
+        sessionReady = false
+        ensureAudioSession {}
     }
 
     private func observeAudioChanges() {
@@ -428,11 +505,12 @@ final class SpeechController: NSObject, ObservableObject {
             else { return }
             switch type {
             case .began:
+                self.sessionReady = false
                 self.pause()
             case .ended:
                 // Become audible again, but never start reading by itself: the
                 // reader may have put the book down when the call arrived.
-                try? AVAudioSession.sharedInstance().setActive(true)
+                self.reactivateAudioSession()
             @unknown default:
                 break
             }
@@ -513,6 +591,24 @@ final class SpeechController: NSObject, ObservableObject {
         }
     }
 
+    /// How the Now Playing bar measures the book. A spoken book has no fixed
+    /// runtime, so duration and elapsed count characters at a nominal pace; the
+    /// system scales them by `rateFactor`, which matches the voice's rate.
+    private static let charactersPerSecond: Double = 15
+
+    private var elapsedNarrationSeconds: Double {
+        let total = chapters.reduce(0) { $0 + $1.text.length }
+        let before = chapters.prefix(max(currentChapter, 0))
+            .reduce(0) { $0 + $1.text.length }
+        let offset = min(max(lastSpokenOffset, 0), max(total - before, 0))
+        return Double(before + offset) / Self.charactersPerSecond
+    }
+
+    private var narrationSeconds: Double {
+        let total = chapters.reduce(0) { $0 + $1.text.length }
+        return max(Double(total) / Self.charactersPerSecond, 1)
+    }
+
     /// Puts the book on the lock screen: its cover, title and chapter, plus the
     /// three controls (previous chapter, play/pause, next chapter).
     private func updateNowPlaying() {
@@ -531,6 +627,8 @@ final class SpeechController: NSObject, ObservableObject {
             MPMediaItemPropertyTitle: book.title,
             MPMediaItemPropertyArtist: book.author,
             MPMediaItemPropertyAlbumTitle: chapterTitle(currentChapter),
+            MPMediaItemPropertyPlaybackDuration: narrationSeconds,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsedNarrationSeconds,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
             MPNowPlayingInfoPropertyPlaybackRate: state == .playing ? rateFactor : 0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: rateFactor,

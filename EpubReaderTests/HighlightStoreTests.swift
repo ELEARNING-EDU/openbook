@@ -130,4 +130,40 @@ final class HighlightStoreTests: XCTestCase {
         XCTAssertNil(store.add(chapterIndex: 0, startOffset: 9, endOffset: 2, text: "x", color: .yellow))
         XCTAssertTrue(store.highlights.isEmpty)
     }
+
+    @MainActor
+    func testAMarkSavedBeforeNotesExistedStillLoads() throws {
+        let legacy = """
+        {"a.epub":[{"chapterIndex":0,"startOffset":1,"endOffset":4,"text":"abc","color":3019896138,"createdAt":760000000}]}
+        """
+        defaults.set(Data(legacy.utf8), forKey: "readerHighlights")
+
+        let store = makeStore()
+        store.open(bookID: "a.epub")
+
+        XCTAssertEqual(store.highlights.count, 1)
+        XCTAssertNil(store.highlights.first?.note)
+    }
+
+    @MainActor
+    func testANoteIsSavedSurvivesARecolourAndClearsWhenBlank() throws {
+        let store = makeStore()
+        store.open(bookID: "a.epub")
+        let mark = try XCTUnwrap(
+            store.add(chapterIndex: 1, startOffset: 2, endOffset: 9, text: "đoạn", color: .yellow)
+        )
+
+        store.setNote("  Hay  ", of: mark)
+        XCTAssertEqual(store.highlights.first?.note, "Hay")
+
+        store.updateColor(of: mark, to: .pink)
+        XCTAssertEqual(store.highlights.first?.note, "Hay")
+
+        let second = makeStore()
+        second.open(bookID: "a.epub")
+        XCTAssertEqual(second.highlights.first?.note, "Hay")
+
+        second.setNote("   ", of: mark)
+        XCTAssertNil(second.highlights.first?.note)
+    }
 }

@@ -10,6 +10,7 @@ struct EpubReaderApp: App {
         if AppLanguage.selected == .system {
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")
         }
+        ReviewPrompt.due = ReviewPrompt.countLaunch()
     }
 
     var body: some Scene {

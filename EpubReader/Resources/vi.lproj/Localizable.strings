@@ -54,7 +54,7 @@
 "stats.finished" = "Sách đọc xong năm nay";
 "stats.finished.empty" = "Chưa có sách nào";
 "settings.reading.title" = "Thành tích đọc";
-"settings.reading.goal" = "Mục tiêu mỗi ngày";
+"settings.reading.goal" = "Mục tiêu đọc mỗi ngày";
 "settings.reading.minutes" = "%d phút/ngày";
 "settings.reading.footer" = "Một ngày đọc và chuỗi ngày được tính theo mục tiêu này.";
 
@@ -88,11 +88,11 @@
 "library.edit.authorField" = "Tác giả";
 "library.edit.save" = "Lưu";
 "library.edit.footer" = "Chỉ tên hiển thị trong ứng dụng này thay đổi. Tệp EPUB, vị trí đọc và đánh dấu vẫn giữ nguyên.";
-"library.delete.single.title" = "Xoá sách?";
+"library.delete.single.title" = "Xoá sách này?";
 "library.delete.single.message" = "“%1$@” sẽ bị xoá khỏi ứng dụng này. Tệp EPUB gốc của bạn không bị ảnh hưởng.";
 "library.delete.multiple.title" = "Xoá các sách đã chọn?";
 "library.delete.confirm" = "Xoá";
-"library.delete.failed.title" = "Không xoá được tất cả";
+"library.delete.failed.title" = "Không xoá được một số sách";
 "library.delete.failed.message" = "Không thể xoá các sách sau: %1$@. Các sách còn lại vẫn được giữ nguyên.";
 "library.unknownAuthor" = "Không rõ tác giả";
 "library.bookMenu" = "Thao tác với sách";
@@ -184,25 +184,28 @@
 
 "reader.highlight.action" = "Tô sáng";
 "reader.highlight.remove" = "Xoá";
+"reader.highlight.note" = "Ghi chú";
+"reader.highlight.export" = "Xuất";
+"reader.highlight.export.chapter" = "Chương %lld";
 "reader.highlight.color.yellow" = "Vàng";
 "reader.highlight.color.green" = "Xanh lá";
 "reader.highlight.color.blue" = "Xanh dương";
 "reader.highlight.color.pink" = "Hồng";
 "reader.action.translate" = "Dịch";
 "reader.action.search" = "Tìm";
-"reader.action.copy" = "Sao chép";
+"reader.action.copy" = "Chép";
 "reader.action.share" = "Chia sẻ";
 "reader.action.more" = "Thêm thao tác";
 "reader.bookmarks.count" = "Đánh dấu (%lld)";
 "reader.highlights.count" = "Tô sáng (%lld)";
 "reader.highlights" = "Tô sáng";
-"reader.noHighlights" = "Chưa có đoạn nào được đánh dấu.";
+"reader.noHighlights" = "Chưa có đoạn nào được tô sáng.";
 
 "customize.title" = "Tuỳ chỉnh giao diện";
 "customize.cancel" = "Huỷ thay đổi";
 "customize.keep" = "Giữ thay đổi";
 "customize.section.text" = "Chữ";
-"customize.section.layout" = "Khuyến nghị & tuỳ chọn bố cục";
+"customize.section.layout" = "Tuỳ chọn bố cục";
 "customize.font" = "Phông chữ";
 "customize.bold" = "Chữ đậm";
 "customize.enabled" = "Tuỳ chỉnh";
@@ -222,7 +225,7 @@
 "error.epub.notReadable" = "Không đọc được tệp EPUB.";
 "error.epub.missingContainer" = "Thiếu META-INF/container.xml — tệp không phải EPUB hợp lệ.";
 "error.epub.missingPackage" = "Không tìm thấy tệp gói (.opf) được container.xml chỉ tới.";
-"error.epub.emptySpine" = "Sách không có chương nào trong spine.";
+"error.epub.emptySpine" = "Sách không có chương nào đọc được.";
 "error.epub.protected" = "Sách có bảo vệ bản quyền (DRM) nên không đọc được ở đây. Hãy gỡ DRM hoặc mở bằng ứng dụng đã bán sách.";
 "error.zip.corrupt" = "Tệp ZIP hỏng.";
 "error.zip.unsupported" = "Kiểu nén ZIP không hỗ trợ: %lld.";
@@ -235,3 +238,16 @@
 "theme.bold" = "Đậm";
 "theme.calm" = "Êm";
 "theme.focus" = "Tập trung";
+
+/* Hướng dẫn đọc (cùng bốn bước với Android) */
+"guide.turn.title" = "Lật trang";
+"guide.turn.body" = "Chạm vào mép trái hoặc mép phải trang để sang trang, hoặc kéo nhẹ tờ giấy. Chạm vào giữa trang để ẩn các nút đi.";
+"guide.chrome.title" = "Thanh công cụ phía trên";
+"guide.chrome.body" = "Mục lục, tìm trong sách, đánh dấu trang này, và cài đặt cỡ chữ, nền, phông. Chạm giữa trang để hiện lại thanh này.";
+"guide.mark.title" = "Tô sáng đoạn văn";
+"guide.mark.body" = "Nhấn giữ một từ, rồi kéo hai thanh ở hai đầu để chọn rộng ra. Chọn Tô sáng để lưu lại thành màu. Nhấn giữ đoạn đã tô sáng để đổi màu, ghi chú hoặc xoá.";
+"guide.voice.title" = "Nghe thay vì đọc";
+"guide.voice.body" = "Chạm nút tai nghe ở góc dưới trái để máy đọc trang này. Ra khỏi màn đọc máy vẫn đọc tiếp, và màn hình khoá điều khiển được.";
+"guide.skip" = "Bỏ qua";
+"guide.next" = "Tiếp";
+"guide.start" = "Bắt đầu đọc";

@@ -3,7 +3,7 @@
 "tab.store" = "Store";
 
 "home.title" = "Home";
-"home.reading" = "Reading";
+"home.reading" = "Reading now";
 "home.continue" = "Continue reading";
 "home.continue.a11y" = "Continue reading %1$@, %2$lld percent read";
 "home.place" = "Page %1$lld/%2$lld · %3$lld%%";
@@ -12,7 +12,7 @@
 "home.empty.body" = "Open a book in the Library to begin. Once you have read a page, it will appear here.";
 "home.openLibrary" = "Open Library";
 "home.new.title" = "Recently added";
-"home.suggestions.title" = "For you";
+"home.suggestions.title" = "Suggested for you";
 "home.suggestions.reason" = "Same author";
 "home.finished.title" = "Recently finished";
 "home.weekly.title" = "This week";
@@ -21,7 +21,7 @@
 "home.book.a11y" = "%1$@, %2$@";
 "home.weekly.a11y" = "%1$@, %2$@";
 
-"home.stats.title" = "Achievement";
+"home.stats.title" = "Achievements";
 "home.stats.today" = "%@ today";
 "home.stats.goalMet" = "%d-minute goal · met";
 "home.stats.remaining" = "%@ to go";
@@ -54,7 +54,7 @@
 "stats.finished" = "Finished this year";
 "stats.finished.empty" = "No books yet";
 "settings.reading.title" = "Reading stats";
-"settings.reading.goal" = "Daily goal";
+"settings.reading.goal" = "Daily reading goal";
 "settings.reading.minutes" = "%d min a day";
 "settings.reading.footer" = "A reading day and the streak follow this goal.";
 
@@ -88,11 +88,11 @@
 "library.edit.authorField" = "Author";
 "library.edit.save" = "Save";
 "library.edit.footer" = "Only the name shown in this app changes. The EPUB file, reading position and bookmarks stay as they are.";
-"library.delete.single.title" = "Delete book?";
+"library.delete.single.title" = "Delete this book?";
 "library.delete.single.message" = "“%1$@” will be removed from this app. Your original EPUB file is not touched.";
 "library.delete.multiple.title" = "Delete selected books?";
 "library.delete.confirm" = "Delete";
-"library.delete.failed.title" = "Couldn't delete everything";
+"library.delete.failed.title" = "Some books were not deleted";
 "library.delete.failed.message" = "These books could not be removed: %1$@. Everything else has been kept.";
 "library.unknownAuthor" = "Unknown author";
 "library.bookMenu" = "Book actions";
@@ -184,6 +184,9 @@
 
 "reader.highlight.action" = "Highlight";
 "reader.highlight.remove" = "Remove";
+"reader.highlight.note" = "Note";
+"reader.highlight.export" = "Export";
+"reader.highlight.export.chapter" = "Chapter %lld";
 "reader.highlight.color.yellow" = "Yellow";
 "reader.highlight.color.green" = "Green";
 "reader.highlight.color.blue" = "Blue";
@@ -201,7 +204,7 @@
 "customize.title" = "Customize appearance";
 "customize.cancel" = "Discard changes";
 "customize.keep" = "Keep changes";
-"customize.section.text" = "Type";
+"customize.section.text" = "Text";
 "customize.section.layout" = "Layout options";
 "customize.font" = "Font";
 "customize.bold" = "Bold text";
@@ -222,7 +225,7 @@
 "error.epub.notReadable" = "Couldn't read the EPUB file.";
 "error.epub.missingContainer" = "Missing META-INF/container.xml — the file isn't a valid EPUB.";
 "error.epub.missingPackage" = "The package file (.opf) referenced by container.xml could not be found.";
-"error.epub.emptySpine" = "The book has no chapters in its spine.";
+"error.epub.emptySpine" = "This book has no readable chapters.";
 "error.epub.protected" = "This book is protected by DRM, so it cannot be read here. Remove the DRM or open it in the app that sold it.";
 "error.zip.corrupt" = "The ZIP file is damaged.";
 "error.zip.unsupported" = "Unsupported ZIP compression: %lld.";
@@ -235,3 +238,16 @@
 "theme.bold" = "Bold";
 "theme.calm" = "Calm";
 "theme.focus" = "Focus";
+
+/* Reader guide (same four steps as Android) */
+"guide.turn.title" = "Turn the page";
+"guide.turn.body" = "Tap the left or right edge of the page, or drag the paper across, to go back and forth. Tapping the middle of the page hides the buttons.";
+"guide.chrome.title" = "The top bar";
+"guide.chrome.body" = "Contents, search, a bookmark for this page, and the reading settings for text size, theme and font. Tap the middle of the page to bring the bar back.";
+"guide.mark.title" = "Highlight a passage";
+"guide.mark.body" = "Press and hold a word, then drag either end bar to widen the selection. Choose Highlight to keep it in colour. Press and hold a saved highlight to change its colour, add a note or remove it.";
+"guide.voice.title" = "Listen instead";
+"guide.voice.body" = "Tap the headphones at the bottom-left to have the page read aloud. The voice keeps going when you leave the reader, and the lock screen controls it.";
+"guide.skip" = "Skip";
+"guide.next" = "Next";
+"guide.start" = "Start reading";

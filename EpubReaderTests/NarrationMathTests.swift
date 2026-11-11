@@ -29,4 +29,36 @@ final class NarrationMathTests: XCTestCase {
         XCTAssertNil(NarrationMath.place(fraction: 0.5, chapterLengths: []))
         XCTAssertNil(NarrationMath.place(fraction: 0.5, chapterLengths: [0, 0]))
     }
+
+    func testPlayResumesThePausedSentenceOnTheSamePage() {
+        XCTAssertEqual(
+            NarrationMath.resumeStart(pausedPage: 3, visiblePage: 3),
+            .pausedSentence
+        )
+    }
+
+    func testPlayFollowsTheVisiblePageAfterAForwardJump() {
+        XCTAssertEqual(
+            NarrationMath.resumeStart(pausedPage: 3, visiblePage: 5),
+            .visiblePage
+        )
+    }
+
+    func testPlayFollowsTheVisiblePageAfterABackwardJump() {
+        XCTAssertEqual(
+            NarrationMath.resumeStart(pausedPage: 5, visiblePage: 3),
+            .visiblePage
+        )
+    }
+
+    func testPlayResumesThePausedSentenceWhenTheReaderIsClosed() {
+        XCTAssertEqual(
+            NarrationMath.resumeStart(pausedPage: 3, visiblePage: nil),
+            .pausedSentence
+        )
+        XCTAssertEqual(
+            NarrationMath.resumeStart(pausedPage: nil, visiblePage: nil),
+            .pausedSentence
+        )
+    }
 }
