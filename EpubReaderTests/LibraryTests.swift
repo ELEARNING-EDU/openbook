@@ -268,6 +268,26 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testRenamingABookDoesNotReReadTheRestOfTheShelf() throws {
+        let first = try writeBook("a.epub")
+        try writeBook("b.epub")
+        let store = LibraryStore(directory: directory, defaults: defaults, seedSample: false)
+        let title = try XCTUnwrap(store.books.first { $0.id == "a.epub" }?.title)
+        XCTAssertEqual(title, "Ngọn Hải Đăng Cuối Cùng")
+
+        // Unreadable in place: re-reading the shelf would drop the title the file
+        // declared, which is what the cache exists to prevent.
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: first.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: first.path)
+        }
+
+        XCTAssertTrue(store.updateMetadata(id: "b.epub", title: "B", author: ""))
+
+        XCTAssertEqual(store.books.first { $0.id == "a.epub" }?.title, title)
+    }
+
+    @MainActor
     func testDeletedSampleIsNotSeededAgain() throws {
         let first = LibraryStore(directory: directory, defaults: defaults, seedSample: true)
         let sample = try XCTUnwrap(first.books.first { $0.id.contains("ngon-hai-dang") })

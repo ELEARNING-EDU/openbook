@@ -20,6 +20,9 @@ final class LibraryStore: ObservableObject {
     private static let seededKey = "librarySeededSample"
 
     private var metadata: [String: LibraryMetadata] = [:]
+    /// The package a file declared, keyed by id and modification date, so a
+    /// rename or a finished mark does not re-read every EPUB on the shelf.
+    private var parsedPackage: [String: (modified: Date, package: EpubArchiveReader.Metadata?)] = [:]
 
     init(
         directory: URL? = nil,
@@ -67,7 +70,7 @@ final class LibraryStore: ObservableObject {
                 metadata[id] = entry
                 changed = true
             }
-            let parsed = try? EpubArchiveReader.readMetadata(url: url)
+            let parsed = packageMetadata(for: url)
             return BookItem(
                 id: id,
                 url: url,
@@ -85,6 +88,19 @@ final class LibraryStore: ObservableObject {
             changed = true
         }
         if changed { persistMetadata() }
+    }
+
+    /// The package a file declares, read once per modification. A failed read is
+    /// cached too: a damaged file costs one attempt, not one per rename.
+    private func packageMetadata(for url: URL) -> EpubArchiveReader.Metadata? {
+        let id = url.lastPathComponent
+        let modified = Self.modifiedDate(url) ?? .distantPast
+        if let cached = parsedPackage[id], cached.modified == modified {
+            return cached.package
+        }
+        let parsed = try? EpubArchiveReader.readMetadata(url: url)
+        parsedPackage[id] = (modified, parsed)
+        return parsed
     }
 
     func sortedBooks(by sort: LibrarySort, locale: Locale = L10n.locale) -> [BookItem] {
@@ -122,6 +138,9 @@ final class LibraryStore: ObservableObject {
                     try FileManager.default.moveItem(at: staging, to: destination)
                 }
             }
+
+            // A replaced file must be read again even if its date survived.
+            parsedPackage[destination.lastPathComponent] = nil
 
             // A book that replaces one of the same name keeps its edited title,
             // author, import date, finished mark and saved place: the name is the
@@ -221,6 +240,7 @@ final class LibraryStore: ObservableObject {
                     try FileManager.default.removeItem(at: book.url)
                 }
                 metadata[book.id] = nil
+                parsedPackage[book.id] = nil
                 removed.insert(book.id)
             } catch {
                 failed.append(book.title)
@@ -276,5 +296,9 @@ final class LibraryStore: ObservableObject {
     private static func fileDate(_ url: URL) -> Date? {
         let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
         return values?.creationDate ?? values?.contentModificationDate
+    }
+
+    private static func modifiedDate(_ url: URL) -> Date? {
+        try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
     }
 }
