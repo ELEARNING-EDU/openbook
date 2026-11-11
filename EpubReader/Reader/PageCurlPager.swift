@@ -298,6 +298,7 @@ final class PageCurlBook: UIViewController {
             // view here: a rebind can arrive while a finger is halfway through a
             // curl, and putting the page down under it would cut the curl short.
             current = page
+            trimCache(around: page)
             return
         }
         let direction: UIPageViewController.NavigationDirection = page >= current ? .forward : .reverse
@@ -327,6 +328,17 @@ final class PageCurlBook: UIViewController {
         } else {
             pager.setViewControllers(sides, direction: direction, animated: false)
         }
+        trimCache(around: page)
+    }
+
+    /// A page controller (with its text view) and a back with a full-page
+    /// snapshot are heavy; a reader who has paged through a long book must not
+    /// keep one of each for every page ever shown. The pages beside the current
+    /// one stay ready, and UIKit holds on to anything still in the air.
+    private func trimCache(around page: Int) {
+        let keep = (page - 4)...(page + 4)
+        fronts = fronts.filter { keep.contains($0.key) }
+        backs = backs.filter { keep.contains($0.key) }
     }
 
     /// Stands the book back up on a single side once a curl has landed.
