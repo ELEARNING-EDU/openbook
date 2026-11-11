@@ -15,14 +15,18 @@ data class Highlight(
     val text: String,
     /** ARGB band colour. Old records decode to the default amber. */
     val color: Int = DEFAULT_COLOR,
+    /** The reader's own note, or blank. Old records decode to no note. */
+    val note: String = "",
 ) {
     companion object {
-        const val DEFAULT_COLOR = 0x66FAC854.toInt()
+        // Same hues as iOS `HighlightColor` (yellow, green, blue, pink). The alpha is lower
+        // because Android draws the band over the text, iOS behind it.
+        const val DEFAULT_COLOR = 0x66FFD54A
         val COLORS = listOf(
-            0x66FAC854.toInt(),
-            0x664CAF50.toInt(),
-            0x6642A5F5.toInt(),
-            0x66EC407A.toInt(),
+            0x66FFD54A,
+            0x66A5D66A,
+            0x666FA8DC,
+            0x66F28DB2,
         )
     }
 
@@ -63,6 +67,13 @@ class HighlightStore(context: Context) {
         persist()
     }
 
+    /** Saves the note; a blank note removes it. */
+    fun setNote(highlight: Highlight, note: String) {
+        val clean = note.trim()
+        highlights = highlights.map { if (it.id == highlight.id) it.copy(note = clean) else it }
+        persist()
+    }
+
     fun recolour(highlight: Highlight, color: Int) {
         highlights = highlights.map { if (it.id == highlight.id) it.copy(color = color) else it }
         persist()
@@ -93,6 +104,7 @@ class HighlightStore(context: Context) {
                     endOffset = end,
                     text = text,
                     color = item.optInt("color", Highlight.DEFAULT_COLOR),
+                    note = item.optString("note").orEmpty(),
                 ).takeIf { it.chapterIndex >= 0 && it.startOffset >= 0 && it.endOffset > it.startOffset }
             }.sortedWith(compareBy({ it.chapterIndex }, { it.startOffset }))
         }.getOrDefault(emptyList())
@@ -108,7 +120,8 @@ class HighlightStore(context: Context) {
                     .put("start", highlight.startOffset)
                     .put("end", highlight.endOffset)
                     .put("text", highlight.text)
-                    .put("color", highlight.color),
+                    .put("color", highlight.color)
+                    .put("note", highlight.note),
             )
         }
         prefs.edit().putString(storageKey(currentKey), array.toString()).apply()

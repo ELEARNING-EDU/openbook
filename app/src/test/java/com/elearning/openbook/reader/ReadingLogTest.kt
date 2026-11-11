@@ -168,4 +168,19 @@ class ReadingLogTest {
         assertEquals(2, log.days.getValue(date).sessions)
         assertEquals(25, log.days.getValue(date).longestSessionSeconds)
     }
+
+    @Test
+    fun summaryNamesTheBestDay() {
+        val log = ReadingLog()
+        val small = LocalDate.of(2026, 3, 2)
+        val big = LocalDate.of(2026, 3, 3)
+        log.days[small] = ReadingDay(small, readingSeconds = 300)
+        log.days[big] = ReadingDay(big, readingSeconds = 900)
+
+        val summary = log.summary(LocalDate.of(2026, 3, 4), goalMinutes = 10)
+
+        assertEquals(big, summary.bestDayDate)
+        assertEquals(900, summary.bestDaySeconds)
+        assertEquals(null, ReadingLog().summary(big, goalMinutes = 10).bestDayDate)
+    }
 }

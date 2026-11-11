@@ -101,6 +101,13 @@ class SpeechReader(private val context: Context) {
     private var pausedAt = -1
 
     /**
+     * The page on screen while the reader's composition is alive, and the first sentence
+     * that begins on it; -1/-1 when there is no reader to look at a page.
+     */
+    private var visiblePage = -1
+    private var visiblePageFirstSentence = -1
+
+    /**
      * Reading speed, as a multiple of normal (the iOS build's rate factor). Persisted,
      * because a reader who slows the voice down wants it slow next time too.
      */
@@ -258,6 +265,7 @@ class SpeechReader(private val context: Context) {
         previewing = null
         ready = false
         stateInternal = SpeechState.IDLE
+        showPage(-1, -1)
     }
 
     // ------------------------------------------------------------------ control
@@ -300,9 +308,34 @@ class SpeechReader(private val context: Context) {
         setState(SpeechState.PAUSED)
     }
 
+    /**
+     * Told by the reader on every page change, and cleared by the narration object when
+     * the composition goes away. It is what makes Play follow the visible page.
+     */
+    fun showPage(page: Int, firstSentence: Int) {
+        visiblePage = page
+        visiblePageFirstSentence = firstSentence
+    }
+
+    /**
+     * Play after a pause. If the paused sentence is no longer on the page on screen, the
+     * voice restarts from the first sentence that begins there — the same place "read
+     * aloud from this page" opens; otherwise it resumes the paused sentence as ever.
+     */
     fun resume() {
         if (stateInternal != SpeechState.PAUSED) return
-        beginSpeaking(if (pausedAt >= 0) pausedAt else speakStart)
+        val held = if (pausedAt >= 0) pausedAt else speakStart
+        val src = source
+        val pausedPage = if (src != null && held >= 0) src.sentencePage(held) else -1
+        val start = if (src != null &&
+            visiblePageFirstSentence >= 0 &&
+            resumePlace(pausedPage, visiblePage) == ResumePlace.VISIBLE_PAGE
+        ) {
+            visiblePageFirstSentence
+        } else {
+            held
+        }
+        beginSpeaking(start)
     }
 
     fun togglePlayPause() {

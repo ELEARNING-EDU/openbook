@@ -95,7 +95,7 @@ fun SearchSheet(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
+                .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -122,7 +122,7 @@ fun SearchSheet(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(ReaderTheme.Ink.copy(alpha = 0.06f))
                 .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
@@ -178,7 +178,7 @@ fun SearchSheet(
                 // the phrase covers, before scrolling it.
                 Text(
                     text = pluralStringResource(R.plurals.search_hits, hits.size, hits.size),
-                    modifier = Modifier.padding(start = 22.dp, top = 4.dp, bottom = 6.dp),
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 6.dp),
                     fontFamily = FontFamily.Serif,
                     fontSize = 12.sp,
                     color = inkSoft,
@@ -189,8 +189,9 @@ fun SearchSheet(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .background(ReaderTheme.Paper)
                                 .clickable { onPick(hit.pageIndex) }
-                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
@@ -231,7 +232,7 @@ fun SearchSheet(
 private fun Hint(message: String) {
     Text(
         text = message,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
         fontFamily = FontFamily.Serif,
         fontSize = 14.sp,
         color = ReaderTheme.InkSoft,

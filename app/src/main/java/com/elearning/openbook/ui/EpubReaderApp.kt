@@ -84,6 +84,14 @@ fun EpubReaderApp(
         }
     }
 
+    // A document another app opened or shared is imported through the library, then read.
+    val pendingImport = PendingImport.uri
+    LaunchedEffect(pendingImport) {
+        val uri = pendingImport ?: return@LaunchedEffect
+        PendingImport.uri = null
+        app.import(uri, open = true)
+    }
+
     // The demo's staged states are one shot per launch.
     val demoPending = demo.isActive && state.demoPending
 
@@ -93,6 +101,8 @@ fun EpubReaderApp(
     }
 
     val systemDark = isSystemInDarkTheme()
+    // The reader follows the phone until it picks a face of its own.
+    LaunchedEffect(systemDark) { app.followSystemDark(systemDark) }
     val darkSurface = if (state.opened != null) ReaderTheme.isDark else systemDark
     val view = LocalView.current
     SideEffect {

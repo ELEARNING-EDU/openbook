@@ -65,6 +65,8 @@ class ReaderEngine private constructor(
     private val sentenceStart: IntArray,
     private val sentenceStop: IntArray,
     private val sentencePageIndex: IntArray,
+    /** Builds the footer from the app's own resources, so it follows the chosen language. */
+    private val pageLabel: (Int, Int) -> String,
 ) : CurlView.PageSource, SentenceSource {
 
     /** One column's worth of lines of one chapter's layout. */
@@ -637,7 +639,7 @@ class ReaderEngine private constructor(
             canvas.restore()
         }
 
-        val footer = "Trang ${index + 1} / ${slots.size}"
+        val footer = pageLabel(index + 1, slots.size)
         canvas.drawText(footer, metrics.width / 2f, footerBaseline, footerPaint)
 
         return bitmap
@@ -665,6 +667,7 @@ class ReaderEngine private constructor(
             metrics: PageMetrics,
             spec: TypesetSpec,
             palette: Palette,
+            pageLabel: (Int, Int) -> String,
         ): ReaderEngine {
             val bodyPaint = Typesetting.bodyPaint(spec, palette.ink)
             val headerPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -768,6 +771,7 @@ class ReaderEngine private constructor(
                 sentenceStart = sStart.toIntArray(),
                 sentenceStop = sStop.toIntArray(),
                 sentencePageIndex = sPage.toIntArray(),
+                pageLabel = pageLabel,
             )
         }
     }

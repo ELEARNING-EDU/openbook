@@ -35,6 +35,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -92,6 +94,18 @@ fun HomeScreen(
     val scroll = rememberScrollState()
     val atTop by remember { derivedStateOf { scroll.value == 0 } }
     val gearAlpha by animateFloatAsState(if (atTop) 1f else 0f, tween(200), label = "gear")
+    var showStats by remember { mutableStateOf(false) }
+    if (showStats) {
+        ReadingStatsSheet(
+            summary = summary,
+            finished = remember(books) { finishedThisYear(books) },
+            onChangeGoal = {
+                showStats = false
+                onAppSettings()
+            },
+            onDismiss = { showStats = false },
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
         Column(
@@ -134,7 +148,7 @@ fun HomeScreen(
                     Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                         SectionLabel(stringResource(R.string.home_stats_achievements))
                         Spacer(modifier = Modifier.height(10.dp))
-                        AchievementsCard(summary = summary)
+                        AchievementsCard(summary = summary, onOpen = { showStats = true })
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -217,7 +231,7 @@ private fun SectionLabel(text: String) {
 
 /** The day's ring, the goal in words, the running totals and the streak. */
 @Composable
-private fun AchievementsCard(summary: ReadingSummary) {
+private fun AchievementsCard(summary: ReadingSummary, onOpen: () -> Unit) {
     val colors = shellColors()
     val fraction = (summary.todaySeconds.toFloat() / summary.goalSeconds.coerceAtLeast(1))
         .coerceIn(0f, 1f)
@@ -254,6 +268,7 @@ private fun AchievementsCard(summary: ReadingSummary) {
             .clip(RoundedCornerShape(16.dp))
             .background(colors.raised)
             .border(1.dp, colors.hairline, RoundedCornerShape(16.dp))
+            .clickable(onClick = onOpen)
             .semantics(mergeDescendants = true) { contentDescription = description }
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

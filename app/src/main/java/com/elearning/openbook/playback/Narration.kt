@@ -51,6 +51,8 @@ object Narration {
 
     fun detachReader() {
         onVoiceMoved = null
+        // No page on screen any more: Play resumes where the voice was paused.
+        speech?.showPage(-1, -1)
     }
 
     /**

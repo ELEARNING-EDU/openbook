@@ -11,15 +11,15 @@
     <string name="library_title">Library</string>
     <string name="home_stats_achievements">ACHIEVEMENTS</string>
     <string name="home_stats_today">%1$s today</string>
-    <string name="home_stats_goal_done">Goal %1$d min · reached</string>
+    <string name="home_stats_goal_done">%1$d-minute goal · met</string>
     <string name="home_stats_goal_left">%1$d min to go</string>
     <string name="home_stats_span">Week %1$s · Month %2$s · Year %3$s</string>
-    <string name="home_stats_streak">Streak %1$d days</string>
+    <string name="home_stats_streak">%1$d-day streak</string>
     <string name="home_stats_no_streak">No streak yet</string>
     <string name="home_stats_a11y">Today %1$d minutes, goal %2$d minutes, %3$s. %4$s. %5$s</string>
     <string name="home_stats_reached">reached</string>
     <string name="home_stats_left">%1$d minutes to go</string>
-    <string name="home_new_title">NEWLY ADDED</string>
+    <string name="home_new_title">RECENTLY ADDED</string>
     <string name="home_suggestions_title">SUGGESTED FOR YOU</string>
     <string name="home_suggestions_reason">Same author</string>
     <string name="home_finished_title">RECENTLY FINISHED</string>
@@ -41,7 +41,7 @@
     <string name="duration_hours">%1$d hr</string>
     <string name="duration_hours_minutes">%1$d hr %2$d min</string>
     <string name="library_mark_finished">Mark as finished</string>
-    <string name="library_unmark_finished">Remove finished mark</string>
+    <string name="library_unmark_finished">Mark as not finished</string>
     <string name="library_finished">Finished</string>
     <string name="settings_repair_text">Fix spelling on import</string>
     <string name="settings_repair_text_hint">Restores a missing đ and doubled letters in the imported copy. Turned off, the book is kept exactly as published.</string>
@@ -55,14 +55,14 @@
     <string name="settings_reading_goal_minutes">%1$d min</string>
     <string name="home_reading_now">READING NOW</string>
     <string name="home_nothing_in_progress_title">Nothing in progress</string>
-    <string name="home_nothing_in_progress_body">Open a book from your library and it will wait for you here.</string>
+    <string name="home_nothing_in_progress_body">Open a book in the Library to begin. Once you have read a page, it will appear here.</string>
     <string name="home_empty_title">No books yet</string>
     <string name="home_empty_body">Import an EPUB to start reading.</string>
-    <string name="open_library">Open library</string>
+    <string name="open_library">Open Library</string>
     <string name="browse_library">Browse the library</string>
     <string name="loading_library">Loading library…</string>
     <string name="import_epub">Import EPUB</string>
-    <string name="continue_reading">Read on</string>
+    <string name="continue_reading">Continue reading</string>
     <string name="read_percent">Read %1$d%%</string>
     <string name="percent_read">%1$d%%</string>
     <string name="page_of_pages">Page %1$d / %2$d</string>
@@ -73,7 +73,7 @@
     <string name="store_demo_body">This build has no network, so there is nothing to download yet. EPUB files already on your device can still be imported into the library.</string>
 
     <string name="app_settings">App settings</string>
-    <string name="app_language">Language</string>
+    <string name="app_language">App language</string>
     <string name="language_system">System</string>
     <string name="language_vietnamese">Vietnamese</string>
     <string name="language_english">English</string>
@@ -88,7 +88,7 @@
     <string name="action_more">More actions</string>
     <string name="action_select">Select</string>
 
-    <string name="import_failed_title">Could not import book</string>
+    <string name="import_failed_title">Couldn\'t import book</string>
     <string name="import_failed_body">The selected file could not be read as an EPUB.</string>
     <string name="import_failed_open">Could not open the selected file.</string>
     <string name="import_failed_invalid">The file is not a valid EPUB.</string>
@@ -100,7 +100,7 @@
     <string name="epub_error_empty_spine">This book has no readable chapters.</string>
     <string name="epub_error_generic">This book could not be opened.</string>
     <string name="epub_error_drm">This book is protected by DRM, so it cannot be read here. Remove the DRM or open it in the app that sold it.</string>
-    <string name="epub_error_too_large">This EPUB expands to more than the reader allows, so it was refused.</string>
+    <string name="epub_error_too_large">This book is too large to open on this device.</string>
 
     <!-- Library -->
     <string name="library_view_grid">Grid</string>
@@ -110,7 +110,7 @@
     <string name="sort_title">Title</string>
     <string name="sort_author">Author</string>
     <string name="library_empty_title">No books yet</string>
-    <string name="library_empty_body">Use the + button at the top to import an EPUB.</string>
+    <string name="library_empty_body">Tap ＋ at the top to import an EPUB file.</string>
     <string name="library_menu">Book actions</string>
     <string name="library_options">Shelf options</string>
     <string name="edit_book_title">Edit book</string>
@@ -147,13 +147,16 @@
     <string name="reader_highlight">Highlight</string>
     <string name="highlight_mode">Tap a sentence to highlight it</string>
     <string name="highlight_saved">Highlight saved</string>
-    <string name="toc_highlights">Highlights %1$d</string>
-    <string name="highlights_empty">No highlights in this book yet.</string>
+    <string name="toc_highlights">Highlights (%1$d)</string>
+    <string name="highlights_empty">No passages highlighted yet.</string>
+    <string name="highlights_export">Export</string>
+    <string name="highlight_note">Note</string>
+    <string name="chapter_number">Chapter %1$d</string>
     <string name="reader_search">Search in book</string>
     <string name="reader_bookmark_add">Bookmark this page</string>
     <string name="reader_bookmark_remove">Remove bookmark</string>
     <string name="reader_settings">Reading settings</string>
-    <string name="reader_read_aloud">Read aloud from this page</string>
+    <string name="reader_read_aloud">Read this page aloud</string>
     <string name="reader_player">Reading controls</string>
     <string name="reader_previous_page">Previous page</string>
     <string name="reader_next_page">Next page</string>
@@ -162,7 +165,7 @@
     <string name="guide_chrome_title">The top bar</string>
     <string name="guide_chrome_body">Contents, search, a bookmark for this page, and the reading settings for text size, theme and font. Tap the middle of the page to bring the bar back.</string>
     <string name="guide_mark_title">Highlight a passage</string>
-    <string name="guide_mark_body">Press and hold a word, then drag either end bar to widen the selection. Choose Highlight to keep it in colour. Press a saved highlight to change or remove it.</string>
+    <string name="guide_mark_body">Press and hold a word, then drag either end bar to widen the selection. Choose Highlight to keep it in colour. Press and hold a saved highlight to change its colour, add a note or remove it.</string>
     <string name="guide_voice_title">Listen instead</string>
     <string name="guide_voice_body">Tap the earphone at the bottom-left to have the page read aloud. The voice keeps going when you leave the reader, and the notification controls it.</string>
     <string name="guide_skip">Skip</string>
@@ -171,21 +174,21 @@
     <string name="toc_tab">Contents</string>
     <string name="marks_tab">Bookmarks (%1$d)</string>
     <string name="toc_empty">This book has no table of contents.</string>
-    <string name="marks_empty">No bookmarks yet. The bookmark button in the top bar keeps the page you are on.</string>
+    <string name="marks_empty">No bookmarked pages yet. The bookmark button is at the top right.</string>
     <string name="page_short">p. %1$d</string>
     <string name="speech_timer_done">Sleep timer finished — reading stopped</string>
     <string name="speech_no_sentences">There is nothing to read on this page</string>
     <string name="speech_no_sentence_at_tap">No sentence was found where you tapped</string>
 
-    <string name="appearance_title">Appearance &amp; settings</string>
+    <string name="appearance_title">Appearance &amp; Settings</string>
     <string name="appearance_customize">Customize</string>
     <string name="customize_title">Customize appearance</string>
     <string name="customize_text_section">Text</string>
     <string name="customize_font">Font</string>
-    <string name="customize_bold">Bold</string>
-    <string name="customize_section">Customize</string>
+    <string name="customize_bold">Bold text</string>
+    <string name="customize_section">Layout options</string>
     <string name="customize_columns">Columns</string>
-    <string name="customize_justify">Justify</string>
+    <string name="customize_justify">Justify text</string>
     <string name="customize_reset">Reset appearance</string>
     <string name="customize_columns_auto">Auto</string>
     <string name="customize_preview">Reading preview</string>
@@ -193,7 +196,7 @@
 
     <string name="search_title">Search in book</string>
     <string name="search_placeholder">Search in book</string>
-    <string name="search_min_chars">Type at least two characters to search the book.</string>
+    <string name="search_min_chars">Type at least two characters to search this book.</string>
     <string name="search_no_hits">No results for “%1$s”.</string>
 
     <plurals name="search_hits">
@@ -205,7 +208,7 @@
     <string name="player_faster">Faster</string>
     <string name="player_sleep">Sleep timer</string>
     <string name="player_voice">Voice</string>
-    <string name="sleep_off">Off</string>
+    <string name="sleep_off">No timer</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
     <string name="faster">Faster</string>
@@ -224,7 +227,7 @@
     <string name="player_voice_line">Voice: %1$s</string>
     <string name="voice_default_name">System default</string>
     <string name="voice_search">Search voices</string>
-    <string name="voice_no_match">No voices match.</string>
+    <string name="voice_no_match">No voice matches that search.</string>
     <string name="voice_none">This device has no voices installed.</string>
     <string name="voice_use">Use</string>
     <string name="voice_more">Get more voices</string>
@@ -250,4 +253,32 @@
     <string name="speech_sentence_error">Engine error at sentence %1$d (code %2$d)</string>
     <string name="speech_unavailable">Reading aloud is unavailable: install a voice for the book\'s language in the text-to-speech settings (code %1$d)</string>
     <string name="speech_silent_fallback">The engine is silent — highlighting continues without audio</string>
+    <string name="stats_title">Reading achievement</string>
+    <string name="stats_goal">Goal %1$d min a day</string>
+    <string name="stats_change_goal">Change goal</string>
+    <string name="stats_today">Today</string>
+    <string name="stats_week">This week</string>
+    <string name="stats_month">This month</string>
+    <string name="stats_year">This year</string>
+    <string name="stats_consistency">Consistency</string>
+    <string name="stats_streak_current">Current streak</string>
+    <string name="stats_streak_longest">Longest</string>
+    <string name="stats_days_read">Days read</string>
+    <plurals name="stats_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <string name="stats_records">Records</string>
+    <string name="stats_longest_session">Longest session</string>
+    <string name="stats_best_day">Best day</string>
+    <string name="stats_best_day_value">%1$s · %2$s</string>
+    <string name="stats_finished">Finished this year</string>
+    <string name="stats_finished_empty">No books yet</string>
+    <string name="reader_highlight_remove">Remove</string>
+    <string name="highlight_color_yellow">Yellow</string>
+    <string name="highlight_color_green">Green</string>
+    <string name="highlight_color_blue">Blue</string>
+    <string name="highlight_color_pink">Pink</string>
+    <string name="customize_cancel">Discard changes</string>
+    <string name="customize_keep">Keep changes</string>
 </resources>

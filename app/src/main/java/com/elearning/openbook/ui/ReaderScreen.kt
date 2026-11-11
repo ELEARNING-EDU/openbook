@@ -1,5 +1,12 @@
 package com.elearning.openbook.ui
 
+import android.content.ClipData
+import android.content.Context
+import android.content.ClipboardManager
+import android.content.Intent
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.os.SystemClock
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableLongStateOf
@@ -56,10 +63,15 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -76,17 +88,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -101,10 +118,12 @@ import com.elearning.openbook.reader.CurlView
 import com.elearning.openbook.reader.PageMetrics
 import com.elearning.openbook.reader.ReaderEngine
 import com.elearning.openbook.reader.ReaderSettings
+import com.elearning.openbook.reader.MarkdownHighlight
 import com.elearning.openbook.reader.ReaderTheme
 import com.elearning.openbook.reader.ReadingPosition
 import com.elearning.openbook.reader.ReadingPositions
 import com.elearning.openbook.reader.SpeechReader
+import com.elearning.openbook.reader.highlightsMarkdown
 import com.elearning.openbook.reader.SpeechState
 import com.elearning.openbook.reader.ThemeId
 import kotlinx.coroutines.CancellationException
@@ -251,6 +270,8 @@ fun ReaderScreen(
     val density = LocalDensity.current
     val statusBarTop = WindowInsets.statusBars.getTop(density)
     val context = LocalContext.current
+    // Configuration-aware, so the footer and chapter fallback follow a language change.
+    val resources = LocalResources.current
 
     var size by remember { mutableStateOf(IntSize.Zero) }
     var raw by remember { mutableStateOf<RawBook?>(null) }
@@ -282,6 +303,10 @@ fun ReaderScreen(
     /** A saved highlight opened for edit/delete by a long-press. */
     var editing by remember { mutableStateOf<com.elearning.openbook.reader.Highlight?>(null) }
     var editColourOpen by remember { mutableStateOf(false) }
+    /** The highlight whose note sheet is open. */
+    var noteFor by remember { mutableStateOf<com.elearning.openbook.reader.Highlight?>(null) }
+    /** What the search sheet starts with; a selected passage replaces the demo query. */
+    var searchPrefill by remember { mutableStateOf(demo.searchQuery) }
     // The sleep timer lives with the playback, not with this composition: Back disposes
     // the screen but must not cancel a deadline the reading voice still owes.
     val sleepMinutes = com.elearning.openbook.playback.SleepTimer.minutes
@@ -386,7 +411,10 @@ fun ReaderScreen(
     LaunchedEffect(raw, metrics, config, settings.dark, settings.themeId) {
         val archive = raw ?: return@LaunchedEffect
         val pageMetrics = metrics ?: return@LaunchedEffect
-        val spec = settings.typesetSpec(density.density)
+        // The page's width decides what "Tự động" means for columns, so the spec is
+        // rebuilt whenever the size changes; the anchor below keeps the reader's place.
+        val widthDp = pageMetrics.width / density.density
+        val spec = settings.typesetSpec(density.density, widthDp)
         val palette = settings.palette
         // A picture is cut to the column it will be drawn in, and never taller than a
         // little over half the column: the same box the paginator measures the text in.
@@ -410,13 +438,20 @@ fun ReaderScreen(
             // mutated by the paginator, so every restyle gets a fresh set.
             val spanned = toSpannableInChunks(archive.chapters, columnWidth, maxImageHeight)
             val built = withContext(Dispatchers.Default) {
-                ReaderEngine.build(archive, spanned, pageMetrics, spec, palette)
+                ReaderEngine.build(
+                    archive,
+                    spanned,
+                    pageMetrics,
+                    spec,
+                    palette,
+                    pageLabel = { page, count -> resources.getString(R.string.page_of_pages, page, count) },
+                )
             }
             val target = anchor?.let { built.pageForChapterOffset(it.first, it.second) } ?: 0
             withContext(Dispatchers.Default) { built.preload(listOf(target, target + 1)) }
             Log.i(
                 TAG,
-                "typeset ${settings.describe(density.density)}: ${built.pageCount} pages (${built.typesetNote})" +
+                "typeset ${settings.describe(density.density, widthDp)}: ${built.pageCount} pages (${built.typesetNote})" +
                     (anchor?.let { "; anchor ${built.chapterTitle(it.first)}+${it.second} -> page ${target + 1}" } ?: ""),
             )
             reader.setPage(target)
@@ -427,7 +462,14 @@ fun ReaderScreen(
                 val typesetStart = SystemClock.elapsedRealtime()
                 val spanned = toSpannableInChunks(archive.chapters, columnWidth, maxImageHeight)
                 val built = withContext(Dispatchers.Default) {
-                    ReaderEngine.build(archive, spanned, pageMetrics, spec, palette)
+                    ReaderEngine.build(
+                    archive,
+                    spanned,
+                    pageMetrics,
+                    spec,
+                    palette,
+                    pageLabel = { page, count -> resources.getString(R.string.page_of_pages, page, count) },
+                )
                 }
                 Log.i(
                     TAG,
@@ -444,7 +486,7 @@ fun ReaderScreen(
                 withContext(Dispatchers.Default) { built.preload(listOf(target, target + 1)) }
                 Log.i(
                     TAG,
-                    "typeset ${settings.describe(density.density)}: ${built.pageCount} pages (${built.typesetNote})" +
+                    "typeset ${settings.describe(density.density, widthDp)}: ${built.pageCount} pages (${built.typesetNote})" +
                         (
                             savedPosition?.let { saved ->
                                 "; resumed at page ${target + 1} (left on page " +
@@ -476,10 +518,29 @@ fun ReaderScreen(
     val settingsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val searchSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val playerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val noteSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var exportMarkdown by remember { mutableStateOf("") }
+    // The export hands the file to the system save dialog; the app writes nothing itself.
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/markdown"),
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(exportMarkdown.toByteArray(Charsets.UTF_8))
+                }
+            }
+        }
+    }
 
     LaunchedEffect(ready) {
         speech.source = ready
         ready?.let { speech.useLanguage(it.bookLanguage) }
+    }
+    // The controller knows the visible page from the first frame, not only after a turn:
+    // Play after reopening a paused book must follow the page the reader is looking at.
+    LaunchedEffect(pageIndex, ready) {
+        ready?.let { speech.showPage(pageIndex, it.firstSentenceOnPage(pageIndex)) }
     }
     // The notification's chapter skips read the engine from the process-wide controller,
     // which must have the current book even after this screen goes away.
@@ -720,8 +781,11 @@ fun ReaderScreen(
         // for good if a hand turned a page in the middle of a jump.
         jumpTarget = -1
         val source = ready ?: return
-        if (speech.state == SpeechState.IDLE) return
         var first = source.firstSentenceOnPage(page)
+        // Reported before the state check: while paused, this is the page Play has to
+        // resume from, and a silent voice still needs to know where the reader is.
+        speech.showPage(page, first)
+        if (speech.state == SpeechState.IDLE) return
         if (first < 0) return
         // `firstSentenceOnPage` falls back to the sentence that crosses the top edge when
         // nothing *begins* on this page. Its page is then the one before, and the voice
@@ -1250,7 +1314,10 @@ fun ReaderScreen(
                     if (ready != null && chrome == ChromeMode.FULL) {
                         ButtonPair {
                             PairButton(
-                                onClick = { showSearch = true },
+                                onClick = {
+                                    searchPrefill = ""
+                                    showSearch = true
+                                },
                                 contentDescription = stringResource(R.string.reader_search),
                             ) { SearchGlyph() }
                             PairDivider()
@@ -1380,32 +1447,62 @@ fun ReaderScreen(
                 .border(1.dp, ReaderTheme.Ink.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
+            // One set of actions for both levels of the popup, so the compact row's
+            // Translate and Search do the same as the expanded list's.
+            val selectedText = ready.chapterSlice(live.chapter, live.start, live.end).trim()
+            val translate = translateIntent(context, selectedText)
+            val closePopup = {
+                selection = null
+                menuExpanded = false
+                colourOpen = false
+            }
+            val highlightAction = {
+                colourOpen = true
+                menuExpanded = false
+            }
+            val searchAction = {
+                closePopup()
+                searchPrefill = selectedText.take(80)
+                showSearch = true
+            }
+            val translateAction: () -> Unit = {
+                closePopup()
+                translate?.let { runCatching { context.startActivity(it) } }
+            }
             if (!colourOpen) {
                 if (!menuExpanded) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
                             text = stringResource(R.string.reader_highlight),
                             modifier = Modifier
-                                .clickable { colourOpen = true }
+                                .clickable(onClick = highlightAction)
                                 .padding(vertical = 4.dp),
                             fontFamily = FontFamily.Serif,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp,
                             color = ReaderTheme.Accent,
                         )
-                        Text(
-                            text = stringResource(R.string.menu_translate),
-                            modifier = Modifier.padding(vertical = 4.dp),
-                            fontFamily = FontFamily.Serif,
-                            fontSize = 13.sp,
-                            color = ReaderTheme.InkSoft.copy(alpha = 0.45f),
-                        )
+                        if (translate != null) {
+                            Text(
+                                text = stringResource(R.string.menu_translate),
+                                modifier = Modifier
+                                    .clickable(onClick = translateAction)
+                                    .padding(vertical = 4.dp),
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = ReaderTheme.Accent,
+                            )
+                        }
                         Text(
                             text = stringResource(R.string.menu_search),
-                            modifier = Modifier.padding(vertical = 4.dp),
+                            modifier = Modifier
+                                .clickable(onClick = searchAction)
+                                .padding(vertical = 4.dp),
                             fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
-                            color = ReaderTheme.InkSoft.copy(alpha = 0.45f),
+                            color = ReaderTheme.Accent,
                         )
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -1419,19 +1516,42 @@ fun ReaderScreen(
                     }
                 } else {
                     Column(modifier = Modifier.width(172.dp)) {
-                        val actions = listOf(
-                            Triple(R.string.reader_highlight, Icons.Filled.BorderColor) { colourOpen = true; menuExpanded = false },
-                            Triple(R.string.menu_translate, Icons.Filled.Translate) {},
-                            Triple(R.string.menu_search, Icons.Filled.Search) {},
-                            Triple(R.string.menu_copy, Icons.Filled.ContentCopy) {},
-                            Triple(R.string.menu_share, Icons.Filled.Share) {},
-                        )
+                        val actions = buildList<Triple<Int, ImageVector, () -> Unit>> {
+                            add(
+                                Triple(R.string.reader_highlight, Icons.Filled.BorderColor) {
+                                    highlightAction()
+                                },
+                            )
+                            if (translate != null) {
+                                add(
+                                    Triple(R.string.menu_translate, Icons.Filled.Translate) {
+                                        translateAction()
+                                    },
+                                )
+                            }
+                            add(
+                                Triple(R.string.menu_search, Icons.Filled.Search) {
+                                    searchAction()
+                                },
+                            )
+                            add(
+                                Triple(R.string.menu_copy, Icons.Filled.ContentCopy) {
+                                    closePopup()
+                                    copyToClipboard(context, selectedText)
+                                },
+                            )
+                            add(
+                                Triple(R.string.menu_share, Icons.Filled.Share) {
+                                    closePopup()
+                                    sharePassage(context, selectedText, book)
+                                },
+                            )
+                        }
                         for ((label, icon, action) in actions) {
-                            val enabled = label == R.string.reader_highlight
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable(enabled = enabled, onClick = action)
+                                    .clickable(onClick = action)
                                     .padding(vertical = 4.dp, horizontal = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1439,18 +1559,15 @@ fun ReaderScreen(
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,
-                                    tint = if (enabled) ReaderTheme.Accent
-                                    else ReaderTheme.InkSoft.copy(alpha = 0.45f),
+                                    tint = ReaderTheme.Accent,
                                     modifier = Modifier.size(16.dp),
                                 )
                                 Text(
                                     text = stringResource(label),
                                     fontFamily = FontFamily.Serif,
-                                    fontWeight = if (enabled) FontWeight.SemiBold
-                                    else FontWeight.Normal,
+                                    fontWeight = FontWeight.SemiBold,
                                     fontSize = 13.sp,
-                                    color = if (enabled) ReaderTheme.Accent
-                                    else ReaderTheme.InkSoft.copy(alpha = 0.45f),
+                                    color = ReaderTheme.Accent,
                                 )
                             }
                         }
@@ -1458,9 +1575,11 @@ fun ReaderScreen(
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    for (color in com.elearning.openbook.reader.Highlight.COLORS) {
+                    for ((index, color) in com.elearning.openbook.reader.Highlight.COLORS.withIndex()) {
+                        val colorName = stringResource(HIGHLIGHT_COLOR_NAMES[index])
                         Box(
                             modifier = Modifier
+                                .semantics { contentDescription = colorName }
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(ComposeColor(color))
@@ -1532,7 +1651,21 @@ fun ReaderScreen(
                         color = ReaderTheme.Accent,
                     )
                     Text(
-                        text = stringResource(R.string.action_delete),
+                        text = stringResource(R.string.highlight_note),
+                        modifier = Modifier
+                            .clickable {
+                                noteFor = edit
+                                editing = null
+                                editColourOpen = false
+                            }
+                            .padding(vertical = 4.dp),
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = ReaderTheme.Accent,
+                    )
+                    Text(
+                        text = stringResource(R.string.reader_highlight_remove),
                         modifier = Modifier
                             .clickable {
                                 highlightStore.remove(edit)
@@ -1547,9 +1680,11 @@ fun ReaderScreen(
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    for (color in com.elearning.openbook.reader.Highlight.COLORS) {
+                    for ((index, color) in com.elearning.openbook.reader.Highlight.COLORS.withIndex()) {
+                        val colorName = stringResource(HIGHLIGHT_COLOR_NAMES[index])
                         Box(
                             modifier = Modifier
+                                .semantics { contentDescription = colorName }
                                 .size(30.dp)
                                 .clip(CircleShape)
                                 .background(ComposeColor(color))
@@ -1558,6 +1693,86 @@ fun ReaderScreen(
                                     editing = null
                                     editColourOpen = false
                                 },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    val noteTarget = noteFor
+    if (noteTarget != null && ready != null) {
+        var draft by remember(noteTarget.id) { mutableStateOf(noteTarget.note) }
+        ModalBottomSheet(
+            onDismissRequest = {
+                noteFor = null
+                scheduleAutoHide()
+            },
+            sheetState = noteSheetState,
+            containerColor = ReaderTheme.Paper,
+            contentColor = ReaderTheme.Ink,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.highlight_note),
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = ReaderTheme.Ink,
+                )
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 110.dp),
+                    // The reader's paper and ink, not Material's default palette.
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ReaderTheme.Ink,
+                        unfocusedTextColor = ReaderTheme.Ink,
+                        focusedContainerColor = ComposeColor.Transparent,
+                        unfocusedContainerColor = ComposeColor.Transparent,
+                        cursorColor = ReaderTheme.Accent,
+                        focusedBorderColor = ReaderTheme.Accent,
+                        unfocusedBorderColor = ReaderTheme.Ink.copy(alpha = 0.25f),
+                    ),
+                )
+                Row(
+                    modifier = Modifier.align(Alignment.End),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        onClick = {
+                            noteFor = null
+                            scheduleAutoHide()
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(R.string.action_cancel),
+                            fontFamily = FontFamily.Serif,
+                            fontSize = 14.sp,
+                            color = ReaderTheme.InkSoft,
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            highlightStore.setNote(noteTarget, draft)
+                            noteFor = null
+                            scheduleAutoHide()
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(R.string.action_save),
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = ReaderTheme.Accent,
                         )
                     }
                 }
@@ -1595,6 +1810,22 @@ fun ReaderScreen(
                 },
                 onRemoveMark = { bookmarks.remove(it) },
                 onRemoveHighlight = { highlightStore.remove(it) },
+                onExport = {
+                    val entries = highlightStore.highlights.map { highlight ->
+                        val chapter = ready.chapterTitle(highlight.chapterIndex)
+                        MarkdownHighlight(
+                            chapterIndex = highlight.chapterIndex,
+                            chapterTitle = chapter.ifBlank {
+                                resources.getString(R.string.chapter_number, highlight.chapterIndex + 1)
+                            },
+                            startOffset = highlight.startOffset,
+                            text = highlight.text,
+                            note = highlight.note,
+                        )
+                    }
+                    exportMarkdown = highlightsMarkdown(book.title, book.author, entries)
+                    exportLauncher.launch("${book.title} - highlights.md")
+                },
             )
         }
     }
@@ -1611,7 +1842,7 @@ fun ReaderScreen(
         ) {
             SearchSheet(
                 engine = ready,
-                initialQuery = demo.searchQuery,
+                initialQuery = searchPrefill,
                 onPick = { page ->
                     showSearch = false
                     jumpToPage(page)
@@ -2016,6 +2247,7 @@ private fun TocContent(
     onJump: (Int) -> Unit,
     onRemoveMark: (Bookmark) -> Unit,
     onRemoveHighlight: (com.elearning.openbook.reader.Highlight) -> Unit,
+    onExport: () -> Unit,
 ) {
     var tab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
 
@@ -2023,9 +2255,24 @@ private fun TocContent(
         selectedTabIndex = tab,
         containerColor = ReaderTheme.Paper,
         contentColor = ReaderTheme.Accent,
-        modifier = Modifier.padding(bottom = 8.dp),
+        modifier = Modifier.padding(bottom = 12.dp),
+        // Material's own indicator and hairline are not this book's colours.
+        indicator = { positions ->
+            if (tab < positions.size) {
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(positions[tab]),
+                    color = ReaderTheme.Accent,
+                )
+            }
+        },
+        divider = {},
     ) {
-        Tab(selected = tab == 0, onClick = { tab = 0 }) {
+        Tab(
+            selected = tab == 0,
+            onClick = { tab = 0 },
+            selectedContentColor = ReaderTheme.Accent,
+            unselectedContentColor = ReaderTheme.InkSoft,
+        ) {
             Text(
                 text = stringResource(R.string.toc_tab),
                 fontFamily = FontFamily.Serif,
@@ -2034,7 +2281,12 @@ private fun TocContent(
                 modifier = Modifier.padding(vertical = 12.dp),
             )
         }
-        Tab(selected = tab == 1, onClick = { tab = 1 }) {
+        Tab(
+            selected = tab == 1,
+            onClick = { tab = 1 },
+            selectedContentColor = ReaderTheme.Accent,
+            unselectedContentColor = ReaderTheme.InkSoft,
+        ) {
             Text(
                 text = stringResource(R.string.marks_tab, marks.size),
                 fontFamily = FontFamily.Serif,
@@ -2043,7 +2295,12 @@ private fun TocContent(
                 modifier = Modifier.padding(vertical = 12.dp),
             )
         }
-        Tab(selected = tab == 2, onClick = { tab = 2 }) {
+        Tab(
+            selected = tab == 2,
+            onClick = { tab = 2 },
+            selectedContentColor = ReaderTheme.Accent,
+            unselectedContentColor = ReaderTheme.InkSoft,
+        ) {
             Text(
                 text = stringResource(R.string.toc_highlights, highlights.size),
                 fontFamily = FontFamily.Serif,
@@ -2164,6 +2421,22 @@ private fun TocContent(
         if (highlights.isEmpty()) {
             SheetNote(stringResource(R.string.highlights_empty))
         } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onExport) {
+                    Text(
+                        text = stringResource(R.string.highlights_export),
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = ReaderTheme.Accent,
+                    )
+                }
+            }
             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
                 items(
                     count = highlights.size,
@@ -2225,6 +2498,18 @@ private fun TocContent(
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                if (row.highlight.note.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = row.highlight.note,
+                                        fontFamily = FontFamily.Serif,
+                                        fontStyle = FontStyle.Italic,
+                                        fontSize = 12.sp,
+                                        color = ReaderTheme.InkSoft,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(3.dp))
                                 Text(
                                     text = stringResource(R.string.page_short, row.page + 1),
@@ -2355,3 +2640,47 @@ private const val DEMO_PAUSE_MS = 2000L
 private const val SPEECH_NOTE_MS = 4000L
 
 private const val TAG = "ReaderScreen"
+
+/** Spoken names of [com.elearning.openbook.reader.Highlight.COLORS], in the same order (as iOS). */
+private val HIGHLIGHT_COLOR_NAMES = listOf(
+    R.string.highlight_color_yellow,
+    R.string.highlight_color_green,
+    R.string.highlight_color_blue,
+    R.string.highlight_color_pink,
+)
+
+/** Copies a selected passage, and closes the popup it came from. */
+private fun copyToClipboard(context: Context, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("OpenBook", text))
+}
+
+/**
+ * The system share sheet, with the passage quoted and credited to the book exactly as
+ * iOS builds it; a book with no author drops the credit's tail, not the title.
+ */
+private fun sharePassage(context: Context, text: String, book: BookItem) {
+    val credit = if (book.author.isBlank()) "" else ", ${book.author}"
+    val send = Intent(Intent.ACTION_SEND)
+        .setType("text/plain")
+        .putExtra(Intent.EXTRA_TEXT, "\u201C$text\u201D\n\u2014 ${book.title}$credit")
+    context.startActivity(Intent.createChooser(send, null))
+}
+
+/**
+ * Hands the passage to whatever translates on this device, preferring the dedicated
+ * translate action on API 29+ and falling back to the generic text processor. Null when
+ * nothing can take it, which is what hides the action.
+ */
+private fun translateIntent(context: Context, text: String): Intent? {
+    if (text.isBlank()) return null
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val translate = Intent(Intent.ACTION_TRANSLATE).putExtra(Intent.EXTRA_TEXT, text)
+        if (context.packageManager.resolveActivity(translate, 0) != null) return translate
+    }
+    val process = Intent(Intent.ACTION_PROCESS_TEXT)
+        .setType("text/plain")
+        .putExtra(Intent.EXTRA_PROCESS_TEXT, text)
+        .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
+    return if (context.packageManager.resolveActivity(process, 0) != null) process else null
+}

@@ -8,6 +8,7 @@ import com.elearning.openbook.library.ReadingLogStore
 import com.elearning.openbook.model.BookItem
 import com.elearning.openbook.reader.BookmarkStore
 import com.elearning.openbook.reader.HighlightStore
+import com.elearning.openbook.reader.ReaderSettings
 import com.elearning.openbook.reader.ReadingPosition
 import com.elearning.openbook.reader.ReadingPositions
 import com.elearning.openbook.reader.ReadingSummary
@@ -71,6 +72,7 @@ class AppViewModel @Inject constructor(
     private val languageStore: AppLanguageStore,
     private val repairStore: TextRepairStore,
     private val readingLogStore: ReadingLogStore,
+    private val readerSettings: ReaderSettings,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -129,18 +131,27 @@ class AppViewModel @Inject constructor(
 
     fun useDemo() = _state.update { it.copy(demoPending = false) }
 
+    /** While no choice is saved, the shell keeps the reader on the phone's appearance. */
+    fun followSystemDark(systemDark: Boolean) = readerSettings.followSystem(systemDark)
+
     /** Re-read the ledger after the reader leaves composition (its last save lands on dispose). */
     fun refreshAfterReader() = refreshStats()
 
-    fun import(uri: Uri) {
+    /**
+     * Copies [uri] into the library. [open] is for a document another app handed over:
+     * the reader opens it straight away, while the in-app picker leaves the shelf up.
+     */
+    fun import(uri: Uri, open: Boolean = false) {
         viewModelScope.launch {
             val result = withContextIo { runCatching { library.import(uri) } }
-            result.exceptionOrNull()?.let { error ->
-                _state.update { it.copy(importError = error) }
+            val failure = result.exceptionOrNull()
+            if (failure != null) {
+                _state.update { it.copy(importError = failure) }
                 return@launch
             }
             val books = withContextIo { library.books() }
-            _state.update { it.copy(books = books) }
+            val imported = if (open) result.getOrNull()?.book else null
+            _state.update { it.copy(books = books, opened = imported ?: it.opened) }
         }
     }
 

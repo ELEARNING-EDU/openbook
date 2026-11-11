@@ -40,7 +40,7 @@
     <string name="duration_hours">%1$d giờ</string>
     <string name="duration_hours_minutes">%1$d giờ %2$d phút</string>
     <string name="library_mark_finished">Đánh dấu đã đọc xong</string>
-    <string name="library_unmark_finished">Bỏ đánh dấu</string>
+    <string name="library_unmark_finished">Bỏ đánh dấu đã đọc xong</string>
     <string name="library_finished">Đã đọc xong</string>
     <string name="settings_repair_text">Tự sửa lỗi chính tả khi nhập sách</string>
     <string name="settings_repair_text_hint">Khôi phục chữ đ bị mất và chữ bị lặp trong bản sao. Tắt đi thì sách được giữ nguyên như bản gốc.</string>
@@ -54,10 +54,10 @@
     <string name="settings_reading_goal_minutes">%1$d phút</string>
     <string name="home_reading_now">ĐANG ĐỌC</string>
     <string name="home_nothing_in_progress_title">Chưa có sách đang đọc</string>
-    <string name="home_nothing_in_progress_body">Mở một cuốn trong thư viện, nó sẽ đợi bạn ở đây.</string>
+    <string name="home_nothing_in_progress_body">Mở một cuốn sách trong Thư viện để bắt đầu. Khi bạn đọc được một trang, nó sẽ xuất hiện ở đây.</string>
     <string name="home_empty_title">Chưa có sách nào</string>
     <string name="home_empty_body">Nhập một tệp EPUB để bắt đầu đọc.</string>
-    <string name="open_library">Mở thư viện</string>
+    <string name="open_library">Mở Thư viện</string>
     <string name="browse_library">Xem thư viện</string>
     <string name="loading_library">Đang tải thư viện…</string>
     <string name="import_epub">Nhập EPUB</string>
@@ -72,7 +72,7 @@
     <string name="store_demo_body">Bản này không dùng mạng, nên chưa có sách để tải về. Sách EPUB trong máy vẫn nhập được vào thư viện.</string>
 
     <string name="app_settings">Cài đặt ứng dụng</string>
-    <string name="app_language">Ngôn ngữ</string>
+    <string name="app_language">Ngôn ngữ ứng dụng</string>
     <string name="language_system">Hệ thống</string>
     <string name="language_vietnamese">Tiếng Việt</string>
     <string name="language_english">Tiếng Anh</string>
@@ -99,7 +99,7 @@
     <string name="epub_error_empty_spine">Sách không có chương nào đọc được.</string>
     <string name="epub_error_generic">Không mở được sách này.</string>
     <string name="epub_error_drm">Sách có bảo vệ bản quyền (DRM) nên không đọc được ở đây. Hãy gỡ DRM hoặc mở bằng ứng dụng đã bán sách.</string>
-    <string name="epub_error_too_large">Tệp EPUB giải nén vượt quá giới hạn của trình đọc nên đã bị từ chối.</string>
+    <string name="epub_error_too_large">Sách này quá lớn để mở trên máy này.</string>
 
     <string name="library_view_grid">Lưới</string>
     <string name="library_view_list">Danh sách</string>
@@ -109,9 +109,9 @@
     <string name="sort_author">Tác giả</string>
     <string name="library_empty_title">Chưa có sách nào</string>
     <string name="library_empty_body">Nhấn nút ＋ ở góc trên để nhập một tệp EPUB.</string>
-    <string name="library_menu">Thao tác sách</string>
+    <string name="library_menu">Thao tác với sách</string>
     <string name="library_options">Tùy chọn thư viện</string>
-    <string name="edit_book_title">Sửa sách</string>
+    <string name="edit_book_title">Chỉnh sửa sách</string>
     <string name="field_title">Tựa sách</string>
     <string name="field_author">Tác giả</string>
     <string name="delete_book_title">Xoá sách này?</string>
@@ -133,22 +133,25 @@
     <string name="reader_open_failed_body">Không đọc được tệp EPUB này trên máy.</string>
     <string name="reader_back">Quay lại</string>
     <string name="reader_contents">Mục lục</string>
-    <string name="highlight_pick_color">Chọn màu đánh dấu</string>
+    <string name="highlight_pick_color">Chọn màu tô sáng</string>
     <string name="menu_more">Thêm</string>
     <string name="menu_translate">Dịch</string>
     <string name="menu_search">Tìm</string>
-    <string name="menu_copy">Sao chép</string>
+    <string name="menu_copy">Chép</string>
     <string name="menu_share">Chia sẻ</string>
-    <string name="reader_highlight">Đánh dấu</string>
-    <string name="highlight_mode">Chạm vào một câu để đánh dấu</string>
-    <string name="highlight_saved">Đã đánh dấu đoạn</string>
-    <string name="toc_highlights">Đoạn đánh dấu %1$d</string>
-    <string name="highlights_empty">Chưa có đoạn nào được đánh dấu.</string>
+    <string name="reader_highlight">Tô sáng</string>
+    <string name="highlight_mode">Chạm vào một câu để tô sáng</string>
+    <string name="highlight_saved">Đã tô sáng đoạn</string>
+    <string name="toc_highlights">Tô sáng (%1$d)</string>
+    <string name="highlights_empty">Chưa có đoạn nào được tô sáng.</string>
+    <string name="highlights_export">Xuất</string>
+    <string name="highlight_note">Ghi chú</string>
+    <string name="chapter_number">Chương %1$d</string>
     <string name="reader_search">Tìm trong sách</string>
     <string name="reader_bookmark_add">Đánh dấu trang này</string>
-    <string name="reader_bookmark_remove">Bỏ đánh dấu</string>
+    <string name="reader_bookmark_remove">Bỏ đánh dấu trang này</string>
     <string name="reader_settings">Cài đặt đọc</string>
-    <string name="reader_read_aloud">Đọc thành tiếng từ trang này</string>
+    <string name="reader_read_aloud">Đọc to trang này</string>
     <string name="reader_player">Điều khiển đọc</string>
     <string name="reader_previous_page">Trang trước</string>
     <string name="reader_next_page">Trang sau</string>
@@ -156,8 +159,8 @@
     <string name="guide_turn_body">Chạm vào mép trái hoặc mép phải trang để sang trang, hoặc kéo nhẹ tờ giấy. Chạm vào giữa trang để ẩn các nút đi.</string>
     <string name="guide_chrome_title">Thanh công cụ phía trên</string>
     <string name="guide_chrome_body">Mục lục, tìm trong sách, đánh dấu trang này, và cài đặt cỡ chữ, nền, phông. Chạm giữa trang để hiện lại thanh này.</string>
-    <string name="guide_mark_title">Đánh dấu đoạn văn</string>
-    <string name="guide_mark_body">Nhấn giữ một từ, rồi kéo hai thanh ở hai đầu để chọn rộng ra. Chọn Highlight để lưu lại thành màu. Nhấn vào đoạn đã đánh dấu để đổi màu hoặc xoá.</string>
+    <string name="guide_mark_title">Tô sáng đoạn văn</string>
+    <string name="guide_mark_body">Nhấn giữ một từ, rồi kéo hai thanh ở hai đầu để chọn rộng ra. Chọn Tô sáng để lưu lại thành màu. Nhấn giữ đoạn đã tô sáng để đổi màu, ghi chú hoặc xoá.</string>
     <string name="guide_voice_title">Nghe thay vì đọc</string>
     <string name="guide_voice_body">Chạm nút tai nghe ở góc dưới trái để máy đọc trang này. Ra khỏi màn đọc máy vẫn đọc tiếp, và thanh thông báo điều khiển được.</string>
     <string name="guide_skip">Bỏ qua</string>
@@ -166,7 +169,7 @@
     <string name="toc_tab">Mục lục</string>
     <string name="marks_tab">Đánh dấu (%1$d)</string>
     <string name="toc_empty">Sách này không có mục lục.</string>
-    <string name="marks_empty">Chưa có đánh dấu nào. Nút đánh dấu trên thanh trên cùng giữ trang đang mở.</string>
+    <string name="marks_empty">Chưa đánh dấu trang nào. Nút đánh dấu nằm ở góc trên bên phải.</string>
     <string name="page_short">tr. %1$d</string>
     <string name="speech_timer_done">Hết giờ hẹn — đã dừng đọc</string>
     <string name="speech_no_sentences">Trang này không có câu nào để đọc</string>
@@ -178,7 +181,7 @@
     <string name="customize_text_section">Chữ</string>
     <string name="customize_font">Phông chữ</string>
     <string name="customize_bold">Chữ đậm</string>
-    <string name="customize_section">Tuỳ chỉnh</string>
+    <string name="customize_section">Tuỳ chọn bố cục</string>
     <string name="customize_columns">Cột</string>
     <string name="customize_justify">Căn đều hai bên</string>
     <string name="customize_reset">Đặt lại giao diện</string>
@@ -199,7 +202,7 @@
     <string name="player_faster">Nhanh hơn</string>
     <string name="player_sleep">Hẹn giờ tắt</string>
     <string name="player_voice">Giọng đọc</string>
-    <string name="sleep_off">Tắt</string>
+    <string name="sleep_off">Không hẹn giờ</string>
     <string name="play">Đọc</string>
     <string name="pause">Tạm dừng</string>
     <string name="faster">Nhanh hơn</string>
@@ -241,4 +244,31 @@
     <string name="speech_sentence_error">Lỗi engine ở câu %1$d (mã %2$d)</string>
     <string name="speech_unavailable">Không đọc được thành tiếng: hãy cài giọng đọc cho ngôn ngữ của sách trong cài đặt chuyển văn bản thành tiếng (mã %1$d)</string>
     <string name="speech_silent_fallback">Engine không phát tín hiệu — tô sáng mô phỏng (chưa kiểm chứng được âm thanh)</string>
+    <string name="stats_title">Thành tích đọc</string>
+    <string name="stats_goal">Mục tiêu %1$d phút/ngày</string>
+    <string name="stats_change_goal">Đổi mục tiêu</string>
+    <string name="stats_today">Hôm nay</string>
+    <string name="stats_week">Tuần này</string>
+    <string name="stats_month">Tháng này</string>
+    <string name="stats_year">Năm nay</string>
+    <string name="stats_consistency">Đều đặn</string>
+    <string name="stats_streak_current">Chuỗi hiện tại</string>
+    <string name="stats_streak_longest">Kỷ lục</string>
+    <string name="stats_days_read">Ngày đã đọc</string>
+    <plurals name="stats_days">
+        <item quantity="other">%1$d ngày</item>
+    </plurals>
+    <string name="stats_records">Kỷ niệm</string>
+    <string name="stats_longest_session">Phiên dài nhất</string>
+    <string name="stats_best_day">Ngày đọc nhiều nhất</string>
+    <string name="stats_best_day_value">%1$s · %2$s</string>
+    <string name="stats_finished">Sách đọc xong năm nay</string>
+    <string name="stats_finished_empty">Chưa có sách nào</string>
+    <string name="reader_highlight_remove">Xoá</string>
+    <string name="highlight_color_yellow">Vàng</string>
+    <string name="highlight_color_green">Xanh lá</string>
+    <string name="highlight_color_blue">Xanh dương</string>
+    <string name="highlight_color_pink">Hồng</string>
+    <string name="customize_cancel">Huỷ thay đổi</string>
+    <string name="customize_keep">Giữ thay đổi</string>
 </resources>

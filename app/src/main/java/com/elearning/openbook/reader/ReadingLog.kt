@@ -34,6 +34,7 @@ data class ReadingSummary(
     val readingDays: Int,
     val longestSessionSeconds: Int,
     val bestDaySeconds: Int,
+    val bestDayDate: LocalDate? = null,
 ) {
     val goalSeconds: Int get() = goalMinutes * 60
     val achieved: Boolean get() = todaySeconds >= goalSeconds
@@ -83,12 +84,16 @@ class ReadingLog(val days: MutableMap<LocalDate, ReadingDay> = LinkedHashMap()) 
         var year = 0
         var longestSession = 0
         var bestDay = 0
+        var bestDayDate: LocalDate? = null
         for ((date, entry) in days) {
             if (!date.isBefore(weekStart)) week += entry.totalSeconds
             if (!date.isBefore(monthStart)) month += entry.totalSeconds
             if (!date.isBefore(yearStart)) year += entry.totalSeconds
             longestSession = maxOf(longestSession, entry.longestSessionSeconds)
-            bestDay = maxOf(bestDay, entry.totalSeconds)
+            if (entry.totalSeconds > bestDay) {
+                bestDay = entry.totalSeconds
+                bestDayDate = date
+            }
         }
         return ReadingSummary(
             todaySeconds = totalSeconds(today),
@@ -101,6 +106,7 @@ class ReadingLog(val days: MutableMap<LocalDate, ReadingDay> = LinkedHashMap()) 
             readingDays = days.values.count { it.totalSeconds >= goalSeconds },
             longestSessionSeconds = longestSession,
             bestDaySeconds = bestDay,
+            bestDayDate = bestDayDate,
         )
     }
 

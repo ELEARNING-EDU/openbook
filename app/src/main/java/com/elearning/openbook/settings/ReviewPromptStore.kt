@@ -15,13 +15,18 @@ class ReviewPromptStore(private val prefs: SharedPreferences) {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
     )
 
-    /** Counts one launch; true when this launch is the one that should ask for a review. */
+    /**
+     * Counts one launch; true when a review is due. The flag is only set by [markAsked],
+     * when the sheet is really requested, so a screenshot launch cannot use up the ask.
+     */
     fun countLaunch(): Boolean {
         val launches = prefs.getInt(KEY_LAUNCHES, 0) + 1
         prefs.edit().putInt(KEY_LAUNCHES, launches).apply()
-        if (!shouldAsk(launches, prefs.getBoolean(KEY_ASKED, false))) return false
+        return shouldAsk(launches, prefs.getBoolean(KEY_ASKED, false))
+    }
+
+    fun markAsked() {
         prefs.edit().putBoolean(KEY_ASKED, true).apply()
-        return true
     }
 
     companion object {

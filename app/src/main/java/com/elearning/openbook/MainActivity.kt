@@ -3,6 +3,7 @@ package com.elearning.openbook
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -48,6 +49,9 @@ class MainActivity : ComponentActivity() {
             android.util.Log.i("OpenBook", "intent asks for book $bookId")
             com.elearning.openbook.playback.PendingOpen.bookId = bookId
         }
+        // A file another app opened or shared. A recreated activity keeps the URI it
+        // already consumed, or the same book would be imported twice.
+        if (savedInstanceState == null) acceptDocument(intent)
         val autoOpenFirstBook = intent?.getBooleanExtra(EXTRA_DEMO_OPEN_BOOK, false) ?: false
         val demo = DemoOptions(
             page = intent?.getIntExtra(EXTRA_DEMO_PAGE, -1) ?: -1,
@@ -81,7 +85,9 @@ class MainActivity : ComponentActivity() {
             EpubReaderApp(autoOpenFirstBook = autoOpenFirstBook, demo = demo)
         }
 
-        if (ReaderApplication.consumeReviewDue()) {
+        // Never over a screenshot/test launch (demo extras), same rule as iOS.
+        if (ReaderApplication.consumeReviewDue() && !demo.isActive) {
+            ReviewPromptStore(this).markAsked()
             // Posted, so the sheet opens on the first frame the app is actually on screen.
             window.decorView.post { askForReview() }
         }
@@ -106,6 +112,24 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra(EXTRA_OPEN_BOOK)?.let { bookId ->
             com.elearning.openbook.playback.PendingOpen.bookId = bookId
         }
+        acceptDocument(intent)
+    }
+
+    /** Takes the EPUB out of a VIEW or SEND intent and hands it to the shell. */
+    private fun acceptDocument(intent: Intent?) {
+        if (intent == null) return
+        val uri = when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND ->
+                androidx.core.content.IntentCompat.getParcelableExtra(
+                    intent,
+                    Intent.EXTRA_STREAM,
+                    Uri::class.java,
+                )
+            else -> null
+        } ?: return
+        android.util.Log.i("OpenBook", "intent hands over $uri")
+        com.elearning.openbook.ui.PendingImport.uri = uri
     }
 
     companion object {

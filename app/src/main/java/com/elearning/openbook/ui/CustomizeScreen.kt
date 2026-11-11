@@ -117,7 +117,7 @@ fun CustomizeScreen(
             ) {
                 CircleButton(
                     onClick = { cancel() },
-                    contentDescription = stringResource(R.string.action_close),
+                    contentDescription = stringResource(R.string.customize_cancel),
                 ) { CloseGlyph() }
                 Text(
                     text = stringResource(R.string.customize_title),
@@ -133,7 +133,7 @@ fun CustomizeScreen(
                 CircleButton(
                     onClick = onApply,
                     active = true,
-                    contentDescription = stringResource(R.string.action_save),
+                    contentDescription = stringResource(R.string.customize_keep),
                 ) { CheckGlyph(color = ReaderTheme.Paper) }
             }
 

@@ -1,6 +1,7 @@
 package com.elearning.openbook.reader
 
 import android.content.Context
+import android.content.res.Configuration
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -49,10 +50,23 @@ data class TypeConfig(
 
     fun differsFrom(id: ThemeId): Boolean = signature() != defaults(id).signature()
 
+    /**
+     * The columns this configuration asks for at [widthDp]: an explicit two stays two,
+     * "Tự động" becomes two only on a wide page, and everything else is one.
+     */
+    fun columnsFor(widthDp: Float): Int = when {
+        columns == 2 -> 2
+        columns == COLUMNS_AUTO && widthDp > AUTO_COLUMNS_MIN_WIDTH_DP -> 2
+        else -> 1
+    }
+
     companion object {
 
-        /** "Tự động": one column, which is what a page this narrow wants. */
+        /** "Tự động": one column, or two once the page is wide enough (see [columnsFor]). */
         const val COLUMNS_AUTO: Int = 0
+
+        /** Above this page width in dp a "Tự động" page is set in two columns, as on iOS. */
+        const val AUTO_COLUMNS_MIN_WIDTH_DP: Float = 560f
 
         const val FONT_SERIF: String = "serif"
         const val FONT_SANS: String = "sans-serif"
@@ -98,7 +112,7 @@ data class TypeConfig(
         /** Matches `AttributedBuilder.defaultBodySize` / `defaultLineSpacing` on iOS. */
         const val DEFAULT_BODY_SIZE: Float = 19f
         const val DEFAULT_LINE_SPACING: Float = 1.14f
-        const val DEFAULT_MARGIN_DP: Float = 30f
+        const val DEFAULT_MARGIN_DP: Float = 20f
     }
 }
 
@@ -111,6 +125,17 @@ data class TypeConfig(
  * mutation re-publishes the palette to [ReaderTheme] and persists itself, so a cold
  * launch opens the way the reader left it.
  */
+/**
+ * The reader's face. A saved choice always wins; with none, the reader wears whatever
+ * the phone is wearing — which is what makes a dark phone open a dark reader.
+ */
+internal fun readerDark(saved: Boolean?, systemDark: Boolean): Boolean = saved ?: systemDark
+
+/** The phone's appearance, for the one read before Compose is up. */
+private fun systemDark(context: Context): Boolean =
+    (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+        Configuration.UI_MODE_NIGHT_YES
+
 class ReaderSettings(context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -118,7 +143,11 @@ class ReaderSettings(context: Context) {
     var themeId: ThemeId by mutableStateOf(ThemeId.of(prefs.getString(KEY_THEME, null)))
         private set
 
-    var dark: Boolean by mutableStateOf(prefs.getBoolean(KEY_DARK, false))
+    /** The reader's own choice, or null while the phone's appearance is still in charge. */
+    private var savedDark: Boolean? =
+        if (prefs.contains(KEY_DARK)) prefs.getBoolean(KEY_DARK, false) else null
+
+    var dark: Boolean by mutableStateOf(readerDark(savedDark, systemDark(context)))
         private set
 
     private var configs: Map<String, TypeConfig> by mutableStateOf(loadConfigs())
@@ -176,10 +205,25 @@ class ReaderSettings(context: Context) {
         ReaderTheme.activate(themeId, dark)
     }
 
-    /** The moon and the sun: the same theme, its other face. */
+    /** True while the reader has not tapped the moon: the phone's appearance rules. */
+    val followsSystem: Boolean get() = savedDark == null
+
+    /**
+     * Keeps the reader on the phone's appearance while no choice is saved. The shell
+     * calls this with the live system value, so a phone that turns dark stays followed.
+     */
+    fun followSystem(systemDark: Boolean) {
+        if (savedDark != null || dark == systemDark) return
+        dark = systemDark
+        ReaderTheme.activate(themeId, dark)
+    }
+
+    /** The moon and the sun: the same theme, its other face, and from now on the reader's. */
     fun toggleDark() {
-        dark = !dark
-        prefs.edit().putBoolean(KEY_DARK, dark).apply()
+        val next = !dark
+        savedDark = next
+        dark = next
+        prefs.edit().putBoolean(KEY_DARK, next).apply()
         ReaderTheme.activate(themeId, dark)
     }
 
@@ -203,7 +247,7 @@ class ReaderSettings(context: Context) {
     // ---------------------------------------------------------------- typesetting
 
     /** Everything the paginator and the renderer need, in pixels, from one source. */
-    fun typesetSpec(density: Float): TypesetSpec {
+    fun typesetSpec(density: Float, widthDp: Float): TypesetSpec {
         val config = configOf(themeId)
         return TypesetSpec(
             sizePx = config.sizeSp * density,
@@ -211,7 +255,7 @@ class ReaderSettings(context: Context) {
             letterSpacingEm = config.letterSpacing,
             wordSpacingEm = config.wordSpacing,
             marginPx = config.marginDp * density,
-            columns = if (config.columns == 2) 2 else 1,
+            columns = config.columnsFor(widthDp),
             justified = config.justified,
             fontKey = config.fontKey,
             bold = config.bold,
@@ -219,7 +263,7 @@ class ReaderSettings(context: Context) {
     }
 
     /** A one-line description of the typesetting, for the log and for evidence. */
-    fun describe(density: Float): String {
+    fun describe(density: Float, widthDp: Float): String {
         val config = configOf(themeId)
         return buildString {
             append("${themeId.key}/${if (dark) "dark" else "light"}")
@@ -227,7 +271,7 @@ class ReaderSettings(context: Context) {
             append(" font=${config.fontKey}${if (config.bold) "-bold" else ""}")
             append(" letter=${trimNumber(config.letterSpacing)} word=${trimNumber(config.wordSpacing)}")
             append(" margin=${config.marginDp.toInt()}dp")
-            append(" cols=${if (config.columns == 2) 2 else 1}")
+            append(" cols=${config.columnsFor(widthDp)}")
             append(if (config.justified) " justified" else " ragged")
         }
     }
@@ -271,7 +315,7 @@ class ReaderSettings(context: Context) {
         for (id in ThemeId.entries) {
             val defaults = TypeConfig.defaults(id)
             if (!prefs.contains("$KEY_PREFIX${id.key}.size")) continue
-            out[id.key] = defaults.copy(
+            val loaded = defaults.copy(
                 sizeSp = prefs.getFloat("$KEY_PREFIX${id.key}.size", defaults.sizeSp),
                 lineSpacing = prefs.getFloat("$KEY_PREFIX${id.key}.leading", defaults.lineSpacing),
                 letterSpacing = prefs.getFloat("$KEY_PREFIX${id.key}.letter", defaults.letterSpacing),
@@ -283,6 +327,18 @@ class ReaderSettings(context: Context) {
                 bold = prefs.getBoolean("$KEY_PREFIX${id.key}.bold", defaults.bold),
                 custom = prefs.getBoolean("$KEY_PREFIX${id.key}.custom", defaults.custom),
             )
+            // The spacing fields only belong to a customised theme: otherwise the theme's
+            // current defaults win, which is how a default margin can change at all.
+            out[id.key] = if (loaded.custom) {
+                loaded
+            } else {
+                loaded.copy(
+                    lineSpacing = defaults.lineSpacing,
+                    letterSpacing = defaults.letterSpacing,
+                    wordSpacing = defaults.wordSpacing,
+                    marginDp = defaults.marginDp,
+                )
+            }
         }
         return out
     }
