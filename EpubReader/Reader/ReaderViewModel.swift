@@ -1,8 +1,17 @@
 import SwiftUI
 import UIKit
+import os
 
 @MainActor
 final class ReaderViewModel: ObservableObject {
+
+    /// The cost of a restyle or a search is invisible without a trace: these
+    /// intervals are what to look at in Instruments before making any of it
+    /// cheaper.
+    private static let signposter = OSSignposter(
+        subsystem: "com.example.epubreader.ios",
+        category: "reader"
+    )
 
     @Published var pages: [PageContent] = []
     /// Bumped on every re-pagination. A theme or a type size can change what is on
@@ -95,6 +104,8 @@ final class ReaderViewModel: ObservableObject {
     func restyle(style: ReaderCustom, palette: ReaderPalette) {
         guard !rawChapters.isEmpty else { return }
         guard style != styledStyle || palette.id != styledTheme else { return }
+        let signpost = Self.signposter.beginInterval("restyle")
+        defer { Self.signposter.endInterval("restyle", signpost) }
         buildChapters(style: style, palette: palette)
         rebuildPagesIfPossible(force: true)
     }
@@ -248,6 +259,8 @@ final class ReaderViewModel: ObservableObject {
     func search(_ query: String, limit: Int = 60) -> [Hit] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard needle.count >= 2 else { return [] }
+        let signpost = Self.signposter.beginInterval("search")
+        defer { Self.signposter.endInterval("search", signpost) }
 
         var found: [Hit] = []
         for (index, chapter) in chapters.enumerated() {
@@ -342,6 +355,8 @@ final class ReaderViewModel: ObservableObject {
         }
         paginatedKey = key
         paginatedSize = columnSize
+        let signpost = Self.signposter.beginInterval("paginate")
+        defer { Self.signposter.endInterval("paginate", signpost) }
 
         var built: [PageContent] = []
         var starts: [Int] = []
