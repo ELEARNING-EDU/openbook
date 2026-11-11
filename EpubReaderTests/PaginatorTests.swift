@@ -45,4 +45,23 @@ final class PaginatorTests: XCTestCase {
         let text = body(30)
         XCTAssertEqual(Paginator.paginate(text, in: page), Paginator.paginate(text, in: page))
     }
+
+    func testAVeryLongChapterReachesItsLastCharacter() {
+        let text = NSAttributedString(
+            string: String(repeating: "W\n", count: 4_100),
+            attributes: [.font: UIFont.systemFont(ofSize: 20)]
+        )
+
+        let ranges = Paginator.paginate(text, in: CGSize(width: 25, height: 30))
+
+        var cursor = 0
+        for range in ranges {
+            XCTAssertEqual(range.location, cursor)
+            cursor += range.length
+        }
+        XCTAssertEqual(
+            cursor, text.length,
+            "4.000 pages is a safety cap, not a reason to drop the end of a chapter"
+        )
+    }
 }
