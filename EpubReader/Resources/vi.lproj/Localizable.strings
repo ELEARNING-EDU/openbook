@@ -227,6 +227,7 @@
 "error.zip.corrupt" = "Tệp ZIP hỏng.";
 "error.zip.unsupported" = "Kiểu nén ZIP không hỗ trợ: %lld.";
 "error.zip.inflate" = "Giải nén thất bại.";
+"error.zip.tooLarge" = "Sách này quá lớn để mở trên máy này.";
 
 "theme.original" = "Nguyên bản";
 "theme.quiet" = "Tĩnh lặng";

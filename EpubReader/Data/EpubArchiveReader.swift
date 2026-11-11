@@ -11,7 +11,7 @@ enum EpubArchiveReader {
     }
 
     static func readMetadata(url: URL) throws -> Metadata {
-        let archive = try ZipArchive(url: url)
+        let archive = try openArchive(url)
         let index = entryIndex(archive)
         let info = try packageInfo(in: archive, index: index)
         try ensureUnprotected(archive, index: index)
@@ -24,7 +24,7 @@ enum EpubArchiveReader {
     /// The checks an import can afford: structure and protection, without
     /// decompressing every chapter of a 1500-page book.
     static func validate(url: URL) throws {
-        let archive = try ZipArchive(url: url)
+        let archive = try openArchive(url)
         let index = entryIndex(archive)
         let info = try packageInfo(in: archive, index: index)
         try ensureUnprotected(archive, index: index)
@@ -40,7 +40,7 @@ enum EpubArchiveReader {
     }
 
     static func read(url: URL) throws -> RawBook {
-        let archive = try ZipArchive(url: url)
+        let archive = try openArchive(url)
         let index = entryIndex(archive)
         let info = try packageInfo(in: archive, index: index)
         try ensureUnprotected(archive, index: index)
@@ -115,7 +115,7 @@ enum EpubArchiveReader {
     /// with no declared cover, or one whose declared file is missing, simply has
     /// no image and falls back to the generated cover.
     static func coverData(url: URL) throws -> Data? {
-        let archive = try ZipArchive(url: url)
+        let archive = try openArchive(url)
         let index = entryIndex(archive)
         let info = try packageInfo(in: archive, index: index)
         guard let href = info.coverHref else { return nil }
@@ -158,6 +158,15 @@ enum EpubArchiveReader {
     }
 
     // MARK: - Helpers
+
+    /// Opens the archive with its memory ceilings checked first: a crafted
+    /// central directory must not get the reader to allocate gigabytes.
+    private static func openArchive(_ url: URL) throws -> ZipArchive {
+        let archive = try ZipArchive(url: url)
+        try archive.checkResourceLimits()
+        return archive
+    }
+
 
     private static func chapterTitles(from data: Data, at path: String) -> [String: String] {
         let directory = (path as NSString).deletingLastPathComponent

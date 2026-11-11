@@ -8,26 +8,59 @@ import Foundation
 /// Written by hand so the project stays free of third-party dependencies.
 struct ZipArchive {
 
+    /// One archive can be present in a folder, so the central directory is read
+    /// once at init rather than on every lookup.
     private let bytes: [UInt8]
+    private let allEntries: [Entry]
+    private let entriesByName: [String: Entry]
+    private let names: [String]
+
+    /// A book is text and a few pictures. These are ceilings on what a crafted
+    /// header may make the reader allocate before it has seen a byte of text.
+    static let maxEntryBytes = 64 * 1024 * 1024
+    static let maxTotalBytes = 256 * 1024 * 1024
+    static let maxEntryCount = 10_000
 
     init(url: URL) throws {
         let data = try Data(contentsOf: url)
-        self.bytes = [UInt8](data)
+        self.init(bytes: [UInt8](data))
     }
 
     init(data: Data) {
-        self.bytes = [UInt8](data)
+        self.init(bytes: [UInt8](data))
+    }
+
+    private init(bytes: [UInt8]) {
+        self.bytes = bytes
+        let parsed = Self.readEntries(bytes)
+        allEntries = parsed
+        names = parsed.map(\.name)
+        var map: [String: Entry] = [:]
+        for entry in parsed where map[entry.name] == nil { map[entry.name] = entry }
+        entriesByName = map
+    }
+
+    /// Refuses an archive whose central directory promises more memory than the
+    /// reader is willing to give it, before any entry is inflated.
+    func checkResourceLimits() throws {
+        guard allEntries.count <= Self.maxEntryCount else { throw ZipError.tooLarge }
+        var total = 0
+        for entry in allEntries {
+            guard entry.uncompressedSize <= Self.maxEntryBytes else { throw ZipError.tooLarge }
+            total += entry.uncompressedSize
+        }
+        guard total <= Self.maxTotalBytes else { throw ZipError.tooLarge }
     }
 
     /// Exact-path lookup. EPUB hrefs are usually relative to the OPF folder,
     /// so callers resolve the full path before asking.
     func data(forEntryNamed name: String) -> Data? {
-        guard let entry = entries().first(where: { $0.name == name }) else { return nil }
+        guard let entry = entriesByName[name] else { return nil }
         return try? extract(entry)
     }
 
     func allEntryNames() -> [String] {
-        entries().map(\.name)
+        names
     }
 
     // MARK: - Central directory
@@ -40,36 +73,36 @@ struct ZipArchive {
         let localHeaderOffset: Int
     }
 
-    private func u16(_ offset: Int) -> Int {
+    private static func u16(_ bytes: [UInt8], _ offset: Int) -> Int {
         Int(bytes[offset]) | (Int(bytes[offset + 1]) << 8)
     }
 
-    private func u32(_ offset: Int) -> Int {
+    private static func u32(_ bytes: [UInt8], _ offset: Int) -> Int {
         Int(bytes[offset])
             | (Int(bytes[offset + 1]) << 8)
             | (Int(bytes[offset + 2]) << 16)
             | (Int(bytes[offset + 3]) << 24)
     }
 
-    private func entries() -> [Entry] {
+    private static func readEntries(_ bytes: [UInt8]) -> [Entry] {
         guard bytes.count > 22 else { return [] }
-        guard let eocd = findEndOfCentralDirectory() else { return [] }
+        guard let eocd = findEndOfCentralDirectory(bytes) else { return [] }
 
-        let count = u16(eocd + 10)
-        var cursor = u32(eocd + 16)
+        let count = u16(bytes, eocd + 10)
+        var cursor = u32(bytes, eocd + 16)
         var result: [Entry] = []
 
         for _ in 0..<count {
             guard cursor + 46 <= bytes.count else { break }
-            guard u32(cursor) == 0x0201_4B50 else { break }
+            guard u32(bytes, cursor) == 0x0201_4B50 else { break }
 
-            let method = UInt16(u16(cursor + 10))
-            let compressedSize = u32(cursor + 20)
-            let uncompressedSize = u32(cursor + 24)
-            let nameLength = u16(cursor + 28)
-            let extraLength = u16(cursor + 30)
-            let commentLength = u16(cursor + 32)
-            let localOffset = u32(cursor + 42)
+            let method = UInt16(u16(bytes, cursor + 10))
+            let compressedSize = u32(bytes, cursor + 20)
+            let uncompressedSize = u32(bytes, cursor + 24)
+            let nameLength = u16(bytes, cursor + 28)
+            let extraLength = u16(bytes, cursor + 30)
+            let commentLength = u16(bytes, cursor + 32)
+            let localOffset = u32(bytes, cursor + 42)
 
             let nameStart = cursor + 46
             guard nameStart + nameLength <= bytes.count else { break }
@@ -90,7 +123,7 @@ struct ZipArchive {
     }
 
     /// The EOCD record is last, followed by an optional comment of up to 64 KB.
-    private func findEndOfCentralDirectory() -> Int? {
+    private static func findEndOfCentralDirectory(_ bytes: [UInt8]) -> Int? {
         let signature: [UInt8] = [0x50, 0x4B, 0x05, 0x06]
         let lowest = max(0, bytes.count - 65_557)
         var index = bytes.count - 22
@@ -111,12 +144,12 @@ struct ZipArchive {
     private func extract(_ entry: Entry) throws -> Data {
         let local = entry.localHeaderOffset
         guard local + 30 <= bytes.count else { throw ZipError.corrupt }
-        guard u32(local) == 0x0403_4B50 else { throw ZipError.corrupt }
+        guard Self.u32(bytes, local) == 0x0403_4B50 else { throw ZipError.corrupt }
 
         // The local header carries its own extra-field length, which can differ
         // from the central directory's. Always trust the local one.
-        let nameLength = u16(local + 26)
-        let extraLength = u16(local + 28)
+        let nameLength = Self.u16(bytes, local + 26)
+        let extraLength = Self.u16(bytes, local + 28)
         let start = local + 30 + nameLength + extraLength
         let end = start + entry.compressedSize
         guard end <= bytes.count, start <= end else { throw ZipError.corrupt }
@@ -135,6 +168,7 @@ struct ZipArchive {
 
     private func inflate(_ input: Data, expectedSize: Int) throws -> Data {
         guard expectedSize > 0 else { return Data() }
+        guard expectedSize <= Self.maxEntryBytes else { throw ZipError.tooLarge }
         guard !input.isEmpty else { throw ZipError.inflateFailed }
 
         var output = Data(count: expectedSize)
@@ -156,16 +190,19 @@ struct ZipArchive {
     }
 }
 
-enum ZipError: LocalizedError {
+enum ZipError: LocalizedError, Equatable {
     case corrupt
     case unsupportedMethod(UInt16)
     case inflateFailed
+    /// The central directory promises more than the reader will allocate.
+    case tooLarge
 
     var errorDescription: String? {
         switch self {
         case .corrupt: return L10n.string("error.zip.corrupt")
         case .unsupportedMethod(let m): return L10n.format("error.zip.unsupported", Int(m))
         case .inflateFailed: return L10n.string("error.zip.inflate")
+        case .tooLarge: return L10n.string("error.zip.tooLarge")
         }
     }
 }

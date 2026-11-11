@@ -227,6 +227,7 @@
 "error.zip.corrupt" = "The ZIP file is damaged.";
 "error.zip.unsupported" = "Unsupported ZIP compression: %lld.";
 "error.zip.inflate" = "Could not decompress the file.";
+"error.zip.tooLarge" = "This book is too large to open on this device.";
 
 "theme.original" = "Original";
 "theme.quiet" = "Quiet";
