@@ -85,6 +85,7 @@ final class LibraryStore: ObservableObject {
         let live = Set(books.map(\.id))
         for id in metadata.keys where !live.contains(id) {
             metadata[id] = nil
+            parsedPackage[id] = nil
             changed = true
         }
         if changed { persistMetadata() }
