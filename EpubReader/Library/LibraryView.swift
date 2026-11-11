@@ -452,8 +452,16 @@ struct LibraryView: View {
     private func delete(_ request: DeleteRequest) {
         let ids = Set(request.books.map(\.id))
         let removed = library.deleteBooks(ids: ids)
-        for id in removed {
-            progress.remove(bookID: id)
+        if !removed.isEmpty {
+            // The saved place, the bookmarks and the highlights all belong to the
+            // file name, so they go only once the file itself is gone.
+            let bookmarks = BookmarkStore()
+            let highlights = HighlightStore()
+            for id in removed {
+                progress.remove(bookID: id)
+                bookmarks.erase(bookID: id)
+                highlights.erase(bookID: id)
+            }
         }
         deleteRequest = nil
         endSelection()

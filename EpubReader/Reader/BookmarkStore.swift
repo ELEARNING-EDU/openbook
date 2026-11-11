@@ -23,8 +23,11 @@ final class BookmarkStore: ObservableObject {
     private var all: [String: [Bookmark]] = [:]
     private var current = ""
 
-    init() {
-        if let data = UserDefaults.standard.data(forKey: Self.storageKey),
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if let data = defaults.data(forKey: Self.storageKey),
            let decoded = try? JSONDecoder().decode([String: [Bookmark]].self, from: data) {
             all = decoded
         }
@@ -60,11 +63,24 @@ final class BookmarkStore: ObservableObject {
         persist()
     }
 
+    /// Forgets every mark in a book that has left the shelf, so importing a
+    /// different file under the same name does not inherit its bookmarks.
+    func erase(bookID: String) {
+        guard all[bookID] != nil else { return }
+        all[bookID] = nil
+        if current == bookID { marks = [] }
+        save()
+    }
+
     private func persist() {
         guard !current.isEmpty else { return }
         all[current] = marks
+        save()
+    }
+
+    private func save() {
         if let data = try? JSONEncoder().encode(all) {
-            UserDefaults.standard.set(data, forKey: Self.storageKey)
+            defaults.set(data, forKey: Self.storageKey)
         }
     }
 }
