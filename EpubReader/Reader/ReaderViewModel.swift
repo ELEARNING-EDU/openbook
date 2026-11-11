@@ -259,7 +259,7 @@ final class ReaderViewModel: ObservableObject {
                       options: [.caseInsensitive, .diacriticInsensitive],
                       range: from..<text.endIndex
                   ) {
-                let offset = text.distance(from: text.startIndex, to: range.lowerBound)
+                let offset = TextOffsets.location(of: range.lowerBound, in: text)
                 if let page = pageIndex(forChapterOffset: offset, chapter: index) {
                     found.append(
                         Hit(
@@ -286,7 +286,7 @@ final class ReaderViewModel: ObservableObject {
               let page = pageIndex(forChapterOffset: offset, chapter: chapterIndex)
         else { return nil }
         let text = chapters[chapterIndex].text.string
-        let start = text.index(text.startIndex, offsetBy: min(offset, text.count))
+        let start = TextOffsets.index(at: offset, in: text)
         return Hit(
             id: "\(chapterIndex)-\(offset)",
             chapterIndex: chapterIndex,
