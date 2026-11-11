@@ -214,6 +214,60 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testAFailedReimportWithTheSameNameKeepsTheOldBook() throws {
+        let existing = try writeBook("a.epub")
+        let store = LibraryStore(directory: directory, defaults: defaults, seedSample: false)
+        XCTAssertTrue(store.updateMetadata(id: "a.epub", title: "Tên cũ", author: "Tác giả"))
+        let before = try Data(contentsOf: existing)
+
+        let broken = FileManager.default.temporaryDirectory
+            .appendingPathComponent("broken-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: broken, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: broken) }
+        let brokenBook = broken.appendingPathComponent("a.epub")
+        try Data("not an epub".utf8).write(to: brokenBook)
+
+        store.importBook(from: brokenBook)
+
+        XCTAssertNotNil(store.importError)
+        XCTAssertEqual(try Data(contentsOf: existing), before)
+        XCTAssertEqual(store.metadata(for: "a.epub")?.title, "Tên cũ")
+        XCTAssertEqual(store.metadata(for: "a.epub")?.author, "Tác giả")
+        XCTAssertEqual(store.books.map(\.id), ["a.epub"])
+    }
+
+    @MainActor
+    func testReimportingTheSameNameReplacesTheFileAndKeepsTheMetadata() throws {
+        try writeBook("a.epub")
+        let store = LibraryStore(directory: directory, defaults: defaults, seedSample: false)
+        XCTAssertTrue(store.updateMetadata(id: "a.epub", title: "Tên cũ", author: ""))
+        XCTAssertTrue(store.markFinished(id: "a.epub", finished: true))
+
+        let incoming = FileManager.default.temporaryDirectory
+            .appendingPathComponent("incoming-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: incoming, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: incoming) }
+        let sample = try XCTUnwrap(Bundle.main.url(forResource: "sample", withExtension: "epub"))
+        let replacement = incoming.appendingPathComponent("a.epub")
+        try FileManager.default.copyItem(at: sample, to: replacement)
+
+        store.importBook(from: replacement)
+
+        XCTAssertNil(store.importError)
+        XCTAssertEqual(store.books.map(\.id), ["a.epub"])
+        XCTAssertEqual(store.metadata(for: "a.epub")?.title, "Tên cũ")
+        XCTAssertTrue(store.finishedIDs.contains("a.epub"))
+        XCTAssertEqual(
+            try Data(contentsOf: directory.appendingPathComponent("a.epub")),
+            try Data(contentsOf: sample)
+        )
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: replacement.path),
+            "the picker's own file must stay where it was"
+        )
+    }
+
+    @MainActor
     func testDeletedSampleIsNotSeededAgain() throws {
         let first = LibraryStore(directory: directory, defaults: defaults, seedSample: true)
         let sample = try XCTUnwrap(first.books.first { $0.id.contains("ngon-hai-dang") })

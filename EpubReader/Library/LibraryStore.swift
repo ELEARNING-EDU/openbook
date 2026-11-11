@@ -104,26 +104,35 @@ final class LibraryStore: ObservableObject {
 
         do {
             let destination = directory.appendingPathComponent(source.lastPathComponent)
-            let copied = source.standardizedFileURL != destination.standardizedFileURL
-            if copied {
-                if FileManager.default.fileExists(atPath: destination.path) {
-                    try FileManager.default.removeItem(at: destination)
-                }
-                try FileManager.default.copyItem(at: source, to: destination)
-            }
-            do {
+            let isAlreadyOnTheShelf = source.standardizedFileURL == destination.standardizedFileURL
+
+            if isAlreadyOnTheShelf {
                 try EpubArchiveReader.validate(url: destination)
-            } catch {
-                // A DRM wrapper or a broken file is refused at the door rather
-                // than sitting on the shelf and failing when it is opened.
-                if copied { try? FileManager.default.removeItem(at: destination) }
-                throw error
+            } else {
+                // Stage beside the shelf and validate the copy, so a broken file
+                // never costs the reader the book they already had under this name.
+                let staging = directory.appendingPathComponent(".import-\(UUID().uuidString)")
+                defer { try? FileManager.default.removeItem(at: staging) }
+                try FileManager.default.copyItem(at: source, to: staging)
+                try EpubArchiveReader.validate(url: staging)
+
+                if FileManager.default.fileExists(atPath: destination.path) {
+                    _ = try FileManager.default.replaceItemAt(destination, withItemAt: staging)
+                } else {
+                    try FileManager.default.moveItem(at: staging, to: destination)
+                }
             }
-            metadata[destination.lastPathComponent] = LibraryMetadata(
-                title: nil,
-                author: nil,
-                importedAt: Date()
-            )
+
+            // A book that replaces one of the same name keeps its edited title,
+            // author, import date, finished mark and saved place: the name is the
+            // identity, and the reader wrote those by hand.
+            if metadata[destination.lastPathComponent] == nil {
+                metadata[destination.lastPathComponent] = LibraryMetadata(
+                    title: nil,
+                    author: nil,
+                    importedAt: Date()
+                )
+            }
             persistMetadata()
             importError = nil
             reload()
