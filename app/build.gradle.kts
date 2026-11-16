@@ -24,8 +24,8 @@ android {
         applicationId = "com.elearning.openbook"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 2026110700
-        versionName = "20261107.00"
+        versionCode = 2026111600
+        versionName = "2026.11.16.00"
     }
 
     lint {
