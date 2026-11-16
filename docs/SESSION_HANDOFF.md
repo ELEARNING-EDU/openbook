@@ -1,5 +1,24 @@
 # Session handoff — Sách (Android EPUB reader)
 
+## Checkpoint 2026-11-11 (evening) — Claude, Android + iOS parity session
+
+- Owner rule: Android and iOS are built together; shared notes on master: `docs/PARITY.md` (gaps, decisions,
+  per-batch log), `docs/CHANGELOG.md` (one shared changelog), `docs/PLAN.md` (roadmap). Per-platform state stays here.
+- Coding is delegated to the opencode agent in each worktree via Orca (`orca orchestration send --to dispatch:<id>`);
+  both run `opencode-go/deepseek-v4.1-flash` (the free model hit its daily quota). Claude reviews, tests, does device QA.
+- NOTHING IS COMMITTED in `android` or `ios` this session (owner has not asked). Do not stage `AGENTS.md`/`CLAUDE.md`
+  or the toolkit deletions (`.ai-toolkit/`, `.agents/`, `.claude/`) — they are the owner's.
+- Done this session (both platforms unless noted): wordmark icon; UI copy unified ("đánh dấu" = bookmark,
+  "tô sáng" = highlight); reader guide + review prompt (iOS); stats sheet (Android); highlight palette/notes/Markdown
+  export; open EPUB from other apps; selection menu Copy/Share/Search/Translate; margin 30→20; contents/search sheet
+  styling; reader light/dark follows the phone until chosen; rotation + 2 columns when width > 560; paused read-aloud
+  resumes from the visible page; demo launches skip the review prompt.
+- Android specifics: versionCode/versionName NOT bumped yet (still `2026110700` / `20261107.00`); proposal to owner:
+  `2026111100` / `2026.11.11`. E2 = `emulator-5554` now has the RELEASE-signed build installed (install release over it,
+  a debug install needs an uninstall). Tests: `./gradlew :app:testDebugUnitTest` → 152 tests, 33 skipped, 0 failed.
+- Next: owner decides commit + Android version bump; then PLAN.md batch "backup/restore".
+
+
 Cập nhật 2026-11-10. Chỉ mô tả trạng thái hiện tại; checkpoint trước 2026-11-07 xem trong Git
 (`git show edd6de4:docs/SESSION_HANDOFF.md`).
 
