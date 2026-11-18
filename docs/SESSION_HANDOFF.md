@@ -51,3 +51,8 @@ Cập nhật: 2026-11-03
 ## Bước tiếp theo
 1. Người dùng chạy `npm run dev`, đăng nhập Google tại <http://localhost:3000>, vào `/admin` bằng email trong `ADMIN_EMAILS`.
 2. Deploy Vercel theo README, thêm origin và redirect URI của domain vào OAuth Client, rồi thử mở sách Wikisource trên production.
+
+## Verified loop (2026-11-18, chưa commit)
+- Thêm `scripts/verify.mjs`, `.claude/skills/verify/SKILL.md`, `docs/feature-map.md`, `docs/corrections.md`. Skill chung nằm ở `~/.claude/skills/verified-loop/`.
+- `node scripts/verify.mjs` chạy trên Mongo trong bộ nhớ, không đụng Atlas: 38/38 ok, hai lần liên tiếp. `tsc`, `lint`, `npm test` (150/150) đều pass.
+- Còn tồn (todo trong `docs/corrections.md`): `npm run seed` chưa chặn URI không phải local.
