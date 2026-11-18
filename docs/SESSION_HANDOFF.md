@@ -1,4 +1,223 @@
 # Session handoff
+
+## Checkpoint 2026-11-11 (evening) — Claude, Android + iOS parity session
+
+- Owner rule: Android and iOS are built together; shared notes on master: `docs/PARITY.md` (gaps, decisions,
+  per-batch log), `docs/CHANGELOG.md` (one shared changelog), `docs/PLAN.md` (roadmap). Per-platform state stays here.
+- Coding is delegated to the opencode agent in each worktree via Orca (`orca orchestration send --to dispatch:<id>`);
+  both run `opencode-go/deepseek-v4.1-flash` (the free model hit its daily quota). Claude reviews, tests, does device QA.
+- NOTHING IS COMMITTED in `android` or `ios` this session (owner has not asked). Do not stage `AGENTS.md`/`CLAUDE.md`
+  or the toolkit deletions (`.ai-toolkit/`, `.agents/`, `.claude/`) — they are the owner's.
+- Done this session (both platforms unless noted): wordmark icon; UI copy unified ("đánh dấu" = bookmark,
+  "tô sáng" = highlight); reader guide + review prompt (iOS); stats sheet (Android); highlight palette/notes/Markdown
+  export; open EPUB from other apps; selection menu Copy/Share/Search/Translate; margin 30→20; contents/search sheet
+  styling; reader light/dark follows the phone until chosen; rotation + 2 columns when width > 560; paused read-aloud
+  resumes from the visible page; demo launches skip the review prompt.
+- iOS specifics: bundle `com.elearning.openbook`, team `KTKL66WRBK`, automatic signing, iPhone only, version
+  `2026.11.11` (build `20261111`) via `$(MARKETING_VERSION)`/`$(CURRENT_PROJECT_VERSION)`. Added `PrivacyInfo.xcprivacy`,
+  `ITSAppUsesNonExemptEncryption=NO`, `ExportOptions.plist` (destination export). Audio session activates off the main
+  thread; `.duckOthers` removed so Control Center / Lock Screen controls work (owner to confirm on device).
+  Owner's iPhone 13 Pro (UDID 00008110-0008190214FB801E) is registered, Developer Mode on.
+- Release archive: `build/OpenBook.xcarchive` + copy in `~/Library/Developer/Xcode/Archives/2026-11-11/`; local IPA
+  `build/export/EpubReader.ipa`. NOT uploaded: Claude's upload command is blocked; owner uploads via Organizer →
+  Distribute App. Screenshots already uploaded by owner (1206×2622); store pack in master `stores/app-store/`.
+- Tests: `xcodebuild test ... -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath build/dd`
+  → 154 tests, 5 skipped, 0 failures.
+- Next: owner uploads the build and submits; owner decides commit.
+
+
+## Current state — 2026-11-11
+
+- Worktree `ios` of `/Users/cuong/Workspace/Projects/OpenBook`; branch `ios`, HEAD `7c88d03`;
+  app/test/config tree clean.
+- `xcodebuild test` on 2026-11-11 → `** TEST SUCCEEDED **`, **140 tests, 5 skipped (corpus
+  manifest missing), 0 failures** (iPhone 17 Pro, iOS 27.0, Xcode 27.2).
+- Done and committed: T01–T10, T12, T15–T17, T22–T44, SUITE-003, SUITE-009, reading stats
+  (2026-10-25 plan, all ten tasks; commits `3640250`…`5eb85a6`) and Home sections (2026-10-26).
+  The finished reading-stats spec and plan in `docs/superpowers/` were deleted on 2026-11-11
+  (recover from `5b246b4`).
+- Fixed on 2026-11-11: T18–T21 and T24 (`331d05e`, `8f5818f`, `2e9a362`, `1be3691`, `f1a64ef`) and
+  I‑OPT‑01…04 (`e6b6a5e`, `8f5818f`, `d159223`, `7c88d03`); see `TODO.md` for what each commit
+  changed and which part still needs a device (memory after 500 turns, Instruments numbers).
+- Open: T11 icon, T13 chapter-opening weight, T14 dark-fold decision; corpus manifest; device
+  QA. `TODO.md` at the repo root tracks the rest.
+- Not verified by hand: VoiceOver, lock-screen/headphone controls, mini-player tap, real
+  `BookEditSheet`, a real cover with a printed title, selection-handle drag with a real finger.
+- Dirty tree is documentation/toolkit only: root state files deleted in favour of `docs/`,
+  untracked `TODO.md`/`.commandcode/`, pre-existing `.ai-toolkit`/`.agents`/`.claude` deletions,
+  `AGENTS.md`/`CLAUDE.md` edits. Do not stage or discard without the owner.
+- QA artifacts on this machine: only `build/qa/{book-covers,highlight,mini-player,voice-lang}`.
+- Exact next action: owner decides T11/T13/T14 or the device QA list; no `ios` remote, nothing
+  pushed.
+
+## 2026-11-02 — state before handoff/compact
+
+- Branch `ios`, HEAD `0a78999`; app code tree clean. Recent commits: `0a78999` (T42–T44),
+  `5288aef` (covers + Home baseline), `97bbc33` (mini player), `44b17c0` (T23), `5865312`
+  (highlight/background audio).
+- Build succeeded; full suite **128 tests, 5 skipped, 0 failures** (iPhone 18 Pro, iOS 27.0).
+  The last icon-only change (`gobackward/goforward` → `minus/plus`) was built but did not
+  re-run the suite.
+- Done: T22–T23, T25–T44. Pending review defects T18–T21/T24. Remaining manual QA:
+  VoiceOver, lock-screen/headphone controls, mini-player tap, real `BookEditSheet`, real cover
+  with printed title.
+- State docs are the untracked `docs/` copies; root versions are deleted in the working tree.
+  Other dirty items are toolkit/AGENTS/`CLAUDE.md`/`.commandcode` pre-existing. Do not stage or
+  discard without the owner.
+- Simulator iPhone 18 Pro (UDID `0AD96A11-BAFB-468D-A68D-4E545EF58BE8`, iOS 27.0) has the app
+  installed; last screen is the Vietnamese reader with mini player `− play/pause +`.
+- Exact next action: owner review/QA and the docs-move/commit decision; then the manual QA
+  above. No remote, nothing pushed.
+
+## Review checkpoint — 2026-10-29 (code không đổi)
+
+- Đã hoàn tất review luồng chức năng và code quan trọng; thêm 7 lỗi Pending (T18–T24) trong TASKS.md và TODO.md riêng cho ưu tiên sửa/tối ưu/QA. Chi tiết tình huống, vị trí code, mức bằng chứng và nghiệm thu ở TASKS.md.
+- Chỉ cập nhật tài liệu. Không stage/commit, không sửa app/test/config, không cài app hoặc thay dữ liệu người dùng. Git root `master`, HEAD `c6633fb`; android/ios/design và các file untracked có sẵn được giữ nguyên; khi tiếp tục xuất hiện thêm web/ từ công việc khác, không đụng tới.
+- Khi tiếp tục, tài liệu Android đã nằm ở android/docs/; giữ vị trí hiện hữu, không tạo lại bản root. Đối chiếu SHA-256 của 135 source/resource/test/config với snapshot review: không khác.
+- Verification mới: probe Kotlin tìm kiếm tái hiện lỗi Đ/NFD; probe Swift/macOS tái hiện lệch tuần, offset Unicode và mất đuôi sau 4.000 cột, đồng thời xác nhận ZIP không chặn expansion 8 MiB. Compile bản cuối/run đều exit 0; đây là tái hiện lỗi, không phải app test pass. Probe tạm ở /tmp/openbook-audit, có thể mất sau reboot; kết quả và cách dựng được ghi trong TASKS.md.
+- Không chạy Gradle/xcodebuild/full test/lint/device QA mới. Corpus chung hiện thiếu manifest; kết quả QA trước là lịch sử.
+- Bước tiếp theo: đọc TASKS.md phần Review codebase và TODO.md, chọn nhóm P1 để xử lý khi có yêu cầu sửa. Trước sửa đối chiếu lại source/Git; hiện phạm vi được giao chỉ review, nên tất cả defect vẫn Pending.
+
+## 2026-11-02 (tiếp 3) — Mini player `- play/pause +` (committed `0a78999`)
+
+`ReaderView.playerControls`: `gobackward/goforward` → `minus/plus`; hàng
+`title · 1× − play/pause + ×`; accessibility labels giữ `reader.slower/faster`. Ảnh
+`build/qa/voice-lang/mini-player-minus-plus.png`; build succeeded; no TTS logic change.
+Commit `0a78999`.
+
+## 2026-11-02 (tiếp 2) — Giọng đọc theo ngôn ngữ sách (committed `0a78999`)
+
+**Nguyên nhân:** bộ `vietnameseSignals` cũ gồm cả `é/è/ê/à/ù/ô/á/í…` — dấu dùng chung với
+Pháp/Tây Ban Nha. Sách Pháp bị `strongLanguage` nhận là `vi`, đè tag `fr`; Voice picker chỉ
+còn `VIETNAMESE — Linh` và mọi sách dùng Linh.
+
+**Sửa:** chỉ giữ ký tự đặc trưng Việt (`ă`, `đ`, `ơ`, `ư`, dấu hỏi/nặng, tổ hợp thanh trên
+`ă/â/ê/ô/ơ/ư`); bỏ dấu sắc/huyền/mũ trơn. Thêm test `fr`, `es`, `pt` giữ tag.
+
+**Kiểm chứng:** full suite **128 tests, 5 skipped, 0 failures** (2026-11-02 15:08 +07).
+Ảnh `build/qa/voice-lang/`: `french-book.png` (trước sửa, Voice sheet chỉ Linh vi-VN);
+`french-after-fix.png` (Amélie fr-CA); `spanish-after-fix.png` (Mónica es-ES);
+`japanese.png` (Kyoko ja-JP); `chinese.png` (Meijia zh-TW); `vietnamese.png` (Linh vi-VN);
+`english-book.png` (Samantha en-US).
+
+**Files:** `EpubReader/Domain/BookLanguage.swift`, `EpubReaderTests/BookLanguageTests.swift`
+(cùng T42 `LibraryView/HomeView/HomeBookRow`) đã commit `0a78999`; docs state vẫn untracked.
+
+## 2026-11-02 (tiếp) — Title sách + bìa thật/tự tạo (T38–T41 committed `5288aef`; T42 committed `0a78999`)
+
+**Đã làm:** T38–T41. Đọc cover từ EPUB (`coverData`, meta/properties/fallback), nhận diện
+trang trắng bằng tỉ lệ pixel không trắng + độ bão hòa, cache lazy theo file date, `BookCover`
+dùng chung (ảnh thật/gradient + title/author), Home shelf bỏ title ngoài + author chỉ bìa tự
+tạo, Home card label title/author, Library list cover 64, title edit hook.
+
+**Kiểm chứng:**
+- `xcodebuild build …` → `** BUILD SUCCEEDED **`.
+- `xcodebuild test … -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` → exit 0,
+  `** TEST SUCCEEDED **`, **125 tests, 5 skipped, 0 failures** (2026-11-02 11:12 +07).
+- Ảnh QA `build/qa/book-covers/`: generated-home/grid/list; covers-library-grid (real giữ ảnh,
+  white → generated), covers-home-shelf, covers-home-card-real/white, covers-library-list,
+  covers-title-edited, covers-library-dark. Fixture `zz-real-cover.epub`,
+  `zz-white-cover.epub`, `make_cover_books.py` (build ignored; đã copy vào simulator).
+  Simulator **iPhone 18 Pro, iOS 27.0**.
+- Lỗi heuristic đầu tiên: >98% gần trắng để lọt trang title có vạch đen (~3% đen); đã đổi
+  thành non-white <10% + saturation <0.15; test white/mark/logo/picture.
+
+**File dirty do đợt này:** `EpubReader/Data/EpubArchiveReader.swift`,
+`EpubReader/Library/LibraryView.swift`, `EpubReader/Home/HomeView.swift`,
+`EpubReader/Home/HomeBookRow.swift` (untracked Home work), mới
+`EpubReader/Domain/BookCoverImage.swift`, `EpubReader/Library/BookCoverStore.swift`,
+`EpubReaderTests/BookCoverImageTests.swift`; docs state.
+
+**Chưa kiểm:** VoiceOver runtime (cover hidden + label code-reviewed), title edit bằng
+`BookEditSheet` thật (demo hook dùng cùng `updateMetadata`), ảnh bìa thật có chữ (fixture là
+gradient trừu tượng). Bìa thật load lazy có thể hiện placeholder gradient trong thoáng đầu.
+
+**Baseline:** Home-sections baseline + cover T38–T41 commit `5288aef`; T42–T44 commit
+`0a78999`; docs state vẫn untracked.
+
+**2026-11-02 (tiếp) — tinh chỉnh title matrix:** Home READING
+`BookCover(showsGeneratedText: false)` (bìa tự tạo chỉ gradient, title/author ngoài giữ); Home
+shelf bỏ author ngoài (title/author trong bìa tự tạo vẫn giữ, bìa thật không); Library list
+`showsGeneratedText: false` cả hai loại (title/author/progress ngoài); grid giữ. Files:
+`LibraryView.swift`, `HomeView.swift`, `HomeBookRow.swift`. Build + **125 tests** xanh; ảnh
+`final-home-after-tweaks.png`, `final-library-list-after-tweaks.png`. Phần tinh chỉnh **chưa
+commit**.
+
+## 2026-11-02 — Player button on Home/Library/Store (committed `97bbc33`)
+
+**Đã làm:** T35–T37. Một overlay `MiniPlayerButton` trong `MainView`; visibility qua
+`MiniPlayerVisibility` (idle/chưa mở sách/reader mở → ẩn); bấm gọi `openPlayingBook()`.
+Đĩa 48 trong nút 56, góc dưới-phải, cách tab bar 8 pt; `VinylCover` dừng đúng góc khi paused;
+Reduce Motion tắt quay. Reserve đáy động qua `EnvironmentValues.playerInset` cho Home/Library/
+Store. Thêm key `reader.player.state.playing`/`.paused` (en/vi) và hook QA
+`-demoSwitchTabAfter`/`-demoSwitchTab`.
+
+**Kiểm chứng:**
+- `xcodebuild -project EpubReader.xcodeproj -scheme EpubReader -configuration Debug
+  -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd build` → exit 0,
+  `** BUILD SUCCEEDED **`.
+- `xcodebuild test … -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` → exit 0,
+  `** TEST SUCCEEDED **`, **119 tests, 5 skipped, 0 failures** (2026-11-02 08:06 +07).
+- QA ảnh trong `build/qa/mini-player/`: playing/paused Home/Library/Store, stopped,
+  no-book, reader-open, Reduce Motion 2 crop trùng SHA-256, final-home-paused.
+  Simulator **iPhone 18 Pro, iOS 27.0**.
+
+**Chưa kiểm bằng tay:** bấm nút thật để mở sách (dùng `openPlayingBook`, đã kiểm route trước
+đó), VoiceOver đọc runtime, pause/play từ lock screen/nút tai nghe thật; đĩa reset góc khi
+reader mở/đóng.
+
+**Dirty:** `EpubReader/App/MainView.swift`, `EpubReader/Home/HomeView.swift`,
+`EpubReader/Library/LibraryView.swift`, `EpubReader/Store/StoreView.swift`,
+`EpubReader/Resources/{en,vi}.lproj/Localizable.strings`; mới
+`EpubReader/App/MiniPlayerButton.swift`, `EpubReaderTests/MiniPlayerVisibilityTests.swift`.
+Committed `97bbc33`; docs state chưa commit.
+
+**Bước tiếp theo:** QA tap/VoiceOver/lock-screen trên GUI/thiết bị thật.
+
+## 2026-11-01 — Highlight chọn đoạn + audio nền (committed `5865312`)
+
+**Đã làm:** T25–T34 trong `docs/TASKS.md` (chọn từ + popup + 4 màu + sửa/xoá + 3 tab; lưu
+highlight theo chapter/offset UTF-16; `SpeechController` dùng chung; audio nền; now-playing +
+remote commands; activation route; URL scheme; `BookLanguage`; sửa T22 chương rỗng). Sửa thêm
+T23: `weekInterval` thứ Hai dùng chung cho `summary.weekMinutes` và `week`.
+
+**Kiểm chứng (exit status thật):**
+- Build: `xcodebuild -project EpubReader.xcodeproj -scheme EpubReader -configuration Debug
+  -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd build` → exit 0,
+  `** BUILD SUCCEEDED **`, không warning từ code dự án (2026-11-01).
+- Test: `xcodebuild test -project EpubReader.xcodeproj -scheme EpubReader -configuration Debug
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath build/dd` → exit 0,
+  `** TEST SUCCEEDED **`, 114 tests, 5 skipped (corpus thiếu manifest), 0 failures.
+- Info.plist build: `UIBackgroundModes = [audio]`, `CFBundleURLTypes` scheme `epubreader`.
+- QA ảnh + log: `build/qa/highlight/` (01…17) và log `simctl launch --console`:
+  `speak chapter 1…4`, `nowplaying … artwork true`, `[route] opening the book the voice is
+  reading`, `[speech] stop …`, `[nowplaying] cleared`.
+
+**File dirty do đợt này (chưa stage/commit):**
+- `Info.plist` (mới, root), `EpubReader.xcodeproj/project.pbxproj`.
+- `EpubReader/App/MainView.swift`, `EpubReader/Data/EpubArchiveReader.swift`,
+  `EpubReader/Domain/Models.swift`, `EpubReader/Library/LibraryView.swift`,
+  `EpubReader/Reader/{PageCurlPager,ReaderPage,ReaderView,ReaderViewModel,SpeechController}.swift`,
+  `EpubReader/Reader/ReadingStatsStore.swift`,
+  `EpubReader/Resources/{en,vi}.lproj/Localizable.strings`.
+- Mới: `EpubReader/Domain/{BookLanguage,TextSelection}.swift`,
+  `EpubReader/Reader/{BookArtwork,HighlightStore}.swift`,
+  `EpubReaderTests/{BookLanguageTests,HighlightStoreTests,TextSelectionTests}.swift`;
+  T23 sửa `EpubReaderTests/ReadingStatsStoreTests.swift` (+2 test).
+- Các thay đổi Home/docs/.commandcode có từ trước vẫn giữ nguyên, không đụng.
+
+**Chưa kiểm bằng ngón tay thật:** pan thanh kéo (móc demo gọi `handleMoved`/`beginSelection`);
+swipe xoá bookmark/highlight (dùng `.onDelete`); ba nút now-playing trên lock screen (actions
+đã kiểm qua móc cùng engine); đổi sách trong một phiên (logic `openBook` review code + `stop`
+runtime); hai cột iPad; EPUB tiếng Việt gắn sai `dc:language` trên thiết bị (unit test đã cover).
+
+**Bước tiếp theo chính xác:** chờ owner review/approve; nếu duyệt, stage đúng các đường dẫn trên
+(không `git add -A`, không push) và commit. Sau đó chạy QA thiết bị thật cho các mục “chưa kiểm
+bằng ngón tay thật”, đặc biệt thanh kéo và lock-screen controls.
+
+Prompt resume: Đọc state, đối chiếu files/Git; tiếp tục QA thiết bị thật cho T25/T29/T32/T33,
+không discard thay đổi chưa commit.
+
 > English first, bản tiếng Việt ở nửa dưới của cùng tệp.
 
 Timestamp / timezone: 2026-10-23 09:35 +07 (Asia/Ho_Chi_Minh)
@@ -432,3 +651,61 @@ Chưa commit gì trong lần này; thay đổi nằm trên 3 tệp đã sửa + 
 - Chưa kiểm bằng chạm: menu đánh dấu xong và Picker mục tiêu trong Settings (không có inject tap);
   logic đã có unit test. Chart/heatmap để phase sau.
 - Simulator: appearance trả về light; app đang mở Home với dữ liệu demo (seed 1 lần).
+
+### 2026-10-26 — Home sections (chưa commit)
+- Thêm `EpubReader/Home/HomeSections.swift`, `HomeBookRow.swift`, `WeeklyReadingChart.swift`;
+  sửa `HomeView`, `HomeFeed` (limit 5), `ReadingStatsStore.week`, `LibraryStore.allMetadata`, strings.
+- Quy tắc: <6 sách chỉ card + đang đọc; mỗi hàng tối đa 5; gợi ý cùng tác giả, cần 2 cuốn,
+  loại trùng Mới thêm/Đọc xong; chart ẩn khi tuần 0 phút.
+- 89/89 test; ảnh iPad/iPhone trong `build/qa/home-sections/`. Demo đã hoàn nguyên prefs + sách.
+- Bước tiếp theo: chờ duyệt commit.
+
+### 2026-10-26 (tiếp) — demo Home đầy đủ trên simulator
+- Đã thêm 6 sách demo (demo-01…06) + đổi metadata 2 sách cũ và vị trí đọc để Home hiện đủ:
+  ĐANG ĐỌC 3 · MỚI THÊM 5 · GỢI Ý 2 · ĐỌC XONG 3 · TUẦN NÀY 22 phút (thứ Hai).
+- Ảnh: `build/qa/home-demo/` (iPhone + iPad đủ trang). App trên simulator đang mở Home vi
+  với dữ liệu demo; **prefs gốc lưu ở `/tmp/prefs-before-home-demo.plist`** để hoàn nguyên.
+- Sách demo trong thư viện simulator chỉ để xem, không nằm trong repo; code vẫn chưa commit.
+
+### 2026-10-26 (tiếp) — chỉnh theo phản hồi giao diện Home
+- Heading các khối lên 14 pt (tracking 1.0); khoảng cách giữa các khối 12 → 24.
+- MỚI THÊM / GỢI Ý / ĐỌC XONG dùng cùng kiểu card với ĐANG ĐỌC: bìa 64, tên 17 serif
+  semibold (2 dòng), tác giả 12, phụ đề 11, nền cardFill bo 14; rộng 260.
+- GỢI Ý bỏ lặp tên tác giả ở phụ đề, thay bằng "Cùng tác giả"/"Same author".
+- Biểu đồ: cao 88 (trước 58), cột rộng 18 (trước giãn hết cột), nhãn thứ 11 pt.
+- 89/89 test xanh. Ảnh mới: `build/qa/home-demo/home-polish-{phone,ipad}.png`.
+- Đã xoá appLanguage/AppleLanguages bị ghim trong prefs (app về theo ngôn ngữ máy: English);
+  dữ liệu demo Home vẫn còn trên simulator. Backup gốc: `/tmp/prefs-before-home-demo.plist`.
+
+### 2026-10-26 (tiếp) — shelf liền mạch + marquee + chart cao
+- Ngoài ĐANG ĐỌC, các hàng bỏ card nền/viền: bìa 96 đứng liền nhau (spacing 16), không còn
+  khung rời. Tên sách 17 serif semibold dùng `MarqueeText` (cửa sổ ~5–6 chữ, chạy ngang khi dài),
+  tác giả 12, phụ đề 11.
+- Heading 14 pt; khoảng cách khối 24 pt.
+- Biểu đồ cao 88, cột 18 pt, nhãn 11 pt.
+- 89/89 test. Ảnh: `build/qa/home-demo/home-shelf-{phone,ipad}.png`.
+
+### 2026-10-26 (tiếp) — một khung chung cho mỗi hàng
+- Các hàng ngoài READING bọc trong **một** khung card (nền cardFill, viền, bo 16) chứa tối đa
+  5 sách, cuộn ngang bên trong; bỏ khung từng quyển. Tiêu đề hàng nằm ngoài khung.
+- Ảnh: `build/qa/home-demo/home-rowframe-phone.png`. 89/89 test. Chưa commit.
+
+### 2026-10-26 (tiếp) — khung hàng tràn mép màn hình
+- Khung của MỚI THÊM / GỢI Ý / ĐỌC XONG kéo rộng ra ngoài hai mép (-20 mỗi bên), góc bo nằm
+  ngoài màn hình; content margin trong 36 để bìa đầu cách mép ~16.
+- Ảnh: `build/qa/home-demo/home-bleed-phone.png`. 89/89 test. Chưa commit.
+
+### 2026-10-26 (tiếp) — khung chỉ tràn phải
+- Khung hàng: lề trái 20 pt (góc bo trái thấy), phải kéo ra ngoài -20 pt (góc phải nằm ngoài
+  màn hình). Content margin trong 14.
+- Ảnh: `build/qa/home-demo/home-rightbleed-phone.png`.
+- Lưu ý: trong lúc dựng lại simulator có uninstall/reinstall để xoá scroll state; books + prefs
+  demo đã copy lại từ `/tmp/home-demo-state/`, dữ liệu demo còn (22 phút, 4 ngày chuỗi).
+
+### 2026-10-26 (tiếp) — title Home/Library + ẩn gear khi cuộn
+- Home và Library có lại tiêu đề lớn ("Trang chủ"/"Thư viện") ở đầu nội dung (30 pt serif),
+  thay cho khoảng trống trên cùng; bỏ padding top 56/58 cũ.
+- Gear ở Home chỉ hiện khi `contentOffset.y <= 1` (đầu trang), ẩn khi cuộn; dùng
+  `onScrollGeometryChange` + fade 0.2 s.
+- Ẩn scroll indicator dọc ở cả Home và Library (`.scrollIndicators(.hidden)`).
+- Ảnh: `build/qa/home-demo/home-title-phone.png`, `library-title-phone.png`.
