@@ -1,0 +1,20 @@
+{
+  "_comment": "Google Play listing text for OpenBook, per locale. Character limits are enforced by scripts in README. Paste each value into the matching Console field, or feed it to the Play Developer API (edits.listings).",
+  "packageName": "com.example.epubreader",
+  "category": "BOOKS_AND_REFERENCE",
+  "defaultLocale": "en-US",
+  "locales": {
+    "en-US": {
+      "title": "OpenBook: EPUB Reader",
+      "shortDescription": "Offline EPUB reader: read aloud, highlights, paper page turns.",
+      "fullDescription": "OpenBook is an EPUB reader that stays out of the way of the page. No account, no feed, no recommendation engine — just the books you already own, on paper-coloured pages.\n\nREAD\n• Import EPUB files straight from your phone or tablet\n• Tap a page edge or drag the paper across to turn pages\n• Table of contents, bookmarks and full-text search inside the book\n• Highlight a passage in colour, then copy, share or translate it\n• Reading settings for text size, font, weight, columns and justification\n• Light and dark appearance, independent of your system theme\n\nLISTEN\n• Have any page read aloud from where you stopped\n• Pause, skip and change speed on the player\n• A sleep timer stops the voice when you drift off\n• Keep listening with the app in the background; the notification controls it\n\nYOUR LIBRARY\n• Grid or list, sorted by recently imported, title or author\n• Edit a title or author, mark a book finished, delete books in bulk\n• Progress per book, reopening on the page you left\n\nREADING HABITS\n• Today's minutes, a daily goal and a streak\n• A week chart plus month and year totals\n\nPRIVATE BY DEFAULT\n• The app has no internet permission, so nothing leaves your device\n• No account, no sign-in, no advertising\n• Deleting a book removes the app's copy only; your original file is untouched\n\nGOOD TO KNOW\n• DRM-protected books (most paid titles from other stores) cannot be opened\n• EPUB only — PDF and MOBI are not supported\n\nAvailable in English and Vietnamese.",
+      "video": ""
+    },
+    "vi-VN": {
+      "title": "OpenBook: Đọc sách EPUB",
+      "shortDescription": "Đọc EPUB ngoại tuyến, nghe đọc, tô màu, lật trang như giấy.",
+      "fullDescription": "OpenBook là trình đọc EPUB để trang sách tự nói, không bắt bạn làm gì thêm. Không tài khoản, không bảng tin, không gợi ý — chỉ những cuốn sách bạn đã có, trên nền giấy dịu mắt.\n\nĐỌC\n• Nhập file EPUB ngay từ máy\n• Chạm mép trang hoặc kéo tờ giấy để lật trang\n• Mục lục, dấu trang và tìm kiếm trong sách\n• Bôi đen một đoạn để tô màu, rồi sao chép, chia sẻ hoặc dịch\n• Chỉnh cỡ chữ, phông, độ đậm, số cột, căn đều\n• Giao diện sáng hoặc tối riêng, không phụ thuộc hệ thống\n\nNGHE\n• Đọc to từ trang đang mở\n• Tạm dừng, tua và đổi tốc độ ngay trên thanh phát\n• Hẹn giờ ngủ để giọng đọc tự dừng\n• Nghe tiếp khi thoát khỏi màn đọc, điều khiển từ thông báo\n\nTỦ SÁCH\n• Dạng lưới hoặc danh sách, sắp theo mới nhập, tên hoặc tác giả\n• Sửa tên sách, tác giả; đánh dấu đã đọc; xoá hàng loạt\n• Tiến độ từng cuốn, luôn mở lại đúng trang\n\nTHÓI QUEN ĐỌC\n• Số phút hôm nay, mục tiêu mỗi ngày và chuỗi ngày liên tiếp\n• Biểu đồ tuần, tổng tháng và năm\n\nRIÊNG TƯ\n• App không có quyền truy cập internet, nên dữ liệu không rời khỏi máy\n• Không tài khoản, không đăng nhập, không quảng cáo\n• Xoá sách chỉ xoá bản trong app; file gốc vẫn còn nguyên\n\nLƯU Ý\n• Sách có DRM (phần lớn sách mua ở cửa hàng khác) không mở được\n• Chỉ hỗ trợ EPUB — không đọc PDF hay MOBI\n\nCó tiếng Việt và tiếng Anh.",
+      "video": ""
+    }
+  }
+}
